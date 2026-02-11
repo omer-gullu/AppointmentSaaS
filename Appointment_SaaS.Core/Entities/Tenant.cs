@@ -15,6 +15,8 @@ namespace Appointment_SaaS.Core.Entities
         public string Address { get; set; }
         public string ApiKey { get; set; } // n8n veya dış dünya ile güvenli iletişim için
         public DateTime CreatedAt { get; set; }
+        public int MessageCount { get; set; } = 0;
+        public bool IsBotActive { get; set; } = true;
         public bool IsActive { get; set; }
 
         // İlişki: Her işletme bir sektöre bağlıdır.

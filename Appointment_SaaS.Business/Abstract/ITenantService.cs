@@ -9,7 +9,7 @@ namespace Appointment_SaaS.Business.Abstract
 {
     public interface ITenantService
     {
-        Task<List<Tenant>> GetAllActiveTenantsAsync();
+        Task<List<Tenant>> GetAllAsync();
         Task<Tenant> GetByApiKeyAsync(string apiKey);
         Task AddTenantAsync(Tenant tenant);
     }

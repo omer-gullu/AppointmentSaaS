@@ -35,5 +35,10 @@ namespace Appointment_SaaS.Business.Concrete
             await _tenantRepository.AddAsync(tenant);
             await _tenantRepository.SaveAsync();
         }
+
+        public async Task<List<Tenant>> GetAllAsync()
+        {
+           return await _tenantRepository.GetAllAsync();
+        }
     }
 }
