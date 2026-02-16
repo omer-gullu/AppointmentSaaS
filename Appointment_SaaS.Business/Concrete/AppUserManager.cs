@@ -2,33 +2,32 @@
 using Appointment_SaaS.Core.DTOs;
 using Appointment_SaaS.Core.Entities;
 using Appointment_SaaS.DataAccess.Abstract;
+using AutoMapper;
 
 namespace Appointment_SaaS.Business.Concrete;
 
 public class AppUserManager : IAppUserService
 {
     private readonly IAppUserRepository _userRepository;
+    private readonly IMapper _mapper;
 
-    public AppUserManager(IAppUserRepository userRepository)
+    public AppUserManager(IAppUserRepository userRepository, IMapper mapper)
     {
         _userRepository = userRepository;
+        _mapper = mapper;
     }
 
     public async Task<int> AddAppUserAsync(AppUserCreateDto dto)
     {
-        var user = new AppUser
-        {
-            FirstName = dto.FirstName,
-            LastName = dto.LastName,
-            Email = dto.Email,
-            PhoneNumber = dto.PhoneNumber,
-            TenantID = dto.TenantID, // SaaS yapısında dükkan eşleşmesi
-            PasswordHash = "1234",
-            Specialization = dto.Specialization,
-        };
+        // Tek satırda dönüşüm:
+        var user = _mapper.Map<AppUser>(dto);
+
+        // Eğer veritabanında FirstName/LastName yerine sadece FullName tutuyorsan:
+        // user.FullName = $"{dto.FirstName} {dto.LastName}";
 
         await _userRepository.AddAsync(user);
-        await _userRepository.SaveAsync(); // Görsel 1'deki SaveAsync metodun
+        await _userRepository.SaveAsync();
+
         return user.AppUserID;
     }
 

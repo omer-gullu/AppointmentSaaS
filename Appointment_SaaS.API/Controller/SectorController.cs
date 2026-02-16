@@ -8,11 +8,11 @@ namespace Appointment_SaaS.API.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-public class SectorsController : ControllerBase
+public class SectorController : ControllerBase
 {
     private readonly ISectorService _sectorService;
 
-    public SectorsController(ISectorService sectorService)
+    public SectorController(ISectorService sectorService)
     {
         _sectorService = sectorService;
     }

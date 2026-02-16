@@ -2,6 +2,7 @@
 using Appointment_SaaS.Core.DTOs;
 using Appointment_SaaS.Core.Entities;
 using Appointment_SaaS.Data.Abstract;
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 
 namespace Appointment_SaaS.Business.Concrete;
@@ -9,21 +10,18 @@ namespace Appointment_SaaS.Business.Concrete;
 public class ServiceManager : IServiceService
 {
     private readonly IServiceRepository _serviceRepository;
+    private readonly IMapper _mapper;
 
-    public ServiceManager(IServiceRepository serviceRepository)
+    public ServiceManager(IServiceRepository serviceRepository, IMapper mapper)
     {
         _serviceRepository = serviceRepository;
+        _mapper = mapper;
     }
 
     public async Task<int> AddServiceAsync(ServiceCreateDto dto)
     {
-        var service = new Service
-        {
-            Name = dto.Name,
-            Price = dto.Price,
-            DurationInMinutes = dto.DurationMinutes,
-            TenantID = dto.TenantID
-        };
+        var service = _mapper.Map<Service>(dto);
+      
 
         await _serviceRepository.AddAsync(service);
         await _serviceRepository.SaveAsync(); // Kaydı kalıcı hale getiriyoruz
