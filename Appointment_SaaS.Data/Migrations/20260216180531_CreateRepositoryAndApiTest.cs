@@ -18,7 +18,7 @@ namespace Appointment_SaaS.Data.Migrations
                 nullable: true,
                 oldClrType: typeof(string),
                 oldType: "nvarchar(max)");
-
+            
             migrationBuilder.AlterColumn<string>(
                 name: "DefaultPrompt",
                 table: "Sectors",
