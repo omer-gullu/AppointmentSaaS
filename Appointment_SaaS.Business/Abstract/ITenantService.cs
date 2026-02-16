@@ -1,4 +1,5 @@
-﻿using Appointment_SaaS.Core.Entities;
+﻿using Appointment_SaaS.Core.DTOs;
+using Appointment_SaaS.Core.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,6 +12,6 @@ namespace Appointment_SaaS.Business.Abstract
     {
         Task<List<Tenant>> GetAllAsync();
         Task<Tenant> GetByApiKeyAsync(string apiKey);
-        Task AddTenantAsync(Tenant tenant);
+         public Task<int> AddTenantAsync(TenantCreateDto dto);
     }
 }

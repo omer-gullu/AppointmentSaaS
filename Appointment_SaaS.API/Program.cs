@@ -4,6 +4,7 @@ using Appointment_SaaS.Business.Concrete;
 using Appointment_SaaS.Data.Abstract;
 using Appointment_SaaS.Data.Concrete;
 using Appointment_SaaS.Data.Context;
+using Appointment_SaaS.DataAccess.Abstract;
 using Microsoft.EntityFrameworkCore;
 
 
@@ -12,7 +13,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Sonsuz döngüleri (Circular Reference) görmezden gel
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -30,6 +36,8 @@ builder.Services.AddScoped<ITenantRepository, EfTenantRepository>();
 builder.Services.AddScoped<IAppointmentRepository, EfAppointmentRepository>();
 builder.Services.AddScoped<ISectorRepository, EfSectorRepository>();
 builder.Services.AddScoped<IServiceRepository, EfServiceRepository>();
+builder.Services.AddScoped<IAppUserRepository, EfAppUserRepository>();
+
 
 // --- BUSINESS (ÝÞ) KATMANI KAYITLARI ---
 // Controller'lar bu interface'leri çaðýrdýðýnda hangi Manager'ýn çalýþacaðýný söylüyoruz
@@ -37,6 +45,7 @@ builder.Services.AddScoped<ITenantService, TenantManager>();
 builder.Services.AddScoped<IAppointmentService, AppointmentManager>();
 builder.Services.AddScoped<ISectorService, SectorManager>();
 builder.Services.AddScoped<IServiceService, ServiceManager>();
+builder.Services.AddScoped<IAppUserService, AppUserManager>();
 
 var app = builder.Build();
 

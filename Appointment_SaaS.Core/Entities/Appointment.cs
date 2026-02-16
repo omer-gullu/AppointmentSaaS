@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -8,6 +9,7 @@ namespace Appointment_SaaS.Core.Entities
 {
     public class Appointment
     {
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int AppointmentID { get; set; }
         public string CustomerName { get; set; }
         public string CustomerPhone { get; set; }

@@ -1,6 +1,8 @@
 ﻿using Appointment_SaaS.Business.Abstract;
+using Appointment_SaaS.Core.DTOs;
 using Appointment_SaaS.Core.Entities;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Appointment_SaaS.API.Controllers;
 
@@ -22,10 +24,13 @@ public class SectorsController : ControllerBase
         return Ok(sectors);
     }
 
-    [HttpPost] // Manuel sektör eklemek istersen (Admin gibi)
-    public async Task<IActionResult> Create(Sector sector)
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] SectorCreateDto dto)
     {
-        await _sectorService.AddAsync(sector);
-        return Ok(sector);
+        // Artık _sectorService.SaveChanges() çağırmana GEREK YOK!
+        // Manager zaten kendi içinde kaydedip bize ID dönüyor.
+        var id = await _sectorService.AddAsync(dto);
+
+        return Ok(new { Message = "Sektör başarıyla oluşturuldu", SectorID = id });
     }
 }

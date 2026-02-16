@@ -1,4 +1,5 @@
 ﻿using Appointment_SaaS.Business.Abstract;
+using Appointment_SaaS.Core.DTOs;
 using Appointment_SaaS.Core.Entities;
 using Microsoft.AspNetCore.Mvc;
 
@@ -18,22 +19,13 @@ public class TenantsController : ControllerBase
     [HttpGet] // Tüm dükkanları listeler (Admin paneli için)
     public async Task<IActionResult> GetAll() => Ok(await _tenantService.GetAllAsync());
 
-    [HttpPost] // Yeni Dükkan Kaydı
-    public async Task<IActionResult> Create(Tenant tenant)
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] TenantCreateDto dto)
     {
-        // Usta buraya dikkat: Kayıt anında benzersiz anahtarı ve sayacı kuruyoruz
-        tenant.ApiKey = Guid.NewGuid().ToString().Substring(0, 8).ToUpper(); // Kısa bir kod üretir
-        tenant.CreatedAt = DateTime.Now;
-        tenant.MessageCount = 0; // İlk mesajlar bedava başlasın
-        tenant.IsBotActive = true; // Bot varsayılan olarak açık
+        // Controller sadece "Ekle" der, nasıl ekleneceği Manager'ın işidir.
+        var id = await _tenantService.AddTenantAsync(dto);
+        
 
-        await _tenantService.AddTenantAsync(tenant);
-
-        return Ok(new
-        {
-            Status = "Başarılı",
-            Key = tenant.ApiKey,
-            Details = tenant
-        });
+        return Ok(new { Status = "Başarılı", Id = id });
     }
 }
