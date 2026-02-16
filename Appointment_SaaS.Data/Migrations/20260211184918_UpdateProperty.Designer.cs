@@ -4,6 +4,7 @@ using Appointment_SaaS.Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Appointment_SaaS.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260211184918_UpdateProperty")]
+    partial class UpdateProperty
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -43,6 +46,7 @@ namespace Appointment_SaaS.Data.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PasswordHash")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PhoneNumber")
@@ -128,6 +132,7 @@ namespace Appointment_SaaS.Data.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("DefaultPrompt")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")
@@ -142,21 +147,21 @@ namespace Appointment_SaaS.Data.Migrations
                         new
                         {
                             SectorID = 1,
-                            CreatedAt = new DateTime(2026, 2, 16, 21, 5, 27, 170, DateTimeKind.Local).AddTicks(9080),
+                            CreatedAt = new DateTime(2026, 2, 11, 21, 49, 16, 503, DateTimeKind.Local).AddTicks(539),
                             DefaultPrompt = "Sen profesyonel bir erkek kuaförü asistanısın. Maskülen, net ve çözüm odaklı konuş.",
                             Name = "Erkek Kuaförü"
                         },
                         new
                         {
                             SectorID = 2,
-                            CreatedAt = new DateTime(2026, 2, 16, 21, 5, 27, 170, DateTimeKind.Local).AddTicks(9104),
+                            CreatedAt = new DateTime(2026, 2, 11, 21, 49, 16, 503, DateTimeKind.Local).AddTicks(560),
                             DefaultPrompt = "Sen nazik ve detaycı bir kadın kuaförü asistanısın. Estetik ve bakım konularına hakim konuş.",
                             Name = "Kadın Kuaförü"
                         },
                         new
                         {
                             SectorID = 3,
-                            CreatedAt = new DateTime(2026, 2, 16, 21, 5, 27, 170, DateTimeKind.Local).AddTicks(9106),
+                            CreatedAt = new DateTime(2026, 2, 11, 21, 49, 16, 503, DateTimeKind.Local).AddTicks(563),
                             DefaultPrompt = "Sen modern ve kapsayıcı bir kuaför asistanısın. Her türlü bakım hizmetine uygun profesyonel bir dille konuş.",
                             Name = "Unisex Kuaför"
                         });
@@ -304,6 +309,7 @@ namespace Appointment_SaaS.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("WabaID")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("TenantID");
@@ -318,7 +324,7 @@ namespace Appointment_SaaS.Data.Migrations
                             TenantID = 1,
                             Address = "İstanbul, Şişli No:10",
                             ApiKey = "JNT-123-ABC",
-                            CreatedAt = new DateTime(2026, 2, 16, 21, 5, 27, 170, DateTimeKind.Local).AddTicks(9775),
+                            CreatedAt = new DateTime(2026, 2, 11, 21, 49, 16, 503, DateTimeKind.Local).AddTicks(1115),
                             IsActive = true,
                             IsBotActive = true,
                             MessageCount = 0,
@@ -332,7 +338,7 @@ namespace Appointment_SaaS.Data.Migrations
                             TenantID = 2,
                             Address = "Ankara, Çankaya No:25",
                             ApiKey = "ISL-456-DEF",
-                            CreatedAt = new DateTime(2026, 2, 16, 21, 5, 27, 170, DateTimeKind.Local).AddTicks(9781),
+                            CreatedAt = new DateTime(2026, 2, 11, 21, 49, 16, 503, DateTimeKind.Local).AddTicks(1121),
                             IsActive = true,
                             IsBotActive = true,
                             MessageCount = 0,
@@ -346,7 +352,7 @@ namespace Appointment_SaaS.Data.Migrations
                             TenantID = 3,
                             Address = "İzmir, Alsancak No:5",
                             ApiKey = "MOD-789-GHI",
-                            CreatedAt = new DateTime(2026, 2, 16, 21, 5, 27, 170, DateTimeKind.Local).AddTicks(9784),
+                            CreatedAt = new DateTime(2026, 2, 11, 21, 49, 16, 503, DateTimeKind.Local).AddTicks(1125),
                             IsActive = true,
                             IsBotActive = true,
                             MessageCount = 0,
