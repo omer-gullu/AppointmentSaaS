@@ -1,11 +1,17 @@
 using System;
 using Appointment_SaaS.Business.Abstract;
 using Appointment_SaaS.Business.Concrete;
+using Appointment_SaaS.Business.Validation;
 using Appointment_SaaS.Data.Abstract;
 using Appointment_SaaS.Data.Concrete;
 using Appointment_SaaS.Data.Context;
 using Appointment_SaaS.DataAccess.Abstract;
+using FluentValidation.AspNetCore;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using Appointment_SaaS.Business.Mapping;
+using Appointment_SaaS.API.Middleware;
+using Appointment_SaaS.Core.Utilities.Security.JWT;
 
 
 
@@ -30,6 +36,13 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
+// Validation ý sisteme tanýtýyoruz
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<AppointmentValidator>();
+
+// AutoMapper'ý sisteme tanýtýyoruz
+builder.Services.AddAutoMapper(typeof(MappingProfile));
+
 // --- DATA ACCESS (VERÝ) KATMANI KAYITLARI ---
 // Interface ile Concrete sýnýflarý burada eþleþtiriyoruz
 builder.Services.AddScoped<ITenantRepository, EfTenantRepository>();
@@ -47,6 +60,8 @@ builder.Services.AddScoped<ISectorService, SectorManager>();
 builder.Services.AddScoped<IServiceService, ServiceManager>();
 builder.Services.AddScoped<IAppUserService, AppUserManager>();
 
+builder.Services.AddScoped<ITokenHelper, JwtHelper>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -61,5 +76,7 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.UseMiddleware<ExceptionMiddleware>();
 
 app.Run();
