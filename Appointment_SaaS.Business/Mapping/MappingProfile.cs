@@ -20,6 +20,11 @@ public class MappingProfile : Profile
     .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => DateTime.Now))
     .ForMember(dest => dest.MessageCount, opt => opt.MapFrom(src => 0));
 
+        // DTO -> Entity Dönüşümleri
+        CreateMap<UserForRegisterDto, AppUser>();
+        CreateMap<UserForRegisterDto, Tenant>()
+            .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.FirstName));
+
         // AppUser
         CreateMap<AppUser, AppUserCreateDto>().ReverseMap();
 

@@ -7,4 +7,6 @@ public interface IAppUserService
 {
     Task<int> AddAppUserAsync(AppUserCreateDto dto);
     Task<List<AppUser>> GetAllUsersAsync();
+    AppUser GetByMail(string email);
+    List<OperationClaim> GetClaims(AppUser user);
 }

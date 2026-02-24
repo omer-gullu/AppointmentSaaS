@@ -41,18 +41,26 @@ namespace Appointment_SaaS.Business.Concrete
         }
         public async Task<int> AddTenantAsync(TenantCreateDto dto)
         {
-            // 1. Temel alanları DTO'dan eşle
+            // 1. ADIM: DTO'yu Entity'ye çeviriyoruz
+            // Mapper; Name, Address gibi kullanıcıdan gelen alanları doldurur.
             var tenant = _mapper.Map<Tenant>(dto);
 
-            // 2. DTO'da olmayan özel mantıkları ekle
+            // 2. ADIM: İŞ MANTIĞI (Business Logic)
+            // Bu değerler DTO'dan gelmez, sistem tarafından burada atanır.
             tenant.ApiKey = Guid.NewGuid().ToString().Substring(0, 8).ToUpper();
 
-            // Not: CreatedAt ve MessageCount'u Profile'a yazdıysan burada yazmana gerek yok.
-            // Ama garanti olsun dersen burada da kalabilir.
+            // İşletme için 10 günlük deneme süresi tanımlıyoruz
+            tenant.SubscriptionEndDate = DateTime.Now.AddDays(10);
 
+            // Yeni kayıt olan dükkanı varsayılan olarak aktif yapıyoruz
+            tenant.IsTrial = true;
+            tenant.IsActive = true;
+
+            // 3. ADIM: Veritabanı işlemleri
             await _tenantRepository.AddAsync(tenant);
             await _tenantRepository.SaveAsync();
 
+            // 4. ADIM: AuthManager'ın kullanıcıyı bu tenant'a bağlaması için ID dönüyoruz
             return tenant.TenantID;
         }
 

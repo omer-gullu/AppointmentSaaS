@@ -1,5 +1,3 @@
-using System;
-using Appointment_SaaS.Business.Abstract;
 using Appointment_SaaS.Business.Concrete;
 using Appointment_SaaS.Business.Validation;
 using Appointment_SaaS.Data.Abstract;
@@ -12,59 +10,81 @@ using Microsoft.EntityFrameworkCore;
 using Appointment_SaaS.Business.Mapping;
 using Appointment_SaaS.API.Middleware;
 using Appointment_SaaS.Core.Utilities.Security.JWT;
-
-
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using Appointment_SaaS.Core.Utilities.Security.Jwt;
+using Appointment_SaaS.Business.Abstract;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
+// --- CONTROLLER AYARLARI ---
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        // Sonsuz döngüleri (Circular Reference) görmezden gel
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    })
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        // FluentValidation hatalarýnýn senin yazdýðýn sýrayla gelmesi için burasý kritik!
+        options.SuppressModelStateInvalidFilter = true;
     });
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// 1. Connection String'i oku
+// --- VERÝTABANI BAÐLANTISI ---
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
-// 2. DbContext'i projeye tanýt (Servis olarak ekle)
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-// Validation ý sisteme tanýtýyoruz
+// --- JWT AUTHENTICATION AYARLARI ---
+var tokenOptions = builder.Configuration.GetSection("TokenOptions").Get<TokenOptions>();
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidIssuer = tokenOptions.Issuer,
+            ValidAudience = tokenOptions.Audience,
+            ValidateIssuerSigningKey = true,
+            // SecurityKeyHelper üzerinden anahtarýmýzý oluþturuyoruz
+            IssuerSigningKey = SecurityKeyHelper.CreateSecurityKey(tokenOptions.SecurityKey)
+        };
+    });
+
+// --- DÝÐER SERVÝSLER ---
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<AppointmentValidator>();
-
-// AutoMapper'ý sisteme tanýtýyoruz
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 
-// --- DATA ACCESS (VERÝ) KATMANI KAYITLARI ---
-// Interface ile Concrete sýnýflarý burada eþleþtiriyoruz
+// --- REPOSITORY KAYITLARI ---
 builder.Services.AddScoped<ITenantRepository, EfTenantRepository>();
 builder.Services.AddScoped<IAppointmentRepository, EfAppointmentRepository>();
 builder.Services.AddScoped<ISectorRepository, EfSectorRepository>();
 builder.Services.AddScoped<IServiceRepository, EfServiceRepository>();
 builder.Services.AddScoped<IAppUserRepository, EfAppUserRepository>();
 
-
-// --- BUSINESS (ÝÞ) KATMANI KAYITLARI ---
-// Controller'lar bu interface'leri çaðýrdýðýnda hangi Manager'ýn çalýþacaðýný söylüyoruz
+// --- SERVICE KAYITLARI ---
 builder.Services.AddScoped<ITenantService, TenantManager>();
 builder.Services.AddScoped<IAppointmentService, AppointmentManager>();
 builder.Services.AddScoped<ISectorService, SectorManager>();
 builder.Services.AddScoped<IServiceService, ServiceManager>();
 builder.Services.AddScoped<IAppUserService, AppUserManager>();
 
+// --- GÜVENLÝK YARDIMCILARI ---
 builder.Services.AddScoped<ITokenHelper, JwtHelper>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// --- MIDDLEWARE PIPELINE ---
+
+// Hatalarý en tepede yakalayalým
+app.UseMiddleware<ExceptionMiddleware>();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -73,10 +93,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseAuthorization();
+// SIRALAMA ÇOK ÖNEMLÝ:
+app.UseAuthentication(); // Önce kimlik doðrula (Sen kimsin?)
+app.UseAuthorization();  // Sonra yetki kontrol et (Buraya girebilir misin?)
 
 app.MapControllers();
-
-app.UseMiddleware<ExceptionMiddleware>();
 
 app.Run();
