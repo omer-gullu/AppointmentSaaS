@@ -8,13 +8,10 @@ namespace Appointment_SaaS.Core.DTOs
 {
     public class TenantCreateDto
     {
-        public string Name { get; set; } = string.Empty;
+        public string Name { get; set; } 
         public int SectorID { get; set; }
-        public string? ApiKey { get; set; }
-        public string? WabaID { get; set; }
         public string? PhoneNumber { get; set; }
         public string? Address { get; set; }
-        public bool IsBotActive { get; set; } = true;
-        public bool IsActive { get; set; } = true;
+
     }
 }

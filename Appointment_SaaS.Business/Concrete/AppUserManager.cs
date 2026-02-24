@@ -31,8 +31,27 @@ public class AppUserManager : IAppUserService
         return user.AppUserID;
     }
 
+    public void AddAppUserAsync(AppUser user)
+    {
+        throw new NotImplementedException();
+    }
+
     public async Task<List<AppUser>> GetAllUsersAsync()
     {
         return await _userRepository.GetAllAsync();
+    }
+
+    public AppUser GetByMail(string email)
+    {
+        // GetAllAsync parametre almadığı için önce listeyi çekiyoruz, 
+        // sonra LINQ ile içinden email'i eşleşeni buluyoruz.
+        var users = _userRepository.GetAllAsync().Result; // Async olduğu için .Result dedik
+        return users.FirstOrDefault(u => u.Email == email);
+    }
+
+    public List<OperationClaim> GetClaims(AppUser user)
+    {
+        // Veritabanı katmanına (DataAccess) gidip kullanıcının rollerini getirir
+        return _userRepository.GetClaims(user);
     }
 }

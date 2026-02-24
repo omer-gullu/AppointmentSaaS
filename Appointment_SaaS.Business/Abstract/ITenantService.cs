@@ -13,5 +13,6 @@ namespace Appointment_SaaS.Business.Abstract
         Task<List<Tenant>> GetAllAsync();
         Task<Tenant> GetByApiKeyAsync(string apiKey);
          public Task<int> AddTenantAsync(TenantCreateDto dto);
+      
     }
 }

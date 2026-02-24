@@ -20,6 +20,11 @@ namespace Appointment_SaaS.Core.Entities
         public int MessageCount { get; set; } = 0;
         public bool IsBotActive { get; set; } = true;
         public bool IsActive { get; set; }
+        public bool IsTrial { get; set; }
+        public DateTime SubscriptionEndDate { get; set; } // Deneme veya abonelik bitişi
+        public bool IsSubscriptionActive { get; set; } // Ödeme iptal edildi mi?
+        public string StripeCustomerId { get; set; } // Ödeme altyapısı (Stripe/Iyzico) için ID
+        public bool AutoRenew { get; set; } = true; // Otomatik yenileme açık mı?
 
         // İlişki: Her işletme bir sektöre bağlıdır.
         public int SectorID { get; set; }

@@ -21,6 +21,8 @@ namespace Appointment_SaaS.Data.Context
         public DbSet<Service> Services { get; set; }
         public DbSet<AppUser> AppUsers { get; set; }
         public DbSet<Appointment> Appointments { get; set; }
+        public DbSet<OperationClaim> OperationClaims { get; set; } // Roller tablosu
+        public DbSet<UserOperationClaim> UserOperationClaims { get; set; } // Kullanıcı-Rol ilişkisi tablosu
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
