@@ -1,0 +1,69 @@
+@{
+    ViewData["Title"] = "WhatsApp Bağlantısı";
+}
+
+<div class="container py-5">
+    <div class="row justify-content-center text-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card border-0 shadow-lg" style="border-radius: 25px; overflow: hidden;">
+                <div class="card-header bg-success text-white py-4 border-0">
+                    <i class="bi bi-whatsapp fs-1 mb-2"></i>
+                    <h3 class="fw-bold mb-0">WhatsApp Bağla</h3>
+                </div>
+                <div class="card-body p-4 p-lg-5">
+                    @if (ViewBag.QrCode != null)
+                    {
+                        <p class="text-muted mb-4">Aşağıdaki QR kodu telefonunuzdaki WhatsApp uygulamasından okutarak senkronizasyonu tamamlayın.</p>
+                        
+                        <div class="qr-container bg-white p-3 shadow-sm border rounded-4 d-inline-block mb-4">
+                            <!-- Evolution API returns base64 which includes data:image/png;base64,... normally -->
+                            <img src="@ViewBag.QrCode" class="img-fluid" style="width: 250px; height: 250px;" alt="QR Code">
+                        </div>
+
+                        <div class="text-start bg-light p-3 rounded-4 mb-4 small">
+                            <ol class="mb-0">
+                                <li>Telefonunuzda <b>WhatsApp</b>'ı açın.</li>
+                                <li><b>Ayarlar</b> > <b>Bağlı Cihazlar</b> menüsüne gidin.</li>
+                                <li><b>Cihaz Bağla</b> butonuna dokunun ve bu ekrana doğrultun.</li>
+                            </ol>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button onclick="window.location.reload();" class="btn btn-outline-success rounded-pill fw-bold">
+                                <i class="bi bi-arrow-repeat me-2"></i> Kodu Yenile
+                            </button>
+                            <a href="/Dashboard" class="btn btn-primary rounded-pill fw-bold">
+                                Panele Geri Dön
+                            </a>
+                        </div>
+                    }
+                    else if (ViewBag.Info != null)
+                    {
+                        <div class="alert alert-info border-0 shadow-sm py-4">
+                            <i class="bi bi-check-circle-fill fs-2 d-block mb-3 text-success"></i>
+                            <h5 class="fw-bold mb-3">@ViewBag.InstanceName Bağlı</h5>
+                            <p class="mb-0 text-muted">WhatsApp hesabınız zaten senkronize durumda. AI asistanınız mesajlarınıza cevap vermeye hazır!</p>
+                        </div>
+                        <a href="/Dashboard" class="btn btn-success w-100 rounded-pill fw-bold py-2 mt-2">
+                             Panele Git
+                        </a>
+                    }
+                    else if (ViewBag.Error != null)
+                    {
+                        <div class="alert alert-danger border-0 py-4">
+                             <i class="bi bi-exclamation-octagon-fill fs-2 d-block mb-3"></i>
+                             <p>@ViewBag.Error</p>
+                        </div>
+                        <a href="/Dashboard" class="btn btn-light w-100 rounded-pill border py-2">Geri Dön</a>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .qr-container img {
+        image-rendering: pixelated;
+    }
+</style>

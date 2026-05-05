@@ -1,0 +1,1426 @@
+@model Appointment_SaaS.WebUI.Models.DashboardViewModel
+@using Appointment_SaaS.Core.Constants
+@{
+    ViewData["Title"] = "İşletme Yönetim Paneli";
+    ViewData["Description"] = "Randevularınızı, hizmetlerinizi ve WhatsApp/Google Takvim entegrasyonunuzu tek ekrandan yönetin.";
+}
+
+<style>
+    /* ── RESET ── */
+    main {
+        padding: 0 !important;
+    }
+
+    .dashboard-page {
+        background: #f6f7fb;
+        min-height: 100vh;
+        padding: 28px 20px 80px;
+    }
+
+    /* ── HEADER CARD ── */
+    .header-card {
+        background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+        border-radius: 20px;
+        padding: 28px 32px;
+        color: #fff;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .header-card::after {
+            content: '';
+            position: absolute;
+            right: -40px;
+            top: -40px;
+            width: 200px;
+            height: 200px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 50%;
+        }
+
+    /* ── STAT CARDS ── */
+    .stat-card {
+        background: #fff;
+        border-radius: 16px;
+        padding: 20px;
+        border: 1.5px solid #eef0f6;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+        }
+
+    .stat-num {
+        font-size: 2rem;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -0.04em;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-top: 4px;
+    }
+
+    /* ── PLAN BANNERS ── */
+    .plan-banner {
+        border-radius: 14px;
+        padding: 14px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+        .plan-banner.trial {
+            background: #fef9c3;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .plan-banner.starter {
+            background: #eff6ff;
+            border-left: 4px solid #6366f1;
+        }
+
+    /* ── SECTION CARDS ── */
+    .section-card {
+        background: #fff;
+        border-radius: 16px;
+        border: 1.5px solid #eef0f6;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        overflow: hidden;
+    }
+
+        .section-card .card-header {
+            background: #fff;
+            border-bottom: 1.5px solid #f1f4f9;
+            padding: 18px 24px;
+        }
+
+    /* ── TABLE ── */
+    .table thead th {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: #94a3b8;
+        background: #f8fafc;
+    }
+
+    .table tbody tr:hover {
+        background: #f8fafc;
+    }
+
+    .table td {
+        vertical-align: middle;
+        font-size: 0.88rem;
+    }
+
+    /* ── AVATAR ── */
+    .avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    /* ── INTEGRATION CARDS ── */
+    .integration-card {
+        border-radius: 12px;
+        border: 1.5px solid #eef0f6;
+        padding: 16px;
+        background: #fff;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+        .integration-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+        }
+
+    /* ── BUTTONS ── */
+    .btn-outline-primary {
+        border-width: 2px;
+    }
+
+    .btn-outline-success {
+        border-width: 2px;
+    }
+
+    /* ── GOOGLE BUTTON ── */
+    .btn-google-outline {
+        background: transparent;
+        color: #5f6368;
+        border: 2px solid #dadce0;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+        .btn-google-outline:hover {
+            background: #f8fafb;
+            border-color: #4285f4;
+            color: #4285f4;
+        }
+
+    .google-icon-wrapper {
+        background: white;
+        padding: 5px;
+        border-radius: 8px;
+    }
+
+    /* ── PULSE ── */
+    @@keyframes pulseBorder {
+        0% {
+            box-shadow: 0 0 0 0 rgba(251,191,36,0.6);
+        }
+
+        70% {
+            box-shadow: 0 0 0 8px rgba(251,191,36,0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(251,191,36,0);
+        }
+    }
+
+    .pulse-warning {
+        animation: pulseBorder 2s ease infinite;
+    }
+
+    /* ── EMPTY STATE ── */
+    .empty-state {
+        padding: 32px;
+        text-align: center;
+        color: #94a3b8;
+        font-size: 0.85rem;
+    }
+
+        .empty-state i {
+            font-size: 2rem;
+            display: block;
+            margin-bottom: 8px;
+            opacity: 0.4;
+        }
+
+    /* ── STAFF LIMIT BADGE ── */
+    .limit-bar {
+        height: 6px;
+        border-radius: 4px;
+        background: #e2e8f0;
+        overflow: hidden;
+    }
+
+    .limit-bar-fill {
+        height: 100%;
+        border-radius: 4px;
+        background: linear-gradient(90deg, #6366f1, #8b5cf6);
+        transition: width 0.4s ease;
+    }
+</style>
+
+<div class="dashboard-page">
+    <div class="container-fluid" style="max-width:1400px;">
+
+        <!-- ── HEADER ── -->
+        <div class="header-card mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="fw-bold mb-1">@Model.ShopName 👋</h4>
+                    <p class="mb-0 opacity-75 small">
+                        İşletmenizi buradan yönetebilir, randevularınızı takip edebilirsiniz.
+                        <span class="badge ms-2" style="background:rgba(255,255,255,0.2);">@Model.PlanType Plan</span>
+                        <span class="badge ms-1" style="background:rgba(255,255,255,0.15);">Instance: @Model.InstanceName</span>
+                    </p>
+                </div>
+                <div class="d-none d-md-block opacity-25">
+                    <i class="bi bi-shop" style="font-size:2.5rem;"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── ALERTS ── -->
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success border-0 shadow-sm rounded-3 mb-4">
+                <i class="bi bi-check-circle-fill me-2"></i> @TempData["Success"]
+            </div>
+        }
+
+        @if (TempData["Error"] != null)
+        {
+            var errorString = TempData["Error"].ToString();
+            if (errorString.Trim().StartsWith("{"))
+            {
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        try {
+                            let errStr = `@Html.Raw(errorString.Replace("\\", "\\\\").Replace("`", "\\`"))`;
+                            let errJson = JSON.parse(errStr);
+                            if (errJson.suggestedSlots && errJson.suggestedSlots.length > 0) {
+                                Swal.fire({ icon: 'warning', title: 'Seçilen saat dolu!', html: 'Şu saatlere randevu oluşturabiliriz:<br><br><b>' + errJson.suggestedSlots.join(' - ') + '</b>', confirmButtonText: 'Tamam', confirmButtonColor: '#4f46e5' });
+                            } else {
+                                Swal.fire('Hata!', errJson.message || errJson.Message || 'İşlem başarısız.', 'error');
+                            }
+                        } catch (e) { Swal.fire('Hata!', 'Sistem hatası oluştu.', 'error'); }
+                    });
+                </script>
+            }
+            else if (errorString.StartsWith("Hata: {"))
+            {
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        try {
+                            let errStr = `@Html.Raw(errorString.Substring(6).Replace("\\", "\\\\").Replace("`", "\\`"))`;
+                            let errJson = JSON.parse(errStr);
+                            if (errJson.suggestedSlots && errJson.suggestedSlots.length > 0) {
+                                Swal.fire({ icon: 'warning', title: 'Seçilen saat dolu!', html: 'Şu saatlere randevu oluşturabiliriz:<br><br><b>' + errJson.suggestedSlots.join(' - ') + '</b>', confirmButtonText: 'Tamam', confirmButtonColor: '#4f46e5' });
+                            } else {
+                                Swal.fire('Hata!', errJson.message || errJson.Message || 'İşlem başarısız.', 'error');
+                            }
+                        } catch (e) { Swal.fire('Hata!', '@Html.Raw(errorString.Replace("'", "\\'"))', 'error'); }
+                    });
+                </script>
+            }
+            else
+            {
+                <div class="alert alert-danger border-0 shadow-sm rounded-3 mb-4">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i> @TempData["Error"]
+                </div>
+            }
+        }
+
+        <!-- ── İSTATİSTİK KARTLARI ── -->
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+                <div class="stat-card">
+                    <div class="stat-num text-primary">@Model.TodayAppointmentCount</div>
+                    <div class="stat-label"><i class="bi bi-calendar-day me-1"></i>Bugünkü Randevu</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-card">
+                    <div class="stat-num text-success">@Model.TotalAppointmentCount</div>
+                    <div class="stat-label"><i class="bi bi-calendar-check me-1"></i>Toplam Randevu</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-card">
+                    <div class="stat-num text-warning">@Model.TotalServiceCount</div>
+                    <div class="stat-label"><i class="bi bi-scissors me-1"></i>Tanımlı Hizmet</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-card">
+                    <div class="stat-num" style="color:#8b5cf6;">
+                        @Model.CurrentStaffCount<span style="font-size:1rem;color:#cbd5e1;">/</span>@(Model.StaffLimit == 0 ? "—" : Model.StaffLimit.ToString())
+                    </div>
+                    <div class="stat-label"><i class="bi bi-people me-1"></i>Personel</div>
+                    @if (Model.StaffLimit > 0)
+                    {
+                        var pct = Math.Min(100, (Model.CurrentStaffCount * 100) / Model.StaffLimit);
+                        <div class="limit-bar mt-2">
+                            <div class="limit-bar-fill" style="width:@pct%;"></div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- ── PLAN BANNER ── -->
+        @if (Model.PlanType == "Trial")
+        {
+            <div class="plan-banner trial mb-4">
+                <div>
+                    <i class="bi bi-clock-history text-warning me-2"></i>
+                    <strong>Deneme Sürümü</strong> — <span class="text-muted small">@Model.SubscriptionEndDate.ToString("dd.MM.yyyy")</span> tarihine kadar geçerli.
+                    Personel eklemek ve randevu hatırlatması için plan seçin.
+                </div>
+                <a href="/Pricing/Index" class="btn btn-warning btn-sm rounded-pill fw-bold px-4">
+                    <i class="bi bi-lightning-fill me-1"></i> Plan Seç
+                </a>
+            </div>
+        }
+        else if (Model.PlanType == "Starter")
+        {
+            <div class="plan-banner starter mb-4">
+                <div>
+                    <i class="bi bi-info-circle-fill text-primary me-2"></i>
+                    <strong>Starter Plan</strong> — Randevu hatırlatma mesajı ve 3 personel için <strong>Pro plana</strong> geçin.
+                </div>
+                <a href="/Auth/Plans" class="btn btn-primary btn-sm rounded-pill fw-bold px-4">
+                    <i class="bi bi-arrow-up-circle me-1"></i> Pro'ya Geç
+                </a>
+            </div>
+        }
+
+        <!-- ── ANA GRID ── -->
+        <div class="row g-4">
+
+            <!-- SOL KOLON: Entegrasyonlar -->
+            <div class="col-lg-4">
+                <div class="section-card h-100">
+                    <div class="card-header">
+                        <h6 class="fw-bold mb-0"><i class="bi bi-plug-fill text-primary me-2"></i>Hızlı Entegrasyonlar</h6>
+                    </div>
+                    <div class="p-3 d-flex flex-column gap-3">
+
+                        <!-- WhatsApp -->
+                        <div class="integration-card" id="whatsappCard"
+                             style="@(!Model.IsWhatsAppConnected ? "border-color:#fcd34d;" : "border-color:#bbf7d0;")">
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="bi bi-whatsapp text-success fs-4 me-3"></i>
+                                <div>
+                                    <div class="fw-bold small">WhatsApp Entegrasyonu</div>
+                                    <div class="text-muted" style="font-size:0.75rem;">Otomatik mesajlaşma</div>
+                                </div>
+                                @if (Model.IsWhatsAppConnected)
+                                {
+                                    <span class="badge ms-auto" style="background:#dcfce7;color:#16a34a;font-size:0.68rem;">● Bağlı</span>
+                                }
+                                else
+                                {
+                                    <span class="badge ms-auto" style="background:#fef9c3;color:#b45309;font-size:0.68rem;">● Bekliyor</span>
+                                }
+                            </div>
+                            <button type="button" class="btn btn-outline-success w-100 rounded-pill fw-bold btn-sm" onclick="loadWhatsAppQr()" id="connectInstanceBtn">
+                                <i class="bi bi-qr-code-scan me-2"></i>@(Model.IsWhatsAppConnected ? "QR Yenile" : "Cihaz Bağla")
+                            </button>
+                        </div>
+
+                        <!-- Google Takvim -->
+                        <div class="integration-card">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="google-icon-wrapper me-3">
+                                    <svg width="20" height="20" viewBox="0 0 48 48">
+                                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div class="fw-bold small">Google Takvim</div>
+                                    <div class="text-muted" style="font-size:0.75rem;">Personel Senkronizasyonu</div>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex flex-column gap-2">
+                                @{
+                                    var connectedStaffCount = 0;
+                                    if (Model.Staff != null && Model.Staff.Count > 0)
+                                    {
+                                        foreach (var staff in Model.Staff)
+                                        {
+                                            var s = (System.Text.Json.JsonElement)staff;
+                                            var calId = s.TryGetProperty("googleCalendarId", out var calProp) && calProp.ValueKind != System.Text.Json.JsonValueKind.Null ? calProp.GetString() : null;
+                                            var fn = s.TryGetProperty("firstName", out var fnProp) ? fnProp.GetString() ?? "" : "";
+                                            var ln = s.TryGetProperty("lastName", out var lnProp) ? lnProp.GetString() ?? "" : "";
+                                            
+                                            if (!string.IsNullOrEmpty(calId))
+                                            {
+                                                connectedStaffCount++;
+                                                <div class="d-flex justify-content-between align-items-center p-2 rounded border" style="background:#f8f9fa;">
+                                                    <div class="d-flex flex-column">
+                                                        <span class="fw-bold" style="font-size:0.8rem;">@fn @ln</span>
+                                                        <span class="text-muted" style="font-size:0.7rem;">@calId</span>
+                                                    </div>
+                                                    <span class="badge" style="background:#dcfce7;color:#16a34a;font-size:0.68rem;">● Bağlı</span>
+                                                </div>
+                                            }
+                                        }
+                                    }
+                                    
+                                    if (connectedStaffCount == 0)
+                                    {
+                                        <div class="alert border-0 p-2 mb-0 small text-center" style="background:#f0f7ff;border-radius:10px;">
+                                            <i class="bi bi-info-circle-fill text-primary me-1"></i>
+                                            Henüz hiçbir personel Google Takvim'e bağlanmamış. Aşağıdaki <b>Personel Yönetimi</b> tablosundan bağlayabilirsiniz.
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        <!-- AI Asistan -->
+                        <div class="integration-card" id="aiCard">
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="bi bi-robot text-primary fs-4 me-3"></i>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold small">AI Asistan</div>
+                                    <div class="text-muted" id="aiStatusText" style="font-size:0.75rem;">@(Model.IsBotActive ? "7/24 Aktif" : "Devre Dışı")</div>
+                                </div>
+                                @if (Model.IsBotActive && Model.IsWhatsAppConnected)
+                                {
+                                    <span class="badge rounded-pill" id="systemBadge" style="background:#dcfce7;color:#16a34a;font-size:0.68rem;">Hazır ✅</span>
+                                }
+                                else if (Model.IsBotActive && !Model.IsWhatsAppConnected)
+                                {
+                                    <span class="badge rounded-pill" id="systemBadge" style="background:#fef9c3;color:#b45309;font-size:0.68rem;">⚠️ Bekliyor</span>
+                                }
+                                else
+                                {
+                                    <span class="badge rounded-pill" id="systemBadge" style="background:#f1f5f9;color:#94a3b8;font-size:0.68rem;">Pasif</span>
+                                }
+                            </div>
+
+                            @if (Model.IsBotActive && !Model.IsWhatsAppConnected)
+                            {
+                                <div id="aiWarningBox" class="mb-3 px-3 py-2 rounded-3 small" style="background:#fff7ed;border:1px solid #fed7aa;color:#c2410c;">
+                                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                                    <strong>AI Asistan aktif</strong> ancak WhatsApp bağlantınız eksik.
+                                    <a href="#" onclick="loadWhatsAppQr(); return false;" class="fw-bold" style="color:#c2410c;">Cihazı bağlayın.</a>
+                                </div>
+                            }
+                            <div id="aiWarningBox" class="mb-3 px-3 py-2 rounded-3 small d-none" style="background:#fff7ed;border:1px solid #fed7aa;color:#c2410c;">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                                <strong>AI Asistan aktif</strong> ancak WhatsApp bağlantınız eksik.
+                                <a href="#" onclick="loadWhatsAppQr(); return false;" class="fw-bold" style="color:#c2410c;">Cihazı bağlayın.</a>
+                            </div>
+
+                            <div class="form-check form-switch p-0 m-0 d-flex justify-content-between align-items-center">
+                                <label class="form-check-label fw-bold small" for="aiStatus">Durum:</label>
+                                <input class="form-check-input ms-0" type="checkbox" id="aiStatus" @(Model.IsBotActive ? "checked" : "") style="width:40px;height:20px;">
+                            </div>
+                        </div>
+
+                        <!-- Çalışma Saatleri -->
+                        <div class="integration-card mt-3">
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="bi bi-clock-history text-primary fs-4 me-3"></i>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold small">Çalışma Saatleri</div>
+                                    <div class="text-muted" style="font-size:0.75rem;">Müşteri randevu aralıkları</div>
+                                </div>
+                                <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 py-1" data-bs-toggle="modal" data-bs-target="#businessHoursModal">
+                                    <i class="bi bi-pencil-square me-1"></i> Düzenle
+                                </button>
+                            </div>
+                            <div class="d-flex flex-column gap-2" style="font-size:0.8rem;">
+                                @if (Model.BusinessHours != null && Model.BusinessHours.Count > 0)
+                                {
+                                    var dayNames = new string[] { "Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi" };
+                                    foreach (var bh in Model.BusinessHours)
+                                    {
+                                        var b = (System.Text.Json.JsonElement)bh;
+                                        var day = b.TryGetProperty("dayOfWeek", out var dProp) ? dProp.GetInt32() : 0;
+                                        var isClosed = b.TryGetProperty("isClosed", out var icProp) ? icProp.GetBoolean() : false;
+                                        var open = b.TryGetProperty("openTime", out var opProp) ? opProp.GetString() : "09:00";
+                                        var close = b.TryGetProperty("closeTime", out var clProp) ? clProp.GetString() : "18:00";
+
+                                        if (open != null && open.Length > 5) open = open.Substring(0, 5);
+                                        if (close != null && close.Length > 5) close = close.Substring(0, 5);
+
+                                        <div class="d-flex justify-content-between align-items-center border-bottom pb-1">
+                                            <span class="fw-medium @(isClosed ? "text-muted text-decoration-line-through" : "")">@dayNames[day]</span>
+                                            @if (isClosed)
+                                            {
+                                                <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill">Kapalı</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted fw-bold">@open - @close</span>
+                                            }
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="text-muted text-center py-2">Çalışma saatleri henüz belirlenmedi.</div>
+                                }
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- SAĞ KOLON -->
+            <div class="col-lg-8 d-flex flex-column gap-4">
+
+                <!-- Randevular -->
+                <div class="section-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="fw-bold mb-0"><i class="bi bi-calendar3 text-primary me-2"></i>Randevular</h6>
+                        <button class="btn btn-outline-primary btn-sm rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#newAppointmentModal">
+                            <i class="bi bi-plus-lg me-1"></i> Yeni
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">MÜŞTERİ</th>
+                                    <th>HİZMET</th>
+                                    <th>TARİH / SAAT</th>
+                                    <th>DURUM</th>
+                                    <th class="text-end pe-4">İŞLEM</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (Model.Appointments != null && Model.Appointments.Count > 0)
+                                {
+                                    @foreach (var item in Model.Appointments)
+                                    {
+                                        <tr>
+                                            <td class="ps-4">
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <div class="avatar bg-primary bg-opacity-10 text-primary">
+                                                        @((item.GetProperty("customerName").ToString().Substring(0, 1) ?? "M").ToUpper())
+                                                    </div>
+                                                    <div>
+                                                        <div class="fw-bold">@item.GetProperty("customerName")</div>
+                                                        <div class="text-muted" style="font-size:0.75rem;">@item.GetProperty("customerPhone")</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                @{
+                                                    int svcIdVal = 0;
+                                                    try { svcIdVal = item.GetProperty("serviceID").GetInt32(); } catch { }
+                                                    string sName = "#" + svcIdVal;
+                                                    if (Model.Services != null)
+                                                    {
+                                                        foreach(var svcEl in Model.Services)
+                                                        {
+                                                            try {
+                                                                if (svcEl.GetProperty("serviceID").GetInt32() == svcIdVal) {
+                                                                    sName = svcEl.GetProperty("name").GetString() ?? sName;
+                                                                    break;
+                                                                }
+                                                            } catch { }
+                                                        }
+                                                    }
+                                                }
+                                                <span class="badge bg-light text-dark border text-capitalize">@sName</span>
+                                            </td>
+                                            <td>
+                                                <div class="fw-medium">@DateTime.Parse(item.GetProperty("startDate").ToString()).ToString("dd.MM.yyyy")</div>
+                                                <div class="text-muted" style="font-size:0.75rem;">@DateTime.Parse(item.GetProperty("startDate").ToString()).ToString("HH:mm")</div>
+                                            </td>
+                                            <td>
+                                                @{
+                                                    var status = item.GetProperty("status").ToString();
+                                                    var color = status == "Beklemede" ? "warning" : "success";
+                                                }
+                                                <span class="badge rounded-pill bg-@color bg-opacity-10 text-@color" style="font-size:0.73rem;">@status</span>
+                                            </td>
+                                            <td class="text-end pe-4">
+                                                @{
+                                                    string googleEventIdStr = "";
+                                                    int appUserIdVal = 0;
+                                                    try { var _gev = item.GetProperty("googleEventID"); googleEventIdStr = _gev.ValueKind.ToString() == "Null" ? "" : (_gev.GetString() ?? ""); } catch { }
+                                                    try { var _auid = item.GetProperty("appUserID"); appUserIdVal = _auid.ValueKind.ToString() == "Null" ? 0 : _auid.GetInt32(); } catch { }
+                                                }
+                                                <button type="button" class="btn btn-light btn-sm rounded-circle shadow-none"
+                                                        onclick="openEditAppointmentModal('@item.GetProperty("appointmentID").GetInt32()','@item.GetProperty("customerName").ToString()','@item.GetProperty("customerPhone").ToString()','@item.GetProperty("serviceID").GetInt32()','@DateTime.Parse(item.GetProperty("startDate").ToString()).ToString("yyyy-MM-dd")','@DateTime.Parse(item.GetProperty("startDate").ToString()).ToString("HH:mm")','@googleEventIdStr', '@appUserIdVal')">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <form class="d-inline delete-appointment-form" action="/Dashboard/DeleteAppointment" method="post">
+                                                    <input type="hidden" name="appointmentId" value="@item.GetProperty("appointmentID").GetInt32()" />
+                                                    <input type="hidden" name="googleEventId" value="@googleEventIdStr" />
+                                                    <input type="hidden" name="appUserId" value="@appUserIdVal" />
+                                                    <button type="submit" class="btn btn-light btn-sm rounded-circle shadow-none text-danger"><i class="bi bi-trash"></i></button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr><td colspan="5"><div class="empty-state"><i class="bi bi-calendar-x"></i>Henüz randevu bulunmuyor.</div></td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Hizmet Yönetimi -->
+                <div class="section-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="fw-bold mb-0"><i class="bi bi-grid-fill text-success me-2"></i>Hizmet Yönetimi</h6>
+                        <button class="btn btn-outline-success btn-sm rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#newServiceModal">
+                            <i class="bi bi-plus-lg me-1"></i> Hizmet Ekle
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">HİZMET ADI</th>
+                                    <th>SÜRE</th>
+                                    <th>FİYAT</th>
+                                    <th class="text-end pe-4">İŞLEM</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (Model.Services != null && Model.Services.Count > 0)
+                                {
+                                    @foreach (var item in Model.Services)
+                                    {
+                                        <tr>
+                                            <td class="ps-4 fw-bold">@item.GetProperty("name")</td>
+                                            <td><span class="badge bg-info bg-opacity-10 text-info">@item.GetProperty("durationInMinutes") dk</span></td>
+                                            <td class="fw-bold text-primary">@item.GetProperty("price") ₺</td>
+                                            <td class="text-end pe-4">
+                                                <button type="button" class="btn btn-light btn-sm rounded-circle shadow-none"
+                                                        onclick="openEditServiceModal('@item.GetProperty("serviceID").GetInt32()','@item.GetProperty("name").ToString()','@item.GetProperty("durationInMinutes").ToString()','@item.GetProperty("price").ToString()')">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <form class="d-inline delete-service-form" action="/Dashboard/DeleteService" method="post">
+                                                    <input type="hidden" name="serviceId" value="@item.GetProperty("serviceID").GetInt32()" />
+                                                    <button type="submit" class="btn btn-light btn-sm rounded-circle shadow-none text-danger"><i class="bi bi-trash"></i></button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr><td colspan="4"><div class="empty-state"><i class="bi bi-scissors"></i>Henüz tanımlı bir hizmet yok.</div></td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Personel Yönetimi -->
+                <div class="section-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="fw-bold mb-0"><i class="bi bi-people-fill text-primary me-2"></i>Personel Yönetimi</h6>
+                            <div class="text-muted" style="font-size:0.75rem;">
+                                @(Model.CurrentStaffCount - 1) / @(Model.StaffLimit == -1 ? "Sınırsız" : Model.StaffLimit.ToString()) personel hakkı kullanılıyor
+                            </div>
+                        </div>
+                        <div>
+                            @if (Model.PlanType == "Trial")
+                            {
+                                <a href="/Pricing/Index" class="btn btn-warning btn-sm rounded-pill px-3 fw-bold me-2">
+                                    <i class="bi bi-lightning-fill me-1"></i> Plan Seç
+                                </a>
+                            }
+                            
+                            @if (Model.StaffLimit == -1 || (Model.CurrentStaffCount - 1) < Model.StaffLimit)
+                            {
+                                <button class="btn btn-outline-primary btn-sm rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#addStaffModal">
+                                    <i class="bi bi-person-plus me-1"></i> Personel Ekle
+                                </button>
+                            }
+                            else
+                            {
+                                <span class="badge py-2 px-3 fw-bold" style="background:#fee2e2;color:#dc2626;border-radius:20px;font-size:0.75rem;">
+                                    <i class="bi bi-lock-fill me-1"></i> Limit Doldu
+                                    @if (Model.PlanType == "Starter" || Model.PlanType == "Trial")
+                                    {
+                                        <a href="/Pricing/Index" class="ms-2" style="color:#dc2626;">Yükselt →</a>
+                                    }
+                                </span>
+                            }
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">PERSONEL</th>
+                                    <th>UZMANLIK</th>
+                                    <th>TELEFON</th>
+                                    <th class="text-center">GOOGLE TAKVİM</th>
+                                    <th class="text-end pe-4">İŞLEM</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (Model.Staff != null && Model.Staff.Count > 0)
+                                {
+                                    @foreach (var staff in Model.Staff)
+                                    {
+                                        var s = (System.Text.Json.JsonElement)staff;
+                                        var fn = s.TryGetProperty("firstName", out var fnProp) ? fnProp.GetString() ?? "" : "";
+                                        var ln = s.TryGetProperty("lastName", out var lnProp) ? lnProp.GetString() ?? "" : "";
+                                        var em = s.TryGetProperty("email", out var emProp) ? emProp.GetString() ?? "" : "";
+                                        var ph = s.TryGetProperty("phoneNumber", out var phProp) ? phProp.GetString() ?? "—" : "—";
+                                        var sp = s.TryGetProperty("specialization", out var spProp) && spProp.ValueKind != System.Text.Json.JsonValueKind.Null ? spProp.GetString() ?? "Genel" : "Genel";
+                                        var uid = s.TryGetProperty("appUserID", out var uidProp) ? uidProp.GetInt32() : 0;
+                                        var calId = s.TryGetProperty("googleCalendarId", out var calProp) && calProp.ValueKind != System.Text.Json.JsonValueKind.Null ? calProp.GetString() : null;
+                                        var refToken = s.TryGetProperty("googleRefreshToken", out var rtProp) && rtProp.ValueKind != System.Text.Json.JsonValueKind.Null ? rtProp.GetString() : null;
+                                        <tr>
+                                            <td class="ps-4">
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <div class="avatar bg-primary bg-opacity-10 text-primary">
+                                                        @(fn.Length > 0 ? fn.Substring(0, 1).ToUpper() : "P")
+                                                    </div>
+                                                    <div>
+                                                        <div class="fw-bold text-capitalize">@fn @ln</div>
+                                                        <div class="text-muted" style="font-size:0.75rem;">@calId</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td><span class="badge bg-info bg-opacity-10 text-info">@sp</span></td>
+                                            <td class="text-muted small">@ph</td>
+                                            <td class="text-center">
+                                                @if (!string.IsNullOrEmpty(calId) && !string.IsNullOrEmpty(refToken))
+                                                {
+                                                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-2 border border-success border-opacity-25" style="font-size:0.75rem;">
+                                                        <i class="bi bi-check-circle-fill me-1"></i> @calId
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <a href="/Dashboard/ConnectStaffGoogle?staffId=@uid" class="btn btn-light btn-sm rounded-pill shadow-sm border d-inline-flex align-items-center px-3" style="font-size:0.75rem; color:#3c4043; background-color:#fff;">
+                                                        <svg width="14" height="14" viewBox="0 0 48 48" class="me-2">
+                                                            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                                                            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                                                            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                                                            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                                                        </svg>
+                                                        Google Hesabı Bağla
+                                                    </a>
+                                                }
+                                            </td>
+                                            <td class="text-end pe-4">
+                                                <button type="button" class="btn btn-light btn-sm rounded-circle shadow-none text-danger"
+                                                        onclick="removeStaff(@uid)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="4">
+                                            <div class="empty-state">
+                                                <i class="bi bi-@(Model.PlanType == "Trial" ? "lock" : "people")"></i>
+                                                @if (Model.PlanType == "Trial")
+                                                {
+                                                    <span>Personel eklemek için bir plan seçmelisiniz.</span>
+                                                }
+                                                else
+                                                {
+                                                    <span>Henüz personel eklenmemiş.</span>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Abonelik İptal Butonu ── -->
+<div style="position:fixed;right:18px;bottom:18px;z-index:1050;">
+    <form id="cancelSubscriptionForm" action="/Dashboard/CancelSubscription" method="post" class="m-0">
+        <button type="submit" class="btn btn-outline-danger btn-sm shadow-sm">Aboneliği İptal Et</button>
+    </form>
+</div>
+
+<!-- ══════════════════════════════════════
+     MODALLER
+══════════════════════════════════════ -->
+<!-- Randevu Düzenle -->
+<div class="modal fade" id="editAppointmentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius:20px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold"><i class="bi bi-pencil-square me-2 text-primary"></i>Randevu Düzenle</h5>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form asp-action="UpdateAppointment" asp-controller="Dashboard" method="post">
+                    <input type="hidden" id="editAppointmentId" name="appointmentId" />
+                    <input type="hidden" id="editGoogleEventId" name="googleEventId" />
+                    <input type="hidden" id="editAppUserId" name="appUserId" />
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">MÜŞTERİ ADI</label>
+                        <input type="text" id="editCustomerName" name="customerName" class="form-control bg-light border-0 py-2" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">TELEFON</label>
+                        <input type="tel" id="editCustomerPhone" name="customerPhone" class="form-control bg-light border-0 py-2" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">HİZMET</label>
+                        <select id="editServiceId" name="serviceId" class="form-select bg-light border-0 py-2" required>
+                            @if (Model.Services != null)
+                            {
+                                @foreach (var s in Model.Services)
+                                {
+                                    <option value="@s.GetProperty("serviceID")">@s.GetProperty("name") (@s.GetProperty("durationInMinutes") dk)</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label text-muted small fw-bold">TARİH</label>
+                            <input type="date" id="editAppointmentDate" name="date" class="form-control bg-light border-0 py-2" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted small fw-bold">SAAT</label>
+                            <input type="time" id="editAppointmentTime" name="time" class="form-control bg-light border-0 py-2" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-sm mt-3">Randevuyu Güncelle</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hizmet Düzenle -->
+<div class="modal fade" id="editServiceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius:20px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold"><i class="bi bi-pencil-square me-2 text-success"></i>Hizmet Düzenle</h5>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form asp-action="UpdateService" asp-controller="Dashboard" method="post">
+                    <input type="hidden" id="editServiceIdInput" name="serviceId" />
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">HİZMET ADI</label>
+                        <input type="text" id="editServiceName" name="name" class="form-control bg-light border-0 py-2" required>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label text-muted small fw-bold">SÜRE (DAKİKA)</label>
+                            <input type="number" id="editDuration" name="durationMinutes" class="form-control bg-light border-0 py-2" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted small fw-bold">FİYAT (₺)</label>
+                            <input type="number" id="editPrice" name="price" step="0.01" class="form-control bg-light border-0 py-2" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100 py-3 rounded-pill fw-bold shadow-sm mt-4">Hizmeti Güncelle</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Yeni Randevu -->
+<div class="modal fade" id="newAppointmentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius:20px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold"><i class="bi bi-calendar-plus me-2 text-primary"></i>Hızlı Randevu Kaydı</h5>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form asp-action="CreateAppointment" asp-controller="Dashboard" method="post" onsubmit="return validateCreateAppointment()">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">MÜŞTERİ ADI</label>
+                        <input type="text" name="customerName" id="appCustomerName" class="form-control bg-light border-0 py-2" placeholder="Ad Soyad" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">TELEFON</label>
+                        <input type="tel" name="customerPhone" id="appCustomerPhone" class="form-control bg-light border-0 py-2" placeholder="05XX XXX XX XX" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">HİZMET</label>
+                        <select name="serviceId" class="form-select bg-light border-0 py-2" required>
+                            @if (Model.Services != null && Model.Services.Count > 0)
+                            {
+                                @foreach (var s in Model.Services)
+                                {
+                                    <option value="@s.GetProperty("serviceID")">@s.GetProperty("name") (@s.GetProperty("durationInMinutes") dk)</option>
+                                }
+                            }
+                            else
+                            {
+                                <option value="">Önce hizmet tanımlayın</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label text-muted small fw-bold">TARİH</label>
+                            <input type="date" name="date" class="form-control bg-light border-0 py-2" required value="@DateTime.Now.ToString("yyyy-MM-dd")" min="@DateTime.Now.ToString("yyyy-MM-dd")">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted small fw-bold">SAAT</label>
+                            <input type="time" name="time" class="form-control bg-light border-0 py-2" required value="10:00">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-sm mt-3">Randevuyu Kaydet</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Yeni Hizmet -->
+<div class="modal fade" id="newServiceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius:20px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold"><i class="bi bi-plus-circle me-2 text-success"></i>Yeni Hizmet Tanımla</h5>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form asp-action="CreateService" asp-controller="Dashboard" method="post">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">HİZMET ADI</label>
+                        <input type="text" name="name" class="form-control bg-light border-0 py-2" placeholder="Örn: Saç Kesimi" required>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label text-muted small fw-bold">SÜRE (DAKİKA)</label>
+                            <input type="number" name="durationMinutes" class="form-control bg-light border-0 py-2" placeholder="30" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted small fw-bold">FİYAT (₺)</label>
+                            <input type="number" name="price" step="0.01" class="form-control bg-light border-0 py-2" placeholder="0.00" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100 py-3 rounded-pill fw-bold shadow-sm mt-4">Hizmeti Kaydet</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Personel Ekle -->
+<div class="modal fade" id="addStaffModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius:20px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold"><i class="bi bi-person-plus-fill me-2 text-primary"></i>Personel Ekle</h5>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="form-label text-muted small fw-bold">AD SOYAD</label>
+                    <input type="text" id="staffFullName" class="form-control bg-light border-0 py-2" placeholder="Ad Soyad">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted small fw-bold">TELEFON</label>
+                    <input type="tel" id="staffPhone" class="form-control bg-light border-0 py-2" placeholder="05XX XXX XX XX">
+                </div>
+                <div class="mb-4">
+                    <label class="form-label text-muted small fw-bold">UZMANLIK (Opsiyonel)</label>
+                    <input type="text" id="staffSpec" class="form-control bg-light border-0 py-2" placeholder="Örn: Saç Kesimi">
+                </div>
+                <button type="button" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-sm" onclick="addStaff()">
+                    <i class="bi bi-person-plus-fill me-2"></i>Personeli Ekle
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- WhatsApp QR -->
+<div class="modal fade" id="whatsAppModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius:20px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold"><i class="bi bi-whatsapp text-success me-2"></i>WhatsApp Senkronizasyonu</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-4 p-md-5">
+                <div id="qrLoading">
+                    <div class="spinner-border text-success mb-3" role="status" style="width:3rem;height:3rem;"></div>
+                    <p class="text-muted">QR Kod Hazırlanıyor, lütfen bekleyin...</p>
+                </div>
+                <div id="qrContainer" style="display:none;">
+                    <p class="small text-muted mb-4">Aşağıdaki QR kodu telefonunuzdan okutarak <strong id="modalInstanceName"></strong> dükkanını bağlayın.</p>
+                    <div class="bg-white p-2 shadow-sm border rounded-4 d-inline-block mb-4">
+                        <img id="qrImage" src="" class="img-fluid" style="width:250px;height:250px;" alt="WhatsApp QR">
+                    </div>
+                    <div class="text-start bg-light p-3 rounded-4 mb-4 small">
+                        <ol class="mb-0">
+                            <li>Telefonunuzda <b>WhatsApp</b>'ı açın.</li>
+                            <li><b>Ayarlar</b> > <b>Bağlı Cihazlar</b>'a gidin.</li>
+                            <li><b>Cihaz Bağla</b> butonuna dokunup bu kodu taratın.</li>
+                        </ol>
+                    </div>
+                    <button onclick="loadWhatsAppQr()" class="btn btn-light rounded-pill w-100 border fw-bold">
+                        <i class="bi bi-arrow-repeat me-2"></i> Kodu Yenile
+                    </button>
+                </div>
+                <div id="qrError" style="display:none;" class="alert alert-warning border-0 small">
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                    <span id="qrErrorMessage"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Çalışma Saatleri Modal -->
+<div class="modal fade" id="businessHoursModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-md">
+        <div class="modal-content border-0 shadow-lg" style="border-radius:20px;">
+            <div class="modal-header border-bottom">
+                <h5 class="fw-bold"><i class="bi bi-clock-history text-primary me-2"></i>Çalışma Saatleri</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="businessHoursForm">
+                    <div class="d-flex flex-column gap-3">
+                        @{
+                            var allDays = new string[] { "Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi" };
+                            for (int i = 0; i < 7; i++)
+                            {
+                                bool hasBh = false;
+                                System.Text.Json.JsonElement el = default;
+
+                                if (Model.BusinessHours != null)
+                                {
+                                    foreach (var b in Model.BusinessHours)
+                                    {
+                                        if (b is System.Text.Json.JsonElement je)
+                                        {
+                                            if (je.TryGetProperty("dayOfWeek", out var dProp) && dProp.GetInt32() == i)
+                                            {
+                                                el = je;
+                                                hasBh = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+
+                                bool isClosed = true;
+                                string opTime = "09:00";
+                                string clTime = "18:00";
+
+                                if (hasBh)
+                                {
+                                    isClosed = el.TryGetProperty("isClosed", out var icProp) && icProp.GetBoolean();
+                                    var opStr = el.TryGetProperty("openTime", out var opProp) ? opProp.GetString() : "09:00";
+                                    var clStr = el.TryGetProperty("closeTime", out var clProp) ? clProp.GetString() : "18:00";
+                                    if (opStr != null && opStr.Length > 5) opTime = opStr.Substring(0, 5);
+                                    if (clStr != null && clStr.Length > 5) clTime = clStr.Substring(0, 5);
+                                }
+                                else if (i != 0 && i != 6)
+                                {
+                                    isClosed = false; // default hafta içi açık
+                                }
+
+                                <div class="row align-items-center bh-row" data-day="@i">
+                                    <div class="col-4">
+                                        <div class="form-check form-switch mb-0">
+                                            <input class="form-check-input bh-status" type="checkbox" role="switch" id="bh_@i" @(!isClosed ? "checked" : "") onchange="toggleBhRow(@i)">
+                                            <label class="form-check-label fw-medium" for="bh_@i">@allDays[i]</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <input type="time" class="form-control form-control-sm bh-open" value="@opTime" @(isClosed ? "disabled" : "") />
+                                    </div>
+                                    <div class="col-4">
+                                        <input type="time" class="form-control form-control-sm bh-close" value="@clTime" @(isClosed ? "disabled" : "") />
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-light rounded-pill" data-bs-dismiss="modal">İptal</button>
+                <button type="button" class="btn btn-primary rounded-pill px-4" onclick="saveBusinessHours()">Kaydet</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form id="deleteAppointmentForm" asp-action="DeleteAppointment" asp-controller="Dashboard" method="post" class="d-none">
+    <input type="hidden" id="deleteAppointmentId" name="appointmentId" />
+    <input type="hidden" id="deleteGoogleEventId" name="googleEventId" />
+    <input type="hidden" id="deleteAppUserId" name="appUserId" />
+</form>
+
+@section Scripts {
+    <script>
+        const waModal = new bootstrap.Modal(document.getElementById('whatsAppModal'));
+        const editAppointmentModal = new bootstrap.Modal(document.getElementById('editAppointmentModal'));
+        const editServiceModal = new bootstrap.Modal(document.getElementById('editServiceModal'));
+        const businessHoursModal = new bootstrap.Modal(document.getElementById('businessHoursModal'));
+
+        // ── Çalışma Saatleri ──
+        function toggleBhRow(dayIndex) {
+            const row = document.querySelector(`.bh-row[data-day="${dayIndex}"]`);
+            const isChecked = row.querySelector('.bh-status').checked;
+            row.querySelector('.bh-open').disabled = !isChecked;
+            row.querySelector('.bh-close').disabled = !isChecked;
+        }
+
+        function saveBusinessHours() {
+            const hours = [];
+            document.querySelectorAll('.bh-row').forEach(row => {
+                const day = parseInt(row.getAttribute('data-day'));
+                const isClosed = !row.querySelector('.bh-status').checked;
+                const openTime = row.querySelector('.bh-open').value;
+                const closeTime = row.querySelector('.bh-close').value;
+
+                hours.push({
+                    dayOfWeek: day,
+                    isClosed: isClosed,
+                    openTime: openTime,
+                    closeTime: closeTime
+                });
+            });
+
+            fetch('/Dashboard/UpdateBusinessHours', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(hours)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    swToast('success', data.message || 'Çalışma saatleri güncellendi.');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    swToast('error', data.message || 'Bir hata oluştu.');
+                }
+            })
+            .catch(err => swToast('error', 'Bağlantı hatası: ' + err));
+        }
+
+        // ── WhatsApp QR ──
+        function loadWhatsAppQr() {
+            const qrLoading = document.getElementById('qrLoading');
+            const qrContainer = document.getElementById('qrContainer');
+            const qrError = document.getElementById('qrError');
+            const qrImage = document.getElementById('qrImage');
+
+            qrLoading.style.display = 'block';
+            qrContainer.style.display = 'none';
+            qrError.style.display = 'block';
+            document.getElementById('qrErrorMessage').innerText = 'Instance hazırlanıyor. QR kod için 5 saniye bekleniyor...';
+            waModal.show();
+
+            fetch('/Dashboard/GetWhatsAppQr')
+                .then(res => res.json())
+                .then(data => {
+                    qrLoading.style.display = 'none';
+                    if (data.success) {
+                        qrError.style.display = 'none';
+                        qrImage.src = data.qrCode;
+                        document.getElementById('modalInstanceName').innerText = data.instanceName;
+                        qrContainer.style.display = 'block';
+                    } else {
+                        qrError.style.display = 'block';
+                        document.getElementById('qrErrorMessage').innerText = data.message;
+                    }
+                })
+                .catch(() => {
+                    qrLoading.style.display = 'none';
+                    qrError.style.display = 'block';
+                    document.getElementById('qrErrorMessage').innerText = 'Sistemle bağlantı kurulamadı.';
+                });
+        }
+
+        // ── Randevu Düzenle ──
+        function openEditAppointmentModal(id, customerName, customerPhone, serviceId, date, time, googleEventId, appUserId) {
+            document.getElementById('editAppointmentId').value = id;
+            document.getElementById('editGoogleEventId').value = googleEventId || '';
+            document.getElementById('editAppUserId').value = appUserId || '';
+            document.getElementById('editCustomerName').value = customerName;
+            document.getElementById('editCustomerPhone').value = customerPhone;
+            document.getElementById('editServiceId').value = serviceId;
+            document.getElementById('editAppointmentDate').value = date;
+            document.getElementById('editAppointmentTime').value = time;
+            editAppointmentModal.show();
+        }
+
+        // ── Hizmet Düzenle ──
+        function openEditServiceModal(serviceId, name, duration, price) {
+            document.getElementById('editServiceIdInput').value = serviceId;
+            document.getElementById('editServiceName').value = name;
+            document.getElementById('editDuration').value = duration;
+            document.getElementById('editPrice').value = price.replace(',', '.');
+            editServiceModal.show();
+        }
+
+        // ── SweetAlert Toast ──
+        function swToast(icon, title) {
+            Swal.fire({
+                toast: true, position: 'top-end', icon, title,
+                showConfirmButton: false, timer: 3000, timerProgressBar: true,
+                didOpen: (toast) => {
+                    toast.addEventListener('mouseenter', Swal.stopTimer);
+                    toast.addEventListener('mouseleave', Swal.resumeTimer);
+                }
+            });
+        }
+
+        // ── Randevu Validasyonu ──
+        function validateCreateAppointment() {
+            var name = document.getElementById('appCustomerName').value.trim();
+            var phone = document.getElementById('appCustomerPhone').value.trim();
+            if (!/^[a-zA-ZğüşıöçĞÜŞİÖÇ\s]+$/.test(name)) {
+                Swal.fire('Hata!', 'Müşteri adı sadece harflerden oluşmalıdır.', 'warning');
+                return false;
+            }
+            var numericPhone = phone.replace(/[^0-9]/g, '');
+            if (numericPhone.length < 10 || numericPhone.length > 11) {
+                Swal.fire('Hata!', 'Lütfen geçerli bir telefon numarası giriniz.', 'warning');
+                return false;
+            }
+            return true;
+        }
+
+        // ── Randevu Sil ──
+        document.querySelectorAll('.delete-appointment-form').forEach(form => {
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                Swal.fire({
+                    title: 'Randevuyu Sil', text: 'Bu randevuyu silmek istediğinize emin misiniz?',
+                    icon: 'warning', showCancelButton: true,
+                    confirmButtonColor: '#ef4444', cancelButtonColor: '#6b7280',
+                    confirmButtonText: '<i class="bi bi-trash me-1"></i>Evet, Sil', cancelButtonText: 'İptal'
+                }).then(r => { if (r.isConfirmed) this.submit(); });
+            });
+        });
+
+        // ── Hizmet Sil ──
+        document.querySelectorAll('.delete-service-form').forEach(form => {
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                Swal.fire({
+                    title: 'Hizmeti Sil', text: 'Bu hizmeti silmek istediğinize emin misiniz?',
+                    icon: 'warning', showCancelButton: true,
+                    confirmButtonColor: '#ef4444', cancelButtonColor: '#6b7280',
+                    confirmButtonText: '<i class="bi bi-trash me-1"></i>Evet, Sil', cancelButtonText: 'İptal'
+                }).then(r => { if (r.isConfirmed) this.submit(); });
+            });
+        });
+
+        // ── Abonelik İptal ──
+        document.getElementById('cancelSubscriptionForm')?.addEventListener('submit', function (e) {
+            e.preventDefault();
+            Swal.fire({
+                title: 'Aboneliği İptal Et',
+                html: '<p class="text-muted">Bu işlemi geri alamazsınız. Aboneliğiniz sonlandırılacak.</p>',
+                icon: 'error', showCancelButton: true,
+                confirmButtonColor: '#ef4444', cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Evet, İptal Et', cancelButtonText: 'Vazgeç'
+            }).then(r => { if (r.isConfirmed) this.submit(); });
+        });
+
+        // ── AI Asistan Toggle ──
+        document.getElementById('aiStatus').addEventListener('change', function () {
+            const isActive = this.checked;
+            const waConnected = @(Model.IsWhatsAppConnected ? "true" : "false");
+
+            fetch('/Dashboard/ToggleAssistant', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `isActive=${isActive}`
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) {
+                        this.checked = !isActive;
+                        swToast('error', 'AI asistan durumu güncellenemedi.');
+                        return;
+                    }
+                    const isWa = data.isWhatsAppConnected !== undefined ? data.isWhatsAppConnected : waConnected;
+                    document.getElementById('aiStatusText').innerText = isActive ? '7/24 Aktif' : 'Devre Dışı';
+                    const badge = document.getElementById('systemBadge');
+                    if (badge) {
+                        if (!isActive) { badge.style.background = '#f1f5f9'; badge.style.color = '#94a3b8'; badge.textContent = 'Pasif'; }
+                        else if (isWa) { badge.style.background = '#dcfce7'; badge.style.color = '#16a34a'; badge.textContent = 'Hazır ✅'; }
+                        else { badge.style.background = '#fef9c3'; badge.style.color = '#b45309'; badge.textContent = '⚠️ Bekliyor'; }
+                    }
+                    document.querySelectorAll('#aiWarningBox').forEach(box => {
+                        if (isActive && !isWa) {
+                            box.classList.remove('d-none');
+                            const waCard = document.getElementById('whatsappCard');
+                            if (waCard) {
+                                waCard.classList.add('pulse-warning');
+                                setTimeout(() => waCard.scrollIntoView({ behavior: 'smooth', block: 'center' }), 350);
+                                setTimeout(() => waCard.classList.remove('pulse-warning'), 6000);
+                            }
+                        } else {
+                            box.classList.add('d-none');
+                            document.getElementById('whatsappCard')?.classList.remove('pulse-warning');
+                        }
+                    });
+                    const toastMsg = isActive && !isWa ? "AI Asistan aktifleşti — lütfen WhatsApp'ı bağlayın." : (isActive ? 'AI Asistan aktifleştirildi.' : 'AI Asistan devre dışı bırakıldı.');
+                    swToast(isActive && !isWa ? 'warning' : 'success', toastMsg);
+                })
+                .catch(() => { this.checked = !isActive; swToast('error', 'Sistemle bağlantı kurulamadı.'); });
+        });
+
+        // ── Personel Ekle ──
+        async function addStaff() {
+            const nameParts = document.getElementById('staffFullName').value.trim().split(' ');
+            const firstName = nameParts.slice(0, -1).join(' ') || nameParts[0];
+            const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+            const payload = {
+                firstName,
+                lastName,
+                email: ('staff_' + Date.now() + "@@personel.local"),
+                phoneNumber: document.getElementById('staffPhone').value.trim(),
+                specialization: document.getElementById('staffSpec').value.trim(),
+                googleCalendarId: null
+            };
+            try {
+                const res = await fetch('/Dashboard/AddStaff', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('addStaffModal')).hide();
+                    swToast('success', 'Personel başarıyla eklendi.');
+                    setTimeout(() => location.reload(), 1200);
+                } else if (res.status === 403 && data.upgradeRequired) {
+                    bootstrap.Modal.getInstance(document.getElementById('addStaffModal')).hide();
+                    Swal.fire({
+                        icon: 'warning', title: 'Plan Limiti',
+                        html: `${data.message || data.Message}<br><br><a href="/Auth/Plans" class="btn btn-primary rounded-pill px-4 mt-2">Planı Yükselt</a>`,
+                        confirmButtonText: 'Tamam', confirmButtonColor: '#6366f1'
+                    });
+                } else {
+                    swToast('error', data.message || data.Message || 'Personel eklenemedi.');
+                }
+            } catch { swToast('error', 'Sistemle bağlantı kurulamadı.'); }
+        }
+
+        // ── Personel Sil ──
+        async function removeStaff(userId) {
+            const result = await Swal.fire({
+                title: 'Personeli Sil', text: 'Bu personeli silmek istediğinize emin misiniz?',
+                icon: 'warning', showCancelButton: true,
+                confirmButtonColor: '#ef4444', cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Evet, Sil', cancelButtonText: 'İptal'
+            });
+            if (!result.isConfirmed) return;
+            try {
+                const res = await fetch(`/Dashboard/RemoveStaff?userId=${userId}`, { method: 'DELETE' });
+                if (res.ok) { swToast('success', 'Personel silindi.'); setTimeout(() => location.reload(), 1200); }
+                else { swToast('error', 'Personel silinemedi.'); }
+            } catch { swToast('error', 'Sistemle bağlantı kurulamadı.'); }
+        }
+    </script>
+}

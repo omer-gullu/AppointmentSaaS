@@ -1,0 +1,641 @@
+@model Appointment_SaaS.WebUI.Models.RegisterViewModel
+@using Appointment_SaaS.Core.Constants
+@{
+    ViewData["Title"] = "İşletme Kaydı";
+    ViewData["Description"] = "Akıllı Randevu sistemine işletmenizi kaydedin. Hızlı kurulum, WhatsApp ve Google Takvim entegrasyonu hazır.";
+    Layout = "_Layout";
+
+    var selectedPlan = ViewBag.SelectedPlan as string ?? "trial";
+    var billingCycle = ViewBag.BillingCycle as string ?? "monthly";
+    bool isTrial = selectedPlan == "trial";
+
+    var planNames  = new Dictionary<string,string> { ["trial"]="14 Gün Ücretsiz", ["starter"]="Starter", ["business"]="Business", ["pro"]="Pro" };
+    var planPrices = new Dictionary<string,string> {
+        ["trial"]="Ücretsiz",
+        ["starter"] = billingCycle=="yearly" ? $"{PlanPricing.StarterYearly:N0}₺/yıl" : $"{PlanPricing.StarterMonthly:N0}₺/ay",
+        ["business"]= billingCycle=="yearly" ? $"{PlanPricing.BusinessYearly:N0}₺/yıl" : $"{PlanPricing.BusinessMonthly:N0}₺/ay",
+        ["pro"]     = billingCycle=="yearly" ? $"{PlanPricing.ProYearly:N0}₺/yıl" : $"{PlanPricing.ProMonthly:N0}₺/ay"
+    };
+    var planIcons = new Dictionary<string,string> { ["trial"]="🎁",["starter"]="🚀",["business"]="💼",["pro"]="👑" };
+
+    var sectors  = ViewBag.Sectors as List<(int Id, string Name)> ?? new List<(int,string)>();
+    var errorMsg = ViewBag.Error as string;
+}
+
+<style>
+    main { padding: 0 !important; }
+
+    .reg-page {
+        min-height: 100vh;
+        display: flex;
+    }
+
+    /* ── LEFT PANEL ── */
+    .reg-left {
+        width: 420px;
+        flex-shrink: 0;
+        background: linear-gradient(160deg, #312e81 0%, #4f46e5 45%, #7c3aed 100%);
+        padding: 52px 44px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .reg-left::before {
+        content:'';
+        position:absolute;
+        top:-80px; right:-80px;
+        width:280px; height:280px;
+        background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 65%);
+        border-radius:50%;
+        pointer-events:none;
+    }
+
+    .reg-left::after {
+        content:'';
+        position:absolute;
+        bottom:-60px; left:-60px;
+        width:200px; height:200px;
+        background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 65%);
+        border-radius:50%;
+        pointer-events:none;
+    }
+
+    .brand-logo {
+        display:flex;
+        align-items:center;
+        gap:12px;
+        margin-bottom: 48px;
+    }
+
+    .brand-icon {
+        width:46px; height:46px;
+        background: rgba(255,255,255,0.15);
+        border-radius:12px;
+        display:flex; align-items:center; justify-content:center;
+        font-size:1.4rem;
+        backdrop-filter:blur(4px);
+    }
+
+    .brand-name {
+        font-size:1.45rem;
+        font-weight:800;
+        color:#fff;
+        letter-spacing:-0.02em;
+    }
+
+    .brand-tagline {
+        font-size:0.82rem;
+        color:rgba(255,255,255,0.55);
+        margin-top:2px;
+    }
+
+    .left-headline {
+        font-size:1.75rem;
+        font-weight:800;
+        color:#fff;
+        line-height:1.2;
+        letter-spacing:-0.02em;
+        margin-bottom:10px;
+    }
+
+    .left-sub {
+        font-size:0.88rem;
+        color:rgba(255,255,255,0.6);
+        line-height:1.6;
+        margin-bottom:36px;
+    }
+
+    .feat-list {
+        list-style:none; padding:0; margin:0;
+        display:flex; flex-direction:column; gap:16px;
+    }
+
+    .feat-item {
+        display:flex; align-items:flex-start; gap:14px;
+    }
+
+    .feat-icon {
+        width:38px; height:38px; flex-shrink:0;
+        background:rgba(255,255,255,0.12);
+        border-radius:10px;
+        display:flex; align-items:center; justify-content:center;
+        font-size:1rem;
+        color:#e0e7ff;
+    }
+
+    .feat-title {
+        font-size:0.9rem;
+        font-weight:700;
+        color:#fff;
+        margin-bottom:2px;
+    }
+
+    .feat-desc {
+        font-size:0.78rem;
+        color:rgba(255,255,255,0.5);
+        line-height:1.5;
+    }
+
+    .left-footer {
+        font-size:0.75rem;
+        color:rgba(255,255,255,0.35);
+        margin-top:40px;
+    }
+
+    @@media (max-width:860px) {
+        .reg-left { display:none; }
+    }
+
+    /* ── RIGHT PANEL (form) ── */
+    .reg-right {
+        flex:1;
+        background:#f8fafc;
+        overflow-y:auto;
+        display:flex;
+        align-items:flex-start;
+        justify-content:center;
+        padding: 48px 32px;
+    }
+
+    .reg-form-wrap {
+        width:100%;
+        max-width:560px;
+    }
+
+    .back-link {
+        display:inline-flex; align-items:center; gap:6px;
+        color:#64748b; font-size:0.83rem; font-weight:500;
+        text-decoration:none; margin-bottom:28px;
+        transition:color 0.2s;
+    }
+
+    .back-link:hover { color:#4f46e5; }
+
+    /* Plan pill */
+    .plan-pill {
+        display:inline-flex; align-items:center; gap:8px;
+        padding:7px 16px;
+        border-radius:50px;
+        font-size:0.85rem; font-weight:700;
+        background:#eef2ff;
+        border:1.5px solid #c7d2fe;
+        color:#4f46e5;
+        margin-bottom:24px;
+    }
+
+    .plan-pill .dot { opacity:0.4; }
+
+    .form-title {
+        font-size:1.7rem;
+        font-weight:800;
+        color:#0f172a;
+        letter-spacing:-0.02em;
+        margin-bottom:4px;
+    }
+
+    .form-sub {
+        color:#64748b; font-size:0.9rem; margin-bottom:32px;
+    }
+
+    /* Steps */
+    .steps-bar { display:flex; gap:6px; margin-bottom:28px; }
+    .s-dot { height:4px; border-radius:2px; background:#e2e8f0; flex:1; }
+    .s-dot.active { background:linear-gradient(90deg,#6366f1,#8b5cf6); }
+
+    /* Inputs */
+    .f-label {
+        display:block; font-size:0.79rem; font-weight:600;
+        color:#475569; margin-bottom:5px; letter-spacing:0.01em;
+    }
+
+    .f-input {
+        width:100%; padding:11px 14px;
+        border:1.5px solid #e2e8f0; border-radius:10px;
+        font-size:0.93rem; color:#0f172a;
+        background:#fff; transition:border-color 0.2s, box-shadow 0.2s;
+        font-family:inherit;
+    }
+
+    .f-input:focus {
+        outline:none;
+        border-color:#6366f1;
+        box-shadow:0 0 0 3px rgba(99,102,241,0.12);
+    }
+
+    .f-input.with-icon { padding-right:40px; }
+
+    .input-wrap { position:relative; }
+    .input-icon {
+        position:absolute; right:12px; top:50%;
+        transform:translateY(-50%);
+        color:#b0b8c9; font-size:1rem; pointer-events:none;
+    }
+
+    .f-hint { font-size:0.75rem; color:#94a3b8; margin-top:4px; }
+
+    /* Section label */
+    .sec-label {
+        font-size:0.68rem; font-weight:700; letter-spacing:0.1em;
+        text-transform:uppercase; color:#94a3b8;
+        margin:24px 0 14px;
+        display:flex; align-items:center; gap:8px;
+    }
+    .sec-label::after {
+        content:''; flex:1; height:1px; background:#f1f5f9;
+    }
+
+    /* Payment box */
+    .pay-box {
+        background:#fff;
+        border:1.5px solid #e0e7ff;
+        border-radius:14px;
+        padding:20px;
+    }
+
+    .pay-secure {
+        display:flex; align-items:center; gap:7px;
+        font-size:0.75rem; color:#94a3b8; margin-top:14px;
+    }
+
+    /* Subscription warning box */
+    .sub-warn-box {
+        background:#fffbeb; border:1.5px solid #fcd34d;
+        border-radius:14px; padding:16px 20px;
+        display:flex; align-items:flex-start; gap:12px;
+    }
+    .sub-warn-icon { font-size:1.4rem; flex-shrink:0; line-height:1.4; }
+    .sub-warn-title { color:#92400e; font-weight:700; font-size:0.88rem; margin-bottom:3px; }
+    .sub-warn-sub { color:#78350f; font-size:0.78rem; line-height:1.55; }
+
+    /* Submit */
+    .btn-submit {
+        width:100%; padding:15px 24px;
+        border-radius:12px; font-weight:700; font-size:0.97rem;
+        border:none; cursor:pointer; transition:all 0.25s ease;
+        background:linear-gradient(135deg,#6366f1,#8b5cf6);
+        color:#fff; box-shadow:0 6px 22px rgba(99,102,241,0.35);
+        margin-top:10px;
+    }
+
+    .btn-submit:hover {
+        transform:translateY(-2px);
+        box-shadow:0 12px 36px rgba(99,102,241,0.5);
+    }
+
+    .btn-submit:disabled { opacity:0.65; cursor:not-allowed; transform:none; }
+
+    .form-foot {
+        text-align:center; margin-top:20px;
+        font-size:0.8rem; color:#94a3b8;
+    }
+
+    .form-foot a { color:#6366f1; text-decoration:none; font-weight:600; }
+    .form-foot a:hover { text-decoration:underline; }
+
+    @@keyframes fadeUp {
+        from { opacity:0; transform:translateY(14px); }
+        to { opacity:1; transform:translateY(0); }
+    }
+    .au { animation:fadeUp 0.45s ease both; }
+    .d1 { animation-delay:0.08s; }
+    .d2 { animation-delay:0.16s; }
+</style>
+
+<div class="reg-page">
+
+    <!-- ═══ LEFT PANEL ═══ -->
+    <div class="reg-left">
+        <div>
+            <!-- Brand -->
+            <div class="brand-logo">
+                <div class="brand-icon"><i class="bi bi-calendar2-check-fill"></i></div>
+                <div>
+                    <div class="brand-name">Akıllı Randevu</div>
+                    <div class="brand-tagline">İşletmenizi bir adım ileriye taşıyın.</div>
+                </div>
+            </div>
+
+            <h2 class="left-headline">Randevu yönetimini<br>AI'ya bırakın.</h2>
+            <p class="left-sub">
+                Saniyeler içinde kurulum. WhatsApp üzerinden otomatik randevu. Google Takvim ile senkronize.
+            </p>
+
+            <!-- Feature list -->
+            <ul class="feat-list">
+                <li class="feat-item">
+                    <div class="feat-icon"><i class="bi bi-whatsapp"></i></div>
+                    <div>
+                        <div class="feat-title">Anında WhatsApp Entegrasyonu</div>
+                        <div class="feat-desc">Kayıt olur olmaz WhatsApp API arkaplanda otomatik olarak kurulur.</div>
+                    </div>
+                </li>
+                <li class="feat-item">
+                    <div class="feat-icon"><i class="bi bi-robot"></i></div>
+                    <div>
+                        <div class="feat-title">Yapay Zeka Hazır</div>
+                        <div class="feat-desc">Asistanınız sizin yerinize müşteri randevularını ayarlamaya başlasın.</div>
+                    </div>
+                </li>
+                <li class="feat-item">
+                    <div class="feat-icon"><i class="bi bi-shield-lock"></i></div>
+                    <div>
+                        <div class="feat-title">Güvenli Altyapı</div>
+                        <div class="feat-desc">Tüm verileriniz size özel izole bir alanda saklanır ve yedeklenir.</div>
+                    </div>
+                </li>
+                <li class="feat-item">
+                    <div class="feat-icon"><i class="bi bi-google"></i></div>
+                    <div>
+                        <div class="feat-title">Google Takvim Senkronizasyonu</div>
+                        <div class="feat-desc">Her randevu otomatik olarak Google Takvim'e işlenir.</div>
+                    </div>
+                </li>
+            </ul>
+        </div>
+
+        <div class="left-footer">
+            © 2026 Akıllı Randevu · KVKK Uyumlu · SSL Güvenli
+        </div>
+    </div>
+
+    <!-- ═══ RIGHT PANEL (FORM) ═══ -->
+    <div class="reg-right">
+        <div class="reg-form-wrap">
+
+            <a href="/Pricing" class="back-link au">
+                <i class="bi bi-arrow-left"></i> Planlara Geri Dön
+            </a>
+
+            <!-- Plan pill -->
+            <div class="plan-pill au d1">
+                <span>@planIcons[selectedPlan]</span>
+                <span>@planNames[selectedPlan] Planı</span>
+                <span class="dot">·</span>
+                <span>@planPrices[selectedPlan]</span>
+            </div>
+
+            <h1 class="form-title au d1">İşletmenizi kaydedin</h1>
+            <p class="form-sub au d1">Birkaç dakikada kurulumu tamamlayın, hemen kullanmaya başlayın.</p>
+
+            <div class="steps-bar au d1">
+                <div class="s-dot active"></div>
+                <div class="s-dot"></div>
+                <div class="s-dot"></div>
+            </div>
+
+            @if (errorMsg != null)
+            {
+                <div class="alert mb-4 au" style="background:#fef2f2; border:1.5px solid #fca5a5; border-radius:12px; color:#b91c1c; font-size:0.87rem;">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>@errorMsg
+                </div>
+            }
+
+            <form asp-action="Register" asp-controller="Auth" method="post" id="registerForm" onsubmit="return validateForm()" novalidate>
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="SelectedPlan" value="@selectedPlan" />
+                <input type="hidden" name="BillingCycle" value="@billingCycle" />
+
+                <!-- KİŞİSEL BİLGİLER -->
+                <div class="sec-label au d2"><i class="bi bi-person-circle"></i> Kişisel Bilgiler</div>
+                <div class="row g-3 au d2">
+                    <div class="col-md-6">
+                        <label class="f-label">Ad Soyad *</label>
+                        <input type="text" name="UserFullName" class="f-input" id="fieldFullName"
+                               placeholder="Ahmet Yılmaz" value="@Model.UserFullName" required>
+                    </div>
+                    <div class="col-md-8">
+                        <label class="f-label">T.C. Kimlik / Vergi No *</label>
+                        <input type="text" name="IdentityNumber" class="f-input" id="fieldIdentity"
+                               placeholder="11 Haneli TC No" value="@Model.IdentityNumber" maxlength="11" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="f-label">Doğum Yılı *</label>
+                        <input type="number" name="BirthYear" class="f-input" id="fieldBirthYear"
+                               placeholder="Örn: 1990" value="@(Model.BirthYear == 0 ? "" : Model.BirthYear)" min="1900" max="@DateTime.Now.Year" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="f-label">WhatsApp Numarası *</label>
+                        <div class="input-wrap">
+                            <input type="tel" name="PhoneNumber" class="f-input with-icon" id="fieldPhone"
+                                   placeholder="05XX XXX XX XX" value="@Model.PhoneNumber" required>
+                            <span class="input-icon" style="color:#25d166;"><i class="bi bi-whatsapp"></i></span>
+                        </div>
+                        <div class="f-hint mt-2 p-2 rounded" style="background:#eef2ff; color:#4f46e5; border:1px solid #c7d2fe; line-height: 1.4;">
+                            <i class="bi bi-info-circle-fill me-1"></i> <strong>Önemli Bilgi:</strong> Kayıt sonrası işletme WhatsApp'ınızı bağlamak için ekranda bir <strong>QR Kod</strong> belirecektir. Bu kodu işletme telefonunuzdan okutmanız gerekeceği için, kaydı <strong>farklı bir cihazdan (Örn: Bilgisayar veya tablet)</strong> yapmanızı öneririz.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- İŞLETME BİLGİLERİ -->
+                <div class="sec-label mt-1"><i class="bi bi-building"></i> İşletme Bilgileri</div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="f-label">İşletme Adı *</label>
+                        <input type="text" name="BusinessName" class="f-input" id="fieldBusiness"
+                               placeholder="Ahmet Kuaför" value="@Model.BusinessName" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="f-label">Sektör *</label>
+                        <select name="SectorID" class="f-input" required id="fieldSector" style="cursor:pointer;">
+                            <option value="">Sektör seçin...</option>
+                            @foreach (var s in sectors)
+                            {
+                                if (Model.SectorID == s.Id)
+                                {
+                                    <option value="@s.Id" selected>@s.Name</option>
+                                }
+                                else
+                                {
+                                    <option value="@s.Id">@s.Name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="f-label">İşletme Adresi</label>
+                        <input type="text" name="Address" class="f-input"
+                               placeholder="Mahalle, Sokak, İlçe, İl" value="@Model.Address">
+                    </div>
+                </div>
+
+                <!-- ÖDEME VEYA DENEME -->
+                <!-- ÖDEME BİLGİLERİ — TÜM PLANLAR İÇİN ZORUNLU -->
+                <div class="sec-label"><i class="bi bi-credit-card"></i> Ödeme Bilgileri</div>
+                <div class="pay-box">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="f-label">Kart Üzerindeki İsim *</label>
+                            <input type="text" name="CardHolderName" class="f-input"
+                                   placeholder="AHMET YILMAZ" required id="fieldCardName">
+                        </div>
+                        <div class="col-12">
+                            <label class="f-label">Kart Numarası *</label>
+                            <div class="input-wrap">
+                                <input type="text" name="CardNumber" class="f-input with-icon"
+                                       placeholder="1234 5678 9012 3456" maxlength="19"
+                                       id="fieldCardNo" oninput="formatCard(this)" required>
+                                <span class="input-icon"><i class="bi bi-credit-card"></i></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="f-label">Ay *</label>
+                            <select name="ExpireMonth" class="f-input" required style="cursor:pointer;" id="fieldExpMonth">
+                                <option value="">Ay</option>
+                                @for (int m = 1; m <= 12; m++)
+                                {
+                                    <option value="@m.ToString("D2")">@m.ToString("D2")</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="f-label">Yıl *</label>
+                            <select name="ExpireYear" class="f-input" required style="cursor:pointer;" id="fieldExpYear">
+                                <option value="">Yıl</option>
+                                @for (int y = DateTime.Now.Year; y <= DateTime.Now.Year + 10; y++)
+                                {
+                                    <option value="@y">@y</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="f-label">CVV *</label>
+                            <div class="input-wrap">
+                                <input type="text" name="Cvc" class="f-input with-icon"
+                                       placeholder="•••" maxlength="4" required
+                                       style="letter-spacing:4px;" id="fieldCvc">
+                                <span class="input-icon"><i class="bi bi-lock-fill"></i></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pay-secure">
+                        <i class="bi bi-shield-check-fill" style="color:#10b981;"></i>
+                        256-bit SSL şifrelemesi · İyzico güvencesiyle işlenir
+                    </div>
+                </div>
+
+                <!-- ABONELİK UYARISI -->
+                <div class="sub-warn-box mt-3">
+                    <div class="sub-warn-icon">⚠️</div>
+                    <div>
+                        <div class="sub-warn-title">Önemli: Abonelik Koşulları</div>
+                        <div class="sub-warn-sub">
+                            @if (isTrial)
+                            {
+                                <text>Deneme süresi boyunca ödeme alınmaz. Kartınız yalnızca doğrulama amacıyla kaydedilir.</text>
+                            }
+                            else
+                            {
+                                <text>Seçtiğiniz plana göre ödeme hemen başlar.</text>
+                            }
+                            <strong> Aboneliğiniz iptal edilmediği sürece otomatik olarak yenilenir.</strong>
+                            İstediğiniz zaman panelden iptal edebilirsiniz.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUBMIT -->
+                <button type="submit" class="btn-submit" id="btnSubmit">
+                    <span id="btnTxt">
+                        @if (isTrial)
+                        {
+                            <text><i class="bi bi-play-fill me-1"></i> Deneme Sürümünü Başlat</text>
+                        }
+                        else
+                        {
+                            <text><i class="bi bi-check-circle-fill me-1"></i> Kaydı Tamamla ve Başla</text>
+                        }
+                    </span>
+                    <span id="btnSpin" class="d-none">
+                        <span class="spinner-border spinner-border-sm me-2"></span> İşleniyor...
+                    </span>
+                </button>
+
+                <div class="form-foot">
+                    Hesabınız var mı? <a href="/Auth/Login">Giriş yapın</a>
+                    <span style="color:#cbd5e1;"> · </span>
+                    Kaydolarak <a href="#">Kullanım Koşulları</a>'nı kabul etmiş olursunuz.
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function formatCard(input) {
+        let v = input.value.replace(/\D/g,'').substring(0,16);
+        input.value = v.replace(/(.{4})/g,'$1 ').trim();
+    }
+
+    function validateForm() {
+        // ── 1. Ad Soyad — Sadece harf, minimum 2 kelime ──
+        const name = document.getElementById('fieldFullName').value.trim();
+        if (!/^[\p{L}\s'-]{3,}$/u.test(name)) {
+            Swal.fire({ icon:'warning', title:'Ad Soyad', text:'Ad soyad alanı en az 3 karakter olmalı ve yalnızca harf içermelidir.' });
+            return false;
+        }
+
+        // ── 2. Telefon — Demir Yumruk: ^[0-9]{11}$ ──
+        const phoneRaw = document.getElementById('fieldPhone').value.replace(/\D/g,'');
+        if (!/^[0-9]{11}$/.test(phoneRaw)) {
+            Swal.fire({ icon:'error', title:'Geçersiz Telefon Numarası', text:'Telefon numarası tam 11 haneli olmalıdır. (Örn: 05551234567)' });
+            return false;
+        }
+
+        // ── 3. E-posta — Standart format kontrolü ──
+        const email = document.querySelector('[name="UserEmail"]').value.trim();
+        const emailRegex = /^[^\s@@]+@@[^\s@@]+\.[^\s@@]{2,}$/;
+        if (!emailRegex.test(email)) {
+            Swal.fire({ icon:'error', title:'Geçersiz E-posta', text:'Lütfen geçerli bir e-posta adresi giriniz. (Örn: isim@firma.com)' });
+            return false;
+        }
+
+        // ── 4. İşletme Adı — Boş olamaz ──
+        const biz = document.getElementById('fieldBusiness').value.trim();
+        if (biz.length < 2) {
+            Swal.fire({ icon:'warning', title:'İşletme Adı', text:'Lütfen geçerli bir işletme adı giriniz.' });
+            return false;
+        }
+
+        // ── 5. Sektör — Seçilmeli ──
+        const sector = document.getElementById('fieldSector').value;
+        if (!sector) {
+            Swal.fire({ icon:'warning', title:'Sektör', text:'Lütfen bir sektör seçiniz.' });
+            return false;
+        }
+
+        // ── 6. TC Kimlik / Doğum Yılı ──
+        const tc = document.getElementById('fieldIdentity').value.trim();
+        const year = document.getElementById('fieldBirthYear').value.trim();
+        if (!/^[0-9]{10,11}$/.test(tc)) {
+            Swal.fire({ icon:'warning', title:'T.C. Kimlik No', text:'Lütfen 10 veya 11 haneli kimlik/vergi numaranızı giriniz.' });
+            return false;
+        }
+        if (!year || year < 1900 || year > new Date().getFullYear()) {
+            Swal.fire({ icon:'warning', title:'Doğum Yılı', text:'Lütfen geçerli bir doğum yılı giriniz.' });
+            return false;
+        }
+
+        // ── 6. Kart Bilgileri — Tüm alanlar zorunlu ──
+        const cardName = document.getElementById('fieldCardName').value.trim();
+        const cardNo   = document.getElementById('fieldCardNo').value.replace(/\s/g,'');
+        const expMonth = document.getElementById('fieldExpMonth').value;
+        const expYear  = document.getElementById('fieldExpYear').value;
+        const cvc      = document.getElementById('fieldCvc').value.trim();
+
+        if (!cardName || cardNo.length !== 16 || !expMonth || !expYear || cvc.length < 3) {
+            Swal.fire({ icon:'error', title:'Kart Bilgileri Eksik', text:'Lütfen 16 haneli kart numaranızı ve diğer bilgileri eksiksiz doldurunuz.' });
+            return false;
+        }
+
+        // ★ Tüm kontroller geçildi — Submit butonunu kilitle ★
+        document.getElementById('btnTxt').classList.add('d-none');
+        document.getElementById('btnSpin').classList.remove('d-none');
+        document.getElementById('btnSubmit').disabled = true;
+        return true;
+    }
+</script>
+}

@@ -1,0 +1,480 @@
+@model List<Appointment_SaaS.Core.Entities.Tenant>
+@{
+    ViewData["Title"] = "İşletmeler";
+}
+
+<style>
+    :root {
+        --primary-color: #4f46e5;
+        --primary-hover: #4338ca;
+        --surface: #ffffff;
+        --background: #f9fafb;
+        --border-color: #e5e7eb;
+        --text-primary: #111827;
+        --text-secondary: #6b7280;
+    }
+
+    body { background-color: var(--background); }
+
+    .page-header {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        border-radius: 16px;
+        padding: 2.5rem 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        box-shadow: 0 10px 25px rgba(79, 70, 229, 0.15);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .page-title { font-weight: 700; margin: 0; font-size: 1.8rem; }
+    .page-subtitle { color: rgba(255,255,255,0.8); margin-top: 5px; margin-bottom: 0; }
+
+    .btn-create {
+        background: white;
+        color: var(--primary-color);
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 9999px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+    .btn-create:hover { background: #f3f4f6; transform: translateY(-2px); color: var(--primary-hover); }
+
+    .data-card {
+        background: var(--surface);
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        border: 1px solid var(--border-color);
+        overflow: hidden;
+    }
+
+    .premium-table { width: 100%; border-collapse: collapse; }
+    .premium-table th {
+        background-color: #f8fafc;
+        color: var(--text-secondary);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 600;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .premium-table td {
+        padding: 1.25rem 1.5rem;
+        vertical-align: middle;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .premium-table tbody tr:hover { background-color: #f8fafc; }
+
+    .business-icon {
+        background: #e0e7ff;
+        color: #4f46e5;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+
+    .status-pill {
+        padding: 0.35rem 0.8rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .status-active   { background: #dcfce7; color: #166534; }
+    .status-passive  { background: #fee2e2; color: #991b1b; }
+    .status-trial    { background: #fef9c3; color: #854d0e; }
+    .status-paid     { background: #e0e7ff; color: #3730a3; }
+
+    .action-btn {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        text-decoration: none;
+    }
+    .action-btn:hover { background: #f3f4f6; color: var(--primary-color); }
+    .action-btn.delete:hover { color: #dc2626; border-color: #fca5a5; background: #fff5f5; }
+
+    .empty-state { text-align: center; padding: 5rem 2rem; }
+    .empty-icon { font-size: 4rem; color: #cbd5e1; margin-bottom: 1.5rem; }
+
+    .modal-content { border-radius: 16px; border: none; }
+    .delete-icon { width: 60px; height: 60px; background: #fee2e2; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; }
+    .delete-icon i { font-size: 1.5rem; color: #dc2626; }
+
+    /* Pasif işletme satırları */
+    .row-passive {
+        opacity: 0.5;
+        transition: opacity 0.3s ease;
+    }
+    .row-passive:hover {
+        opacity: 0.75;
+    }
+    .badge-passive-lg {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 0.4rem 1rem;
+        background: #dc2626;
+        color: #fff;
+        border-radius: 9999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+</style>
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title"><i class="bi bi-building me-2"></i>İşletmeler</h1>
+        <p class="page-subtitle">Sisteme kayıtlı tüm işletmeleri görüntüleyin ve yönetin.</p>
+    </div>
+    <a asp-controller="Instance" asp-action="Create" class="btn-create">
+        <i class="bi bi-plus-lg"></i> Yeni İşletme Ekle
+    </a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show border-0 rounded-4 shadow-sm mb-3" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i> @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show border-0 rounded-4 shadow-sm mb-3" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i> @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="data-card">
+    @if (Model != null && Model.Any())
+    {
+        <div class="table-responsive">
+            <table class="premium-table">
+                <thead>
+                    <tr>
+                        <th style="width:30%">İşletme</th>
+                        <th>İletişim</th>
+                        <th>Evolution API</th>
+                        <th>Durum</th>
+                        <th>Abonelik</th>
+                        <th class="text-end">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr class="@(!item.IsActive ? "row-passive" : "")">
+                            <td>
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="business-icon">
+                                        <i class="bi bi-shop"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold text-dark">@item.Name</div>
+                                        <small class="text-muted">#@item.TenantID</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="text-secondary mb-1" style="font-size:0.85rem">
+                                    <i class="bi bi-telephone me-1"></i>@(item.PhoneNumber ?? "—")
+                                </div>
+                                <div class="text-secondary" style="font-size:0.85rem">
+                                    <i class="bi bi-geo-alt me-1"></i>@(item.Address ?? "—")
+                                </div>
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(item.InstanceName))
+                                {
+                                    <code class="bg-light px-2 py-1 rounded" style="font-size:0.8rem">
+                                        <i class="bi bi-lightning-charge-fill text-warning me-1"></i>@item.InstanceName
+                                    </code>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Bağlı değil</span>
+                                }
+                            </td>
+                            <td>
+                                @if (item.IsActive)
+                                {
+                                    <span class="status-pill status-active"><i class="bi bi-check-circle-fill"></i> Aktif</span>
+                                }
+                                else
+                                {
+                                    <span class="badge-passive-lg"><i class="bi bi-slash-circle-fill"></i> PASİF</span>
+                                }
+                            </td>
+                            <td>
+                                @if (item.IsTrial)
+                                {
+                                    <span class="status-pill status-trial"><i class="bi bi-clock"></i> Deneme</span>
+                                }
+                                else
+                                {
+                                    <span class="status-pill status-paid"><i class="bi bi-star-fill"></i> VIP</span>
+                                }
+                                <div class="mt-1 text-muted" style="font-size:0.75rem">
+                                    Bitiş: @(item.SubscriptionEndDate.Year < 2000 ? "(Yok)" : item.SubscriptionEndDate.ToString("dd MMM yyyy"))
+                                </div>
+                            </td>
+                            <td class="text-end">
+                                <div class="d-flex justify-content-end gap-2">
+                                    <button type="button" class="action-btn log" title="Sistem Günlükleri"
+                                            onclick="openAuditModal(@item.TenantID, '@item.Name')">
+                                        <i class="bi bi-clock-history text-info"></i>
+                                    </button>
+                                    <a asp-action="Edit" asp-route-id="@item.TenantID"
+                                       class="action-btn" title="Düzenle">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <button type="button" class="action-btn delete" title="Sil"
+                                            data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                            data-id="@item.TenantID" data-name="@item.Name">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="bi bi-inboxes"></i></div>
+            <h4 class="mb-2 fw-semibold">Henüz İşletme Eklenmemiş</h4>
+            <p class="text-secondary mb-4">Sistemde kayıtlı hiçbir işletme bulunamadı.</p>
+            <a asp-controller="Instance" asp-action="Create" class="btn btn-primary rounded-pill px-4 py-2" style="background:var(--primary-color)">
+                <i class="bi bi-plus-lg me-1"></i> Yeni İşletme Ekle
+            </a>
+        </div>
+    }
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center py-4">
+                <div class="delete-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                <h5 class="fw-bold mb-2">İşletmeyi Sil</h5>
+                <p class="text-secondary mb-0">
+                    <strong id="deleteBusinessName"></strong> isimli işletmeyi silmek istediğinize emin misiniz?<br>
+                    <span class="text-danger">Bu işlem geri alınamaz.</span>
+                </p>
+            </div>
+            <div class="modal-footer justify-content-center border-0 pt-0">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">İptal</button>
+                <form id="deleteForm" asp-action="Delete" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" id="deleteId" name="id" />
+                    <input type="hidden" id="deleteNameInput" name="businessName" />
+                    <button type="submit" class="btn btn-danger rounded-pill px-4">
+                        <i class="bi bi-trash me-1"></i> Evet, Sil
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sistem Günlükleri Modal -->
+<div class="modal fade" id="auditModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-clock-history text-primary me-2"></i> Hareket İzleme: <span id="auditTenantName" class="text-muted"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex justify-content-between my-3">
+                    <div class="input-group" style="max-width:300px;">
+                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" id="auditSearch" class="form-control border-start-0" placeholder="İşlem veya kullanıcı ara...">
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle" id="auditTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tip</th>
+                                <th>Aksiyon</th>
+                                <th>Kullanıcı</th>
+                                <th>Tablo / Kayıt</th>
+                                <th>Tarih</th>
+                                <th>IP Adresi</th>
+                                <th class="text-end">Detay</th>
+                            </tr>
+                        </thead>
+                        <tbody id="auditTableBody">
+                            <tr><td colspan="7" class="text-center py-4 text-muted"><div class="spinner-border text-primary" role="status"></div><br>Veriler yükleniyor...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-top-0">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Kapat</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Modal Data Passing
+        document.getElementById('deleteModal').addEventListener('show.bs.modal', function (event) {
+            const btn = event.relatedTarget;
+            document.getElementById('deleteId').value = btn.dataset.id;
+            document.getElementById('deleteNameInput').value = btn.dataset.name;
+            document.getElementById('deleteBusinessName').textContent = btn.dataset.name;
+        });
+
+        // Audit Log Dictionary (Smart Labeling)
+        const dict = {
+            "IsActive": "Durum (Aktif mi?)",
+            "IsTrial": "VIP / Deneme Sürümü",
+            "SubscriptionEndDate": "Abonelik Bitiş Tarihi",
+            "InstanceName": "WhatsApp Instance Adı",
+            "TrialUsed": "Deneme Kullanıldı Mı?",
+            "IsBlacklisted": "Karalistede Mi?",
+            "PhoneNumber": "Telefon Numarası",
+            "Name": "Ad / İşletme İsmi",
+            "Address": "Adres",
+            "Price": "Fiyat",
+            "Status": "Durum"
+        };
+        const mapLabel = (key) => dict[key] || key;
+
+        function getActionBadge(action) {
+            if (action === 'Added' || action === 'Create') return `<span class="badge bg-success bg-opacity-10 text-success rounded-pill">Ekleme</span>`;
+            if (action === 'Modified' || action === 'Update') return `<span class="badge bg-warning bg-opacity-10 text-warning rounded-pill">Güncelleme</span>`;
+            if (action === 'Deleted' || action === 'Delete') return `<span class="badge bg-danger bg-opacity-10 text-danger rounded-pill">Silme</span>`;
+            return `<span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill">${action}</span>`;
+        }
+
+        function toggleDetails(btn, index) {
+            const row = document.getElementById('details_row_' + index);
+            if (row.style.display === 'none') {
+                row.style.display = 'table-row';
+                btn.innerHTML = '<i class="bi bi-eye-slash"></i>';
+            } else {
+                row.style.display = 'none';
+                btn.innerHTML = '<i class="bi bi-eye"></i>';
+            }
+        }
+
+        function buildDiffTable(oldVal, newVal) {
+            if (!oldVal && !newVal) return '<div class="text-muted small">Detay yok.</div>';
+            
+            let oldObj = {}, newObj = {};
+            try { if (oldVal) oldObj = JSON.parse(oldVal); } catch(e){}
+            try { if (newVal) newObj = JSON.parse(newVal); } catch(e){}
+
+            let allKeys = new Set([...Object.keys(oldObj), ...Object.keys(newObj)]);
+            let rows = '';
+
+            allKeys.forEach(k => {
+                let sOld = oldObj[k] !== undefined ? String(oldObj[k]) : '-';
+                let sNew = newObj[k] !== undefined ? String(newObj[k]) : '-';
+                // Only show rows that changed
+                if (sOld !== sNew) {
+                    rows += `<tr><td class="text-muted fw-bold">${mapLabel(k)}</td><td class="text-danger"><del>${sOld}</del></td><td class="text-success">${sNew}</td></tr>`;
+                }
+            });
+
+            if (rows === '') return '<div class="text-muted small">Değişiklik kaydedilmedi veya aynı.</div>';
+
+            return `<table class="table table-sm table-bordered bg-white rounded shadow-sm mb-0 small">
+                        <thead><tr class="table-light"><th>Alan</th><th>Eski Değer</th><th>Yeni Değer</th></tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>`;
+        }
+
+        async function openAuditModal(tenantId, tenantName) {
+            document.getElementById('auditTenantName').textContent = tenantName;
+            const tbody = document.getElementById('auditTableBody');
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted"><div class="spinner-border text-primary"></div><br>Veriler yükleniyor...</td></tr>';
+            new bootstrap.Modal(document.getElementById('auditModal')).show();
+
+            try {
+                const response = await fetch(`/Business/GetAuditLogs/${tenantId}`);
+                if (!response.ok) throw new Error('API Hatası');
+                const data = await response.json();
+
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted"><i class="bi bi-inboxes display-4 d-block mb-2"></i>Log bulunamadı.</td></tr>';
+                    return;
+                }
+
+                let html = '';
+                data.forEach((log, index) => {
+                    const dt = new Date(log.timestamp).toLocaleString('tr-TR');
+                    html += `
+                        <tr class="audit-row">
+                            <td>${getActionBadge(log.action)}</td>
+                            <td>${log.action === 'Modified'? 'Kayıt Güncellendi' : log.action === 'Added'? 'Kayıt Eklendi' : 'Kayıt Silindi'}</td>
+                            <td><div class="fw-semibold text-dark">${log.userFullName}</div><small class="text-muted">ID: ${log.userId || '-'}</small></td>
+                            <td><span class="badge bg-light text-dark">${log.entityName}</span> <small class="text-muted">#${log.entityId}</small></td>
+                            <td class="small">${dt}</td>
+                            <td class="small text-muted"><i class="bi bi-globe me-1"></i>${log.ipAddress || 'Bilinmiyor'}</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-secondary rounded-circle" title="Detay" onclick="toggleDetails(this, ${index})"><i class="bi bi-eye"></i></button>
+                            </td>
+                        </tr>
+                        <tr id="details_row_${index}" style="display:none;">
+                            <td colspan="7" class="p-3 bg-light">
+                                ${buildDiffTable(log.oldValues, log.newValues)}
+                            </td>
+                        </tr>
+                    `;
+                });
+                tbody.innerHTML = html;
+            } catch (error) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-danger"><i class="bi bi-x-circle d-block mb-2 fs-2"></i>Veriler çekilemedi.</td></tr>';
+            }
+        }
+
+        // JS Search functionality for Modal Table
+        document.getElementById('auditSearch').addEventListener('keyup', function() {
+            let filter = this.value.toLowerCase();
+            let rows = document.querySelectorAll('.audit-row');
+            rows.forEach(row => {
+                let text = row.textContent.toLowerCase();
+                row.style.display = text.includes(filter) ? 'table-row' : 'none';
+                // Always hide details row on search
+                row.nextElementSibling.style.display = 'none';
+                row.querySelector('button').innerHTML = '<i class="bi bi-eye"></i>';
+            });
+        });
+
+    </script>
+}

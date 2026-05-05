@@ -1,0 +1,606 @@
+@using Appointment_SaaS.Core.Constants
+@{
+    ViewData["Title"] = "Plan Seçin";
+    ViewData["Description"] = "İşletmeniz için en uygun randevu yönetim planını seçin. Ücretsiz deneme ile hemen başlayın.";
+    Layout = "_Layout";
+}
+
+<style>
+    /* ── RESET main padding for this full-bleed page ── */
+    main { padding: 0 !important; }
+
+    /* ── Page shell ── */
+    .pricing-page {
+        background: #f6f7fb;
+        min-height: 100vh;
+        padding: 64px 0 100px;
+        position: relative;
+    }
+
+    /* soft top glow */
+    .pricing-page::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 340px;
+        background: linear-gradient(180deg, rgba(99,102,241,0.08) 0%, transparent 100%);
+        pointer-events: none;
+    }
+
+    /* ── HEADER ── */
+    .pricing-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(99,102,241,0.1);
+        border: 1px solid rgba(99,102,241,0.2);
+        border-radius: 50px;
+        padding: 5px 14px;
+        font-size: 0.73rem;
+        font-weight: 700;
+        color: #6366f1;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 20px;
+    }
+
+    .pricing-h1 {
+        font-size: clamp(1.9rem, 5vw, 3rem);
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1.15;
+        letter-spacing: -0.03em;
+        margin-bottom: 14px;
+    }
+
+    .pricing-h1 .grad {
+        background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 60%, #d946ef 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .pricing-sub {
+        color: #64748b;
+        font-size: 1rem;
+        max-width: 460px;
+        margin: 0 auto 40px;
+        line-height: 1.65;
+    }
+
+    /* ── TOGGLE ── */
+    .toggle-wrap {
+        display: inline-flex;
+        align-items: stretch;
+        background: #fff;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 50px;
+        padding: 4px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .toggle-btn {
+        background: transparent;
+        border: none;
+        color: #64748b;
+        font-weight: 600;
+        font-size: 0.85rem;
+        padding: 8px 22px;
+        border-radius: 50px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .toggle-btn.active {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(99,102,241,0.35);
+    }
+
+    .toggle-btn .save-label {
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        color: #f59e0b;
+        text-transform: uppercase;
+        display: block;
+        margin-top: 1px;
+    }
+
+    .toggle-btn.active .save-label { color: #fde68a; }
+
+    /* -- GRID GÜNCELLEME -- */
+    .plans-grid {
+        display: grid;
+        /* Kart sayısına göre otomatik ayarlar, max 2 kart yan yana gelir */
+        grid-template-columns: repeat(auto-fit, minmax(320px, 480px));
+        gap: 30px;
+        max-width: 1000px; /* 2 kart için ideal genişlik */
+        margin: 0 auto;
+        justify-content: center; /* Kartları sayfaya ortalar */
+        align-items: stretch; /* Kart boylarını eşitler */
+    }
+
+    @@media (max-width: 860px) {
+        .plans-grid { grid-template-columns: 1fr; max-width: 460px; }
+    }
+
+    /* ── CARD ── */
+    .pcard {
+        background: #fff;
+        border: 1.5px solid #e8eaf0;
+        border-radius: 20px;
+        padding: 30px 26px;
+        position: relative;
+        transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    }
+
+    .pcard:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 16px 48px rgba(0,0,0,0.1);
+        border-color: #c7d2fe;
+    }
+
+        .pcard.featured {
+            border-color: #6366f1;
+            padding-top: 50px; /* Badge için yer açtık */
+            box-shadow: 0 0 0 4px rgba(99,102,241,0.12), 0 16px 48px rgba(99,102,241,0.15);
+        }
+
+    .pcard.featured:hover {
+        transform: translateY(-11px);
+        box-shadow: 0 0 0 4px rgba(99,102,241,0.2), 0 24px 60px rgba(99,102,241,0.2);
+    }
+
+    /* ── BADGE ── */
+    .pcard-badge {
+        position: absolute;
+        top: -12px; /* Kartın dışına hafif taşırarak daha modern bir hava katıyoruz */
+        right: 20px;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: #fff;
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        padding: 4px 10px;
+        border-radius: 50px;
+    }
+
+    /* ── NAME / PRICE ── */
+    .pcard-name {
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: #64748b;
+        margin-bottom: 12px;
+    }
+
+    .pcard.featured .pcard-name { color: #6366f1; }
+
+    .pcard-price {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: #0f172a;
+        letter-spacing: -0.04em;
+        line-height: 1;
+    }
+
+    .pcard-price sub {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #64748b;
+        letter-spacing: 0;
+        vertical-align: baseline;
+    }
+
+    .pcard-yearly-note {
+        font-size: 0.76rem;
+        color: #94a3b8;
+        margin-top: 4px;
+        min-height: 18px;
+    }
+
+    .pcard-yearly-note .save { color: #f59e0b; font-weight: 700; }
+
+    .pcard-desc {
+        font-size: 0.84rem;
+        color: #64748b;
+        line-height: 1.6;
+        margin-top: 12px;
+        padding-bottom: 18px;
+        border-bottom: 1px solid #f1f4f8;
+        margin-bottom: 18px;
+    }
+
+    /* ── LIMIT CHIPS ── */
+    .pcard-limits {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 18px;
+    }
+
+    .lchip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #f8faff;
+        border: 1px solid #e0e7ff;
+        border-radius: 7px;
+        padding: 3px 9px;
+        font-size: 0.71rem;
+        font-weight: 600;
+        color: #4f46e5;
+    }
+
+    .pcard.featured .lchip {
+        background: #eef2ff;
+        border-color: #c7d2fe;
+    }
+
+    /* ── FEATURE LIST ── */
+    .flist {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 26px;
+    }
+
+    .flist li {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        padding: 5px 0;
+        color: #374151;
+        font-size: 0.87rem;
+        line-height: 1.4;
+    }
+
+    .flist li.off {
+        color: #cbd5e1;
+        text-decoration: line-through;
+    }
+
+    .fcheck {
+        flex-shrink: 0;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #eef2ff;
+        color: #6366f1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.62rem;
+        margin-top: 1px;
+    }
+
+    .pcard.featured .fcheck { background: #6366f1; color: #fff; }
+
+    .flist li.off .fcheck {
+        background: #f1f5f9;
+        color: #cbd5e1;
+    }
+
+    /* ── BUTTONS ── */
+    .pcard-btn {
+        display: block;
+        width: 100%;
+        padding: 12px 20px;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 0.9rem;
+        text-align: center;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.22s ease;
+        border: 1.5px solid #e2e8f0;
+        background: #fff;
+        color: #374151;
+    }
+
+    .pcard-btn:hover {
+        border-color: #6366f1;
+        background: #f5f3ff;
+        color: #4f46e5;
+        box-shadow: 0 4px 16px rgba(99,102,241,0.15);
+        transform: translateY(-1px);
+    }
+
+    .pcard-btn.featured-btn {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        border: none;
+        color: #fff;
+        box-shadow: 0 6px 22px rgba(99,102,241,0.38);
+    }
+
+    .pcard-btn.featured-btn:hover {
+        box-shadow: 0 12px 36px rgba(99,102,241,0.5);
+        transform: translateY(-2px);
+        color: #fff;
+    }
+
+    /* ── TRIAL BANNER ── */
+    .trial-section {
+        max-width: 1000px; /* Yukarıdaki plans-grid ile aynı yaptık */
+        margin: 40px auto 60px; /* Dış boşlukları dengeledik */
+        background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+        border: 1.5px solid #a7f3d0;
+        border-radius: 22px;
+        padding: 28px 36px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .trial-section::after {
+        content: '🎁';
+        position: absolute;
+        right: 30px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 4rem;
+        opacity: 0.14;
+    }
+
+    .trial-title {
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: #065f46;
+        margin-bottom: 5px;
+    }
+
+    .trial-sub {
+        color: #047857;
+        font-size: 0.87rem;
+        opacity: 0.8;
+    }
+
+    .btn-trial {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 13px 28px;
+        border-radius: 14px;
+        font-weight: 700;
+        font-size: 0.92rem;
+        border: none;
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: #fff;
+        text-decoration: none;
+        transition: all 0.25s ease;
+        box-shadow: 0 6px 22px rgba(16,185,129,0.35);
+    }
+
+    .btn-trial:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 14px 38px rgba(16,185,129,0.5);
+        color: #fff;
+    }
+
+    /* ── TRUST ── */
+    .trust-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 24px;
+    }
+
+    .trust-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: #94a3b8;
+        font-size: 0.78rem;
+        font-weight: 500;
+    }
+
+    .trust-item i { color: #a5b4fc; font-size: 0.9rem; }
+
+    /* ── ANIMATIONS ── */
+    @@keyframes fadeUp {
+        from { opacity: 0; transform: translateY(16px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .au   { animation: fadeUp 0.5s ease both; }
+    .d0   { animation-delay: 0s; }
+    .d1   { animation-delay: 0.08s; }
+    .d2   { animation-delay: 0.15s; }
+    .d3   { animation-delay: 0.22s; }
+    .d4   { animation-delay: 0.30s; }
+    .d5   { animation-delay: 0.38s; }
+    .d6   { animation-delay: 0.46s; }
+</style>
+
+<div class="pricing-page">
+    <div class="container position-relative" style="z-index:1;">
+
+        <!-- ── HEADER ── -->
+        <div class="text-center au d0">
+            <div class="pricing-kicker"><i class="bi bi-stars"></i> AI Destekli Randevu Sistemi</div>
+            <h1 class="pricing-h1">
+                İşletmenize özel<br><span class="grad">en doğru planı seçin</span>
+            </h1>
+            <p class="pricing-sub">
+                Kurulum ücreti yok · Anında aktifleme<br>Her plan WhatsApp AI + Google Takvim entegrasyonu içerir
+            </p>
+            <div class="toggle-wrap au d1" id="billingWrap">
+                <button class="toggle-btn active" id="btnMonthly" onclick="setBilling('monthly')">Aylık</button>
+                <button class="toggle-btn" id="btnYearly" onclick="setBilling('yearly')">
+                    Yıllık
+                    <span class="save-label">%20 Tasarruf</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ── PLANS ── -->
+        <div class="plans-grid mt-5 mb-5">
+
+            <!-- STARTER -->
+            <div class="pcard au d2">
+                <div class="pcard-name">Starter</div>
+                <div class="pcard-price" id="amt-starter">@PlanPricing.StarterMonthly.ToString("N0")<sub> ₺/ay</sub></div>
+                <div class="pcard-yearly-note" id="ynote-starter"></div>
+                <p class="pcard-desc">Küçük ölçekli veya tek kişilik işletmeler için ideal başlangıç paketi.</p>
+
+                <div class="pcard-limits">
+                    <span class="lchip"><i class="bi bi-geo-alt-fill"></i> 1 Lokasyon</span>
+                    <span class="lchip"><i class="bi bi-calendar-check"></i> 300 Randevu/Ay</span>
+                    <span class="lchip"><i class="bi bi-person"></i> 1 Kullanıcı</span>
+                </div>
+
+                <ul class="flist">
+                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> WhatsApp AI Randevu Botu</li>
+                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> Randevu al / iptal / güncelle</li>
+                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> Google Takvim Senkronizasyonu</li>
+                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> Müşteri tanıma ve yönetimi</li>
+                    <li class="off"><span class="fcheck"><i class="bi bi-x"></i></span> Buton formatı (WhatsApp menü)</li>
+                    <li class="off"><span class="fcheck"><i class="bi bi-x"></i></span> İstatistik & raporlama paneli</li>
+                    <li class="off"><span class="fcheck"><i class="bi bi-x"></i></span> Çoklu personel hesabı</li>
+                </ul>
+
+                <a href="/Auth/Register?plan=starter" id="link-starter" class="pcard-btn">
+                    Bu Planı Seç <i class="bi bi-arrow-right ms-1"></i>
+                </a>
+                <p class="text-center mt-2 mb-0" style="font-size:0.68rem; color:#94a3b8;">
+                    <i class="bi bi-arrow-repeat me-1"></i>İptal edilmediği sürece abonelik otomatik yenilenir.
+                </p>
+            </div>
+            
+           <!-- PRO -->
+            <div class="pcard featured au d4">
+                <div class="pcard-badge">⭐ En Çok Tercih Edilen</div>
+                <div class="pcard-name">Pro</div>
+                <div class="pcard-price" id="amt-pro">@PlanPricing.ProMonthly.ToString("N0")<sub> ₺/ay</sub></div>
+                <div class="pcard-yearly-note" id="ynote-pro"></div>
+                <p class="pcard-desc">Büyüyen işletmeler için sınırsız randevu ve gelişmiş özellikler.</p>
+
+                <div class="pcard-limits">
+                    <span class="lchip"><i class="bi bi-geo-alt-fill"></i> 1 Lokasyon</span>
+                    <span class="lchip"><i class="bi bi-calendar-check"></i> Sınırsız</span>
+                    <span class="lchip"><i class="bi bi-people"></i> 3 Kullanıcı</span>
+                </div>
+
+                <ul class="flist">
+                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> Starter'daki her şey</li>
+                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> 3 personel hesabı</li>
+                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> Öncelikli e-posta desteği</li>
+                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> Randevu hatırlatma mesajı</li>
+                    <li class="off"><span class="fcheck"><i class="bi bi-x"></i></span> Çoklu lokasyon yönetimi</li>
+                    <li class="off"><span class="fcheck"><i class="bi bi-check2"></i></span> İstatistik & raporlama paneli</li> 
+                    <li class="off"><span class="fcheck"><i class="bi bi-check2"></i></span> No-show ve iptal raporları</li>
+                </ul>
+
+                <a href="/Auth/Register?plan=pro" id="link-pro" class="pcard-btn featured-btn">
+                    <i class="bi bi-lightning-fill me-1"></i> Bu Planı Seç
+                </a>
+                <p class="text-center mt-2 mb-0" style="font-size:0.68rem; color:#a5b4fc;">
+                    <i class="bi bi-arrow-repeat me-1"></i>İptal edilmediği sürece abonelik otomatik yenilenir.
+                </p>
+            </div>
+
+@*             <!-- BUSINESS (featured) -->
+            <div class="pcard au d4">
+                <div class="pcard-name">Business</div>
+                <div class="pcard-price" id="amt-business">@PlanPricing.ProMonthly.ToString("N0")<sub> ₺/ay</sub></div>
+                <div class="pcard-yearly-note" id="ynote-business"></div>
+                <p class="pcard-desc">Zincir işletmeler ve büyük ekipler için tam güç, öncelikli destek.</p>
+
+                <div class="pcard-limits">
+                    <span class="lchip"><i class="bi bi-geo-alt-fill"></i> 3 Lokasyon</span>
+                    <span class="lchip"><i class="bi bi-calendar-check"></i> Sınırsız</span>
+                    <span class="lchip"><i class="bi bi-people"></i> Sınırsız</span>
+                </div>
+
+                <ul class="flist">
+                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> Business'taki her şey</li>
+                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> 3 lokasyon yönetimi</li>
+                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> Sınırsız personel hesabı</li>
+                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> Gelişmiş istatistikler & API</li>
+                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> Özel onboarding desteği</li>
+                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> 7/24 öncelikli destek hattı</li>
+                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> Özel istekler & entegrasyon</li>
+                </ul>
+
+                <a href="/Auth/Register?plan=business" id="link-business" class="pcard-btn">
+                    Bu Planı Seç <i class="bi bi-arrow-right ms-1"></i>
+                </a>
+                <p class="text-center mt-2 mb-0" style="font-size:0.68rem; color:#94a3b8;">
+                    <i class="bi bi-arrow-repeat me-1"></i>İptal edilmediği sürece abonelik otomatik yenilenir.
+                </p>
+            </div> *@
+        </div>
+
+        <!-- ── TRIAL BANNER ── -->
+        <div class="trial-section au d5 mb-5">
+            <div class="row align-items-center g-4">
+                <div class="col-md-8">
+                    <div class="trial-title">🎁 14 Gün Ücretsiz Deneyin</div>
+                    <div class="trial-sub">
+                        Business özelliklerini 14 gün boyunca tam kullanın.<br>
+                        <strong>⚠️ Önemli:</strong> Deneme süresi sonunda veya bir plan seçildiğinde,
+                        <strong>aboneliğiniz iptal edilmediği sürece her ay otomatik olarak yenilenir.</strong>
+                        İstediğiniz zaman panelden iptal edebilirsiniz.
+                    </div>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <a href="@(User.Identity?.IsAuthenticated == true ? "/Pricing/Upgrade?plan=trial" : "/Auth/Register?plan=trial")" class="btn-trial">
+                        <i class="bi bi-play-fill"></i> Deneme Sürümünü Başlat
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── TRUST ── -->
+        <div class="trust-row au d6">
+            <div class="trust-item"><i class="bi bi-shield-check-fill"></i> SSL Güvenli</div>
+            <div class="trust-item"><i class="bi bi-credit-card-fill"></i> İyzico ile Güvenli Ödeme</div>
+            <div class="trust-item"><i class="bi bi-lock-fill"></i> KVKK Uyumlu</div>
+            <div class="trust-item"><i class="bi bi-headset"></i> 7/24 Destek</div>
+            <div class="trust-item"><i class="bi bi-arrow-counterclockwise"></i> İstediğin zaman iptal</div>
+        </div>
+
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    let currentBilling = 'monthly';
+    const isAuth = @(User.Identity?.IsAuthenticated == true ? "true" : "false");
+    const baseUrl = isAuth ? '/Pricing/Upgrade' : '/Auth/Register';
+
+    const priceData = {
+        monthly: {
+            starter:  { amt: '@PlanPricing.StarterMonthly.ToString("N0")',   label: '₺/ay', note: '' },
+            business: { amt: '@PlanPricing.BusinessMonthly.ToString("N0")', label: '₺/ay', note: '' },
+            pro:      { amt: '@PlanPricing.ProMonthly.ToString("N0")', label: '₺/ay', note: '' }
+        },
+        yearly: {
+            starter:  { amt: '@PlanPricing.GetMonthlyEquivalentForYearly(PlanPricing.StarterYearly).ToString("N0")',   label: '₺/ay', note: 'Yıllık ödemede @PlanPricing.StarterYearly.ToString("N0")₺ &middot; <span class="save">%20 Tasarruf</span>' },
+            business: { amt: '@PlanPricing.GetMonthlyEquivalentForYearly(PlanPricing.BusinessYearly).ToString("N0")', label: '₺/ay', note: 'Yıllık ödemede @PlanPricing.BusinessYearly.ToString("N0")₺ &middot; <span class="save">%20 Tasarruf</span>' },
+            pro:      { amt: '@PlanPricing.GetMonthlyEquivalentForYearly(PlanPricing.ProYearly).ToString("N0")', label: '₺/ay', note: 'Yıllık ödemede @PlanPricing.ProYearly.ToString("N0")₺ &middot; <span class="save">%20 Tasarruf</span>' }
+        }
+    };
+
+    function setBilling(type) {
+        currentBilling = type;
+        document.getElementById('btnMonthly').classList.toggle('active', type === 'monthly');
+        document.getElementById('btnYearly').classList.toggle('active', type === 'yearly');
+
+        ['starter', 'pro'].forEach(p => {
+            const d = priceData[type][p];
+            const amtEl = document.getElementById('amt-' + p);
+            if (amtEl) amtEl.innerHTML = d.amt + '<sub> ₺/ay</sub>';
+            const noteEl = document.getElementById('ynote-' + p);
+            if (noteEl) noteEl.innerHTML = d.note;
+            const linkEl = document.getElementById('link-' + p);
+            if (linkEl) linkEl.href = baseUrl + '?plan=' + p + '&cycle=' + type;
+        });
+    }
+
+    // Initialize links on load
+    setBilling('monthly');
+</script>
+}

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="@(ViewData["Description"] ?? "Akıllı Randevu - WhatsApp entegrasyonlu, yapay zeka destekli profesyonel randevu yönetim sistemi.")" />
+    <title>@ViewData["Title"] - Akıllı Randevu</title>
+    <!-- Modern Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/Appointment_SaaS.WebUI.styles.css" asp-append-version="true" />
+    
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --surface: #ffffff;
+            --background: #f8fafc;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .premium-navbar {
+            background: rgba(255, 255, 255, 0.9) !important;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8) !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            padding: 0.8rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.25rem;
+            letter-spacing: -0.5px;
+            color: var(--primary-color) !important;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-link {
+            font-weight: 500;
+            color: var(--text-secondary) !important;
+            padding: 0.5rem 1rem !important;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            color: var(--primary-color) !important;
+            background: #f1f5f9;
+        }
+
+        .nav-link i {
+            margin-right: 0.4rem;
+        }
+
+        main {
+            flex: 1;
+            /* Padding, full-bleed sayfalarda .page-container class'ı ile sıfırlanır */
+        }
+
+        .premium-footer {
+            background: var(--surface);
+            border-top: 1px solid var(--border-color);
+            padding: 1.5rem 0;
+            margin-top: auto;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-lg premium-navbar">
+            <div class="container">
+                <a class="navbar-brand" asp-area="" asp-controller="" asp-action="">
+                    <i class="bi bi-calendar2-check-fill" style="font-size: 1.4rem;"></i>
+                    Akıllı Randevu
+                </a>
+                <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <i class="bi bi-list fs-2 text-dark"></i>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="Pricing" asp-action="Index">
+                                <i class="bi bi-grid-1x2"></i> Planlar &amp; Fiyatlar
+                            </a>
+                        </li>
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="" asp-controller="Dashboard" asp-action="Index">
+                                    <i class="bi bi-speedometer2"></i> Yönetim Paneli
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="" asp-controller="Business" asp-action="Index">
+                                    <i class="bi bi-speedometer2"></i> Admin Paneli
+                                </a>
+                            </li>
+                            
+                        }
+                    </ul>
+                    <div class="d-flex align-items-center gap-2">
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <a href="/Auth/Logout" class="btn btn-outline-secondary rounded-pill px-4" style="font-weight:500; border-color:#cbd5e1; border-width:2px;"><i class="bi bi-box-arrow-right me-1"></i>Çıkış</a>
+                        }
+                        else
+                        {
+                            <a href="/Auth/Login" class="btn btn-outline-secondary rounded-pill px-4" style="font-weight:500; border-color:#cbd5e1; border-width:2px;">Giriş Yap</a>
+                            <a href="/Pricing" class="btn btn-primary rounded-pill px-4 shadow-sm" style="border-width:0; font-weight:600; background: linear-gradient(135deg,#6366f1,#8b5cf6);">
+                                Ücretsiz Dene
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main role="main">
+        <div class="container">
+            @RenderBody()
+        </div>
+    </main>
+
+    <footer class="premium-footer text-center">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <span class="fw-medium text-dark">&copy; 2026 Akıllı Randevu Altyapısı</span>
+                <div class="d-flex gap-3">
+                    <a href="/Home/Privacy" class="text-secondary text-decoration-none hover-primary" target="_blank"><i class="bi bi-shield-check"></i> Gizlilik</a>
+                    <a href="/Home/Terms" class="text-secondary text-decoration-none hover-primary" target="_blank"><i class="bi bi-file-earmark-text"></i> Şartlar</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,34 @@
+{
+  "_AÇIKLAMA": "Bu dosyayı 'appsettings.Development.json' olarak kopyalayın ve gerçek değerleri girin. Bu dosya .gitignore'dadır, Git'e PUSH edilmez.",
+  
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=SUNUCU\\SQLEXPRESS;Database=AppointmentSaaSDB;Trusted_Connection=True;TrustServerCertificate=True;"
+  },
+  "TokenOptions": {
+    "SecurityKey": "EN_AZ_32_KARAKTER_UZUNLUGUNDA_GUCLU_BIR_ANAHTAR_GIRIN"
+  },
+  "EvolutionApi": {
+    "BaseUrl": "http://YOUR_EVOLUTION_API_IP:8080",
+    "GlobalApiKey": "YOUR_EVOLUTION_API_GLOBAL_KEY",
+    "WebhookUrl": "https://YOUR_NGROK_OR_DOMAIN/webhook-test/evolution-webhook",
+    "DefaultInstance": "YOUR_DEFAULT_INSTANCE_NAME"
+  },
+  "Google": {
+    "ClientId": "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
+    "ClientSecret": "GOCSPX-YOUR_GOOGLE_CLIENT_SECRET"
+  },
+  "WebhookSecurity": {
+    "N8nAuthToken": "RASTGELE_UZUN_BIR_TOKEN_OLUSTURUN"
+  },
+  "EncryptionSettings": {
+    "AesKey": "32_KARAKTER_UZUNLUGUNDA_AES_SIFRELEME_ANAHTARI!"
+  },
+  "IyzicoSettings": {
+    "Enabled": false,
+    "ApiKey": "IYZICO_SANDBOX_API_KEY",
+    "SecretKey": "IYZICO_SANDBOX_SECRET_KEY",
+    "BaseUrl": "https://sandbox-api.iyzipay.com",
+    "PricingPlanReferenceCode": "IYZICO_PRICING_PLAN_REFERENCE_CODE",
+    "WebhookSecret": "OPSİYONEL_WEBHOOK_SECRET"
+  }
+}

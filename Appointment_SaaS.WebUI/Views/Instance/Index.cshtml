@@ -1,0 +1,293 @@
+@model List<Appointment_SaaS.WebUI.Models.InstanceListViewModel>
+@{
+    ViewData["Title"] = "İşletmeler";
+}
+
+<style>
+    :root {
+        --primary-color: #4f46e5;
+        --primary-hover: #4338ca;
+        --surface: #ffffff;
+        --background: #f9fafb;
+        --border-color: #e5e7eb;
+        --text-primary: #111827;
+        --text-secondary: #6b7280;
+    }
+
+    body {
+        background-color: var(--background);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    .page-header {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        border-radius: 16px;
+        padding: 2.5rem 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        box-shadow: 0 10px 25px rgba(79, 70, 229, 0.15);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .page-title {
+        font-weight: 700;
+        margin: 0;
+        font-size: 1.8rem;
+        letter-spacing: -0.025em;
+    }
+
+    .page-subtitle {
+        color: rgba(255, 255, 255, 0.8);
+        margin-top: 5px;
+        margin-bottom: 0;
+        font-size: 1rem;
+    }
+
+    .btn-create {
+        background: white;
+        color: var(--primary-color);
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 9999px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-create:hover {
+        background: #f3f4f6;
+        transform: translateY(-2px);
+        color: var(--primary-hover);
+        box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+    }
+
+    .data-card {
+        background: var(--surface);
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        border: 1px solid var(--border-color);
+        overflow: hidden;
+    }
+
+    .premium-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0;
+    }
+
+    .premium-table th {
+        background-color: #f8fafc;
+        color: var(--text-secondary);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 600;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .premium-table td {
+        padding: 1.25rem 1.5rem;
+        vertical-align: middle;
+        border-bottom: 1px solid var(--border-color);
+        color: var(--text-primary);
+        font-size: 0.9rem;
+    }
+
+    .premium-table tbody tr {
+        transition: background-color 0.2s;
+    }
+
+    .premium-table tbody tr:hover {
+        background-color: #f8fafc;
+    }
+
+    .business-name {
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 1rem;
+        margin-bottom: 0.2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .business-icon {
+        background: #e0e7ff;
+        color: #4f46e5;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+
+    .contact-info {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .status-pill {
+        padding: 0.35rem 0.8rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .status-active { background: #dcfce7; color: #166534; }
+    .status-passive { background: #fee2e2; color: #991b1b; }
+    .status-trial { background: #fef9c3; color: #854d0e; }
+    .status-paid { background: #e0e7ff; color: #3730a3; }
+
+    .action-btn {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        text-decoration: none;
+    }
+
+    .action-btn:hover {
+        background: #f3f4f6;
+        color: var(--primary-color);
+        border-color: #d1d5db;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 5rem 2rem;
+    }
+
+    .empty-icon {
+        font-size: 4rem;
+        color: #cbd5e1;
+        margin-bottom: 1.5rem;
+    }
+</style>
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">İşletmeler</h1>
+        <p class="page-subtitle">Sisteminize kayıtlı tüm işletmeleri yönetin ve Evolution API durumlarını görüntüleyin.</p>
+    </div>
+    <a asp-action="Create" class="btn-create text-decoration-none">
+        <i class="bi bi-plus-lg"></i> Yeni İşletme
+    </a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show border-0 rounded-4 shadow-sm" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i> @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show border-0 rounded-4 shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i> @ViewBag.Error
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="data-card">
+    @if (Model.Any())
+    {
+        <div class="table-responsive">
+            <table class="premium-table">
+                <thead>
+                    <tr>
+                        <th style="width: 35%">İşletme Bilgileri</th>
+                        <th>İletişim & Konum</th>
+                        <th>Durum</th>
+                        <th>Abonelik</th>
+                        <th class="text-end">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="business-icon">
+                                        <i class="bi bi-shop"></i>
+                                    </div>
+                                    <div>
+                                        <div class="business-name">@item.Name</div>
+                                        <div class="text-secondary" style="font-size: 0.8rem; font-family: monospace;">
+                                            <i class="bi bi-lightning-charge-fill text-warning"></i> @item.InstanceName
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="contact-info mb-1"><i class="bi bi-telephone"></i> @item.PhoneNumber</div>
+                                <div class="contact-info"><i class="bi bi-geo-alt"></i> @item.Address</div>
+                            </td>
+                            <td>
+                                @if (item.IsActive)
+                                {
+                                    <span class="status-pill status-active"><i class="bi bi-check-circle-fill"></i> Aktif</span>
+                                }
+                                else
+                                {
+                                    <span class="status-pill status-passive"><i class="bi bi-dash-circle-fill"></i> Pasif</span>
+                                }
+                            </td>
+                            <td>
+                                @if (item.IsTrial)
+                                {
+                                    <span class="status-pill status-trial">Deneme Sürecinde</span>
+                                }
+                                else
+                                {
+                                    <span class="status-pill status-paid">VIP Abonelik</span>
+                                }
+                                <div class="mt-1 text-secondary" style="font-size: 0.75rem;">
+                                    Bitiş: @item.SubscriptionEndDate.ToString("dd MMM yyyy")
+                                </div>
+                            </td>
+                            <td class="text-end">
+                                <a href="#" class="action-btn" title="Detayları Gör">
+                                    <i class="bi bi-arrow-right"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <i class="bi bi-inboxes empty-icon"></i>
+            <h4 class="mb-2" style="font-weight: 600; color: var(--text-primary);">Henüz İşletme Eklenmemiş</h4>
+            <p class="text-secondary mb-4">Sistemde kayıtlı hiçbir işletme bulunamadı. İlk müşterinizi eklemek ister misiniz?</p>
+            <a asp-action="Create" class="btn btn-primary rounded-pill px-4 py-2" style="background-color: var(--primary-color);">
+                <i class="bi bi-plus-lg me-1"></i> Yeni İşletme Ekle
+            </a>
+        </div>
+    }
+</div>

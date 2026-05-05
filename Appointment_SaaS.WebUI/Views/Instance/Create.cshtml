@@ -1,0 +1,380 @@
+@model Appointment_SaaS.WebUI.Models.InstanceCreateViewModel
+@{
+    ViewData["Title"] = "Yeni İşletme Ekle";
+}
+
+<style>
+    :root {
+        --primary-color: #4f46e5;
+        --primary-hover: #4338ca;
+        --surface: #ffffff;
+        --background: #f9fafb;
+        --border-color: #e5e7eb;
+        --text-primary: #111827;
+        --text-secondary: #6b7280;
+    }
+
+    body {
+        background-color: var(--background);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    .premium-card {
+        background: var(--surface);
+        border-radius: 24px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.06);
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.8);
+    }
+
+    .form-section-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .form-section-icon {
+        background: #e0e7ff;
+        color: var(--primary-color);
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+    }
+
+    .form-floating > .form-control,
+    .form-floating > .form-select {
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        background-color: #f8fafc;
+        transition: all 0.3s ease;
+    }
+
+    .form-floating > .form-control:focus,
+    .form-floating > .form-select:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+        background-color: #ffffff;
+    }
+
+    .form-floating > label {
+        color: var(--text-secondary);
+        padding-left: 1.25rem;
+    }
+
+    .btn-submit {
+        background: transparent;
+        color: var(--primary-color);
+        border: 2px solid var(--primary-color);
+        border-radius: 12px;
+        padding: 1rem 2rem;
+        font-weight: 700;
+        font-size: 1.05rem;
+        transition: all 0.3s ease;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .btn-submit:hover {
+        background: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(79, 70, 229, 0.2);
+    }
+
+    .btn-cancel {
+        background: transparent;
+        color: var(--text-secondary);
+        border: 2px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 1rem;
+        font-weight: 600;
+        display: block;
+        text-align: center;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+
+    .btn-cancel:hover {
+        background: #f1f5f9;
+        color: var(--text-primary);
+        border-color: #94a3b8;
+    }
+
+    .info-panel {
+        background: linear-gradient(135deg, #1e1b4b 0%, #4338ca 100%);
+        color: white;
+        padding: 4rem 3rem;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .feature-list {
+        list-style: none;
+        padding: 0;
+        margin-top: 2rem;
+    }
+
+    .feature-list li {
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        font-size: 1.05rem;
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    .feature-icon {
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        min-width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+    }
+
+    .divider {
+        height: 1px;
+        background: var(--border-color);
+        margin: 2.5rem 0;
+    }
+</style>
+
+<div class="container py-4">
+    @if (ViewBag.Error != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show border-0 rounded-4 shadow-sm mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> @ViewBag.Error
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="premium-card">
+        <div class="row g-0">
+            <!-- Left Info Panel -->
+            <div class="col-lg-5 d-none d-lg-block">
+                <div class="info-panel">
+                    <div>
+                        <div class="mb-5">
+                            <i class="bi bi-calendar-check" style="font-size: 2.5rem; color: #a5b4fc;"></i>
+                            <h2 class="fw-bold mt-3 mb-1" style="letter-spacing: -1px;">Akıllı Randevu</h2>
+                            <p class="opacity-75">İşletmenizi bir adım ileriye taşıyın.</p>
+                        </div>
+
+                        <ul class="feature-list">
+                            <li>
+                                <div class="feature-icon"><i class="bi bi-whatsapp"></i></div>
+                                <div>
+                                    <strong class="d-block text-white">Anında WhatsApp Entegrasyonu</strong>
+                                    <span style="font-size: 0.9rem; opacity: 0.8;">Kayıt olur olmaz WhatsApp API arkaplanda otomatik olarak kurulur.</span>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="feature-icon"><i class="bi bi-robot"></i></div>
+                                <div>
+                                    <strong class="d-block text-white">Yapay Zeka Hazır</strong>
+                                    <span style="font-size: 0.9rem; opacity: 0.8;">Asistanınız sizin yerinize müşteri randevularını ayarlamaya başlasın.</span>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="feature-icon"><i class="bi bi-shield-check"></i></div>
+                                <div>
+                                    <strong class="d-block text-white">Güvenli Altyapı</strong>
+                                    <span style="font-size: 0.9rem; opacity: 0.8;">Tüm verileriniz size özel izole bir alanda saklanır ve yedeklenir.</span>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="mt-5 pt-5 border-top border-light border-opacity-25">
+                        <p class="mb-0 text-white-50" style="font-size: 0.85rem;">
+                            &copy; 2026 AppointmentSaaS Inc.<br>Tüm hakları saklıdır.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Form Panel -->
+            <div class="col-lg-7 p-4 p-md-5">
+                <div class="mb-4">
+                    <h2 class="fw-bold text-dark" style="letter-spacing: -0.5px;">Yeni Kayıt Oluştur</h2>
+                    <p class="text-secondary">İşletmenizi sisteme eklemek için aşağıdaki bilgileri doldurun.</p>
+                </div>
+
+                <form asp-action="Create" method="post" id="createForm">
+                    @Html.AntiForgeryToken()
+
+                    <!-- KULLANICI BİLGİLERİ -->
+                    <div class="form-section-title">
+                        <div class="form-section-icon"><i class="bi bi-person"></i></div>
+                        Hesap Sahibi Bilgileri
+                    </div>
+                    
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="text" name="UserFullName" class="form-control" id="fullName" placeholder="Ad Soyad" required>
+                                <label for="fullName">Ad Soyad <span class="text-danger">*</span></label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="email" name="UserEmail" class="form-control" id="email" placeholder="E-posta" required>
+                                <label for="email">E-posta Adresi <span class="text-danger">*</span></label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <!-- İŞLETME BİLGİLERİ -->
+                    <div class="form-section-title">
+                        <div class="form-section-icon"><i class="bi bi-shop"></i></div>
+                        İşletme Bilgileri
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-12">
+                            <div class="form-floating">
+                                <input asp-for="Name" class="form-control" id="businessName" placeholder="İşletme Adı" required />
+                                <label for="businessName">İşletme Adı (Görünen Ad) <span class="text-danger">*</span></label>
+                                <span asp-validation-for="Name" class="text-danger" style="font-size: 0.85rem;"></span>
+                            </div>
+                        </div>
+
+                        <!-- InstanceName formdan tamamen silindi, arkada gizlice oluşturulacak -->
+
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <select asp-for="SectorID" class="form-select" id="sector" aria-label="Sektör Seçimi" required>
+                                    <option value="" selected disabled>Seçiniz...</option>
+                                    @if (Model.Sectors != null)
+                                    {
+                                        @foreach (var sector in Model.Sectors)
+                                        {
+                                            <option value="@sector.SectorID">@sector.Name</option>
+                                        }
+                                    }
+                                </select>
+                                <label for="sector">Sektör <span class="text-danger">*</span></label>
+                                <span asp-validation-for="SectorID" class="text-danger" style="font-size: 0.85rem;"></span>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input asp-for="PhoneNumber" class="form-control" id="phone" placeholder="Telefon" />
+                                <label for="phone">Telefon Numarası</label>
+                                <span asp-validation-for="PhoneNumber" class="text-danger" style="font-size: 0.85rem;"></span>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="form-floating">
+                                <textarea asp-for="Address" class="form-control" id="address" placeholder="Adres" style="height: 100px"></textarea>
+                                <label for="address">Açık Adres</label>
+                                <span asp-validation-for="Address" class="text-danger" style="font-size: 0.85rem;"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <!-- ÖDEME BİLGİLERİ (isteğe bağlı) -->
+                    <div class="form-section-title">
+                        <div class="form-section-icon"><i class="bi bi-credit-card"></i></div>
+                        Ödeme Bilgileri <span class="badge bg-secondary ms-1" style="font-size:0.65rem;font-weight:600">İsteğe bağlı</span>
+                    </div>
+                    <p class="small text-muted mb-3">
+                        Iyzico ile abonelik denemesi başlatmak istiyorsanız kart bilgilerini doldurun; şimdilik atlamak isterseniz bu bölümü boş bırakabilirsiniz.
+                    </p>
+
+                    <div class="row g-3 mb-2">
+                        <div class="col-12">
+                            <div class="form-floating">
+                                <input asp-for="CardHolderName" class="form-control" id="cardHolderName" placeholder="Kart Üzerindeki İsim" />
+                                <label for="cardHolderName">Kart Üzerindeki İsim</label>
+                                <span asp-validation-for="CardHolderName" class="text-danger" style="font-size: 0.85rem;"></span>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="form-floating">
+                                <input asp-for="CardNumber" class="form-control" id="cardNumber" placeholder="Kart Numarası" inputmode="numeric" autocomplete="cc-number" />
+                                <label for="cardNumber">Kart Numarası</label>
+                                <span asp-validation-for="CardNumber" class="text-danger" style="font-size: 0.85rem;"></span>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="form-floating">
+                                <input asp-for="ExpireMonth" class="form-control" id="expireMonth" placeholder="AA" inputmode="numeric" autocomplete="cc-exp-month" />
+                                <label for="expireMonth">Ay (AA)</label>
+                                <span asp-validation-for="ExpireMonth" class="text-danger" style="font-size: 0.85rem;"></span>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="form-floating">
+                                <input asp-for="ExpireYear" class="form-control" id="expireYear" placeholder="YY / YYYY" inputmode="numeric" autocomplete="cc-exp-year" />
+                                <label for="expireYear">Yıl (YY)</label>
+                                <span asp-validation-for="ExpireYear" class="text-danger" style="font-size: 0.85rem;"></span>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="form-floating">
+                                <input asp-for="Cvc" class="form-control" id="cvc" placeholder="CVC" inputmode="numeric" autocomplete="cc-csc" />
+                                <label for="cvc">CVC</label>
+                                <span asp-validation-for="Cvc" class="text-danger" style="font-size: 0.85rem;"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="small text-muted mb-4">
+                        Kart bilgisi girerseniz: kredi kartı bilgileriniz sistemlerimizde saklanmaz; yalnızca iyzico tarafından verilen kart token saklanır.
+                    </div>
+
+                    <div class="row g-3 mt-4">
+                        <div class="col-sm-8">
+                            <button type="submit" class="btn-submit">
+                                <i class="bi bi-check-circle"></i> Kaydı Tamamla ve Kur
+                            </button>
+                        </div>
+                        <div class="col-sm-4">
+                            <a asp-action="Index" class="btn-cancel">İptal</a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        // İsteğe bağlı olarak UI etkileşimleri eklenebilir. 
+        // Form gönderilirken buton durumunu değiştirme efekti:
+        document.getElementById('createForm').addEventListener('submit', function() {
+            var btn = this.querySelector('.btn-submit');
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Sistem Kuruluyor...';
+            btn.classList.add('disabled');
+        });
+    </script>
+}

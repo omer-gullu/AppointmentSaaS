@@ -1,0 +1,328 @@
+@{
+    ViewData["Title"] = "Giriş Yap";
+    ViewData["Description"] = "Akıllı Randevu sistemine güvenli şifresiz giriş yapın. WhatsApp ile OTP doğrulama.";
+    var prefilledPhone = TempData["PrefilledPhone"] as string ?? string.Empty;
+}
+
+<div class="row justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="col-12 col-md-8 col-lg-5">
+        <div class="card premium-card border-0 shadow-lg" style="border-radius: 20px; overflow: hidden;">
+            <div class="card-body p-5">
+                <div class="text-center mb-5">
+                    <div class="d-inline-flex align-items-center justify-content-center bg-primary bg-opacity-10 text-primary rounded-circle mb-3" style="width: 64px; height: 64px;">
+                        <i class="bi bi-shield-lock-fill fs-2"></i>
+                    </div>
+                    <h2 class="fw-bold mb-2">Hoş Geldiniz</h2>
+                    <p class="text-muted" id="stepDescription">Sisteme giriş yapmak için telefon numaranızı girin.</p>
+                </div>
+
+                @if (Context.Request.Query.ContainsKey("suspended"))
+                {
+                    <div class="alert alert-danger border-0 rounded-4 shadow-sm mb-4 d-flex align-items-center gap-2" role="alert">
+                        <i class="bi bi-exclamation-octagon-fill fs-5"></i>
+                        <div>
+                            <strong>Hesabınız askıya alınmıştır.</strong><br>
+                            Lütfen yöneticiyle iletişime geçin.
+                        </div>
+                    </div>
+                }
+
+                <!-- ADIM 1: TELEFON GİRİŞİ -->
+                <div id="step1">
+                    <form id="phoneForm" onsubmit="requestOtp(event)">
+                        <div class="form-floating mb-4 position-relative">
+                            <input type="tel" class="form-control bg-light border-0 py-3" id="phoneNumber"
+                                   placeholder="5xx xxx xx xx" required pattern="[0-9]{10,12}"
+                                   value="@prefilledPhone"
+                            @(string.IsNullOrEmpty(prefilledPhone) ? "" : "disabled")>
+                            <label for="phoneNumber" class="text-muted"><i class="bi bi-phone me-2"></i>Telefon Numarası</label>
+                            <div class="form-text mt-2">Şifresiz, güvenli giriş (WhatsApp üzerinden kod gönderilir)</div>
+                        </div>
+
+                        <button id="btnRequestOtp" type="submit" class="btn btn-primary w-100 py-3 rounded-pill fw-semibold shadow-sm d-flex justify-content-center align-items-center">
+                            <span class="btn-text">Devam Et</span>
+                            <div class="spinner-border spinner-border-sm text-light ms-2 d-none" role="status"></div>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- ADIM 2: OTP DOĞRULAMA -->
+                <div id="step2" class="d-none">
+                    <form id="otpForm" onsubmit="verifyOtp(event)">
+                        <div class="mb-4 text-center">
+                            <label class="form-label text-muted mb-3">WhatsApp'a gönderilen 6 haneli kodu girin</label>
+
+                            <div class="d-flex justify-content-between gap-2 mb-3" id="otpContainer">
+                                <input type="text" class="form-control form-control-lg text-center fw-bold bg-light border-0 otp-input" maxlength="1" required autofocus>
+                                <input type="text" class="form-control form-control-lg text-center fw-bold bg-light border-0 otp-input" maxlength="1" required>
+                                <input type="text" class="form-control form-control-lg text-center fw-bold bg-light border-0 otp-input" maxlength="1" required>
+                                <input type="text" class="form-control form-control-lg text-center fw-bold bg-light border-0 otp-input" maxlength="1" required>
+                                <input type="text" class="form-control form-control-lg text-center fw-bold bg-light border-0 otp-input" maxlength="1" required>
+                                <input type="text" class="form-control form-control-lg text-center fw-bold bg-light border-0 otp-input" maxlength="1" required>
+                            </div>
+
+                            <!-- Geri sayım countdown -->
+                            <div id="otpCountdownWrap" class="mb-3">
+                                <div class="d-inline-flex align-items-center gap-2 px-3 py-2 rounded-3"
+                                     style="background: #fef3c7; border: 1px solid #fde68a;">
+                                    <i class="bi bi-clock text-warning"></i>
+                                    <span class="text-warning fw-bold small">Kodun geçerlilik süresi: <span id="countdownTimer">45</span>sn</span>
+                                </div>
+                            </div>
+                            <div id="resendWrap" class="d-none mb-3">
+                                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-4" onclick="resendOtp()">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Kodu Tekrar Gönder
+                                </button>
+                            </div>
+                        </div>
+
+                        <button id="btnVerifyOtp" type="submit" class="btn btn-primary w-100 py-3 rounded-pill fw-semibold shadow-sm mb-3">
+                            <span class="btn-text">Doğrula ve Giriş Yap</span>
+                            <div class="spinner-border spinner-border-sm text-light ms-2 d-none" role="status"></div>
+                        </button>
+
+                        <div class="text-center">
+                            <button type="button" class="btn btn-link text-decoration-none text-muted" onclick="backToStep1()">
+                                <i class="bi bi-arrow-left me-1"></i> Numarayı Değiştir
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="errorMessage" class="alert alert-danger mt-4 d-none mb-0 flex-row align-items-center gap-2" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <span>Hata mesajı burada görünecek</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <style>
+        .premium-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .form-control {
+            border-radius: 12px;
+        }
+
+            .form-control:focus {
+                box-shadow: 0 0 0 0.25rem rgba(79, 70, 229, 0.15);
+                background-color: #fff !important;
+            }
+
+        .form-floating > .form-control:not(:placeholder-shown) ~ label,
+        .form-floating > .form-control:focus ~ label {
+            opacity: 0.65;
+            transform: scale(0.85) translateY(-0.5rem) translateX(0.15rem);
+        }
+
+        .form-floating > .form-control::placeholder {
+            color: transparent;
+        }
+
+        .otp-input {
+            width: 50px;
+            height: 60px;
+            font-size: 1.5rem;
+            border-radius: 12px !important;
+        }
+
+            .otp-input:focus {
+                border: 2px solid var(--primary-color) !important;
+            }
+    </style>
+
+    <script>
+        document.querySelectorAll('.otp-input').forEach((input, index) => {
+            input.addEventListener('keyup', (e) => {
+                if (e.target.value.length === 1 && index < 5) {
+                    document.querySelectorAll('.otp-input')[index + 1].focus();
+                }
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && e.target.value === '' && index > 0) {
+                    document.querySelectorAll('.otp-input')[index - 1].focus();
+                }
+            });
+        });
+
+        let currentPhone = "";
+        let countdownInterval = null;
+
+        function startCountdown(seconds) {
+            clearInterval(countdownInterval);
+            let remaining = seconds;
+            document.getElementById('countdownTimer').textContent = remaining;
+            document.getElementById('otpCountdownWrap').classList.remove('d-none');
+            document.getElementById('resendWrap').classList.add('d-none');
+
+            countdownInterval = setInterval(() => {
+                remaining--;
+                document.getElementById('countdownTimer').textContent = remaining;
+                if (remaining <= 0) {
+                    clearInterval(countdownInterval);
+                    document.getElementById('otpCountdownWrap').classList.add('d-none');
+                    document.getElementById('resendWrap').classList.remove('d-none');
+                }
+            }, 1000);
+        }
+
+        async function resendOtp() {
+            const errBox = document.getElementById('errorMessage');
+            errBox.classList.add('d-none');
+            document.getElementById('resendWrap').classList.add('d-none');
+
+            try {
+                const response = await fetch('/Auth/GenerateOtp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phoneNumber: currentPhone })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    startCountdown(45);
+                    document.querySelectorAll('.otp-input').forEach(i => i.value = '');
+                    document.querySelector('.otp-input').focus();
+                } else {
+                    showError(data.message || "Kod tekrar gönderilemedi.");
+                    document.getElementById('resendWrap').classList.remove('d-none');
+                }
+            } catch {
+                showError("Sunucu ile bağlantı kurulamadı.");
+                document.getElementById('resendWrap').classList.remove('d-none');
+            }
+        }
+
+        async function requestOtp(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnRequestOtp');
+            const errBox = document.getElementById('errorMessage');
+
+            errBox.classList.add('d-none');
+            toggleButtonLoader(btn, true);
+
+            currentPhone = document.getElementById('phoneNumber').value;
+
+            try {
+                const response = await fetch('/Auth/GenerateOtp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phoneNumber: currentPhone })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('step1').classList.add('d-none');
+                    document.getElementById('step2').classList.remove('d-none');
+                    document.getElementById('stepDescription').innerText = "Giriş işlemini tamamlamak için kodu doğrulayın.";
+                    document.querySelector('.otp-input').focus();
+                    startCountdown(45);
+                } else {
+                    showError(data.message || "Mesaj gönderilemedi. Lütfen numarayı kontrol edin.");
+
+                    // Lockout varsa butonu kilitle
+                    if (response.status === 429 || response.status === 403) {
+                        btn.disabled = true;
+                    }
+                }
+            } catch (err) {
+                showError("Sunucu ile bağlantı kurulamadı.");
+            } finally {
+                toggleButtonLoader(btn, false);
+            }
+        }
+
+        async function verifyOtp(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnVerifyOtp');
+            const errBox = document.getElementById('errorMessage');
+
+            errBox.classList.add('d-none');
+            toggleButtonLoader(btn, true);
+
+            const inputs = document.querySelectorAll('.otp-input');
+            let otpCode = "";
+            inputs.forEach(i => otpCode += i.value);
+
+            try {
+                const response = await fetch('/Auth/VerifyOtp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phoneNumber: currentPhone, otpCode: otpCode })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    window.location.href = '/Dashboard/Index';
+                } else {
+                    showError(data.message || "Hatalı veya süresi dolmuş kod.");
+
+                    if (response.status === 429 || response.status === 403) {
+                        inputs.forEach(i => i.disabled = true);
+                        document.getElementById('otpCountdownWrap').classList.add('d-none');
+                        document.getElementById('resendWrap').classList.add('d-none');
+                        clearInterval(countdownInterval);
+
+                        document.getElementById('step2').classList.add('d-none');
+                        document.getElementById('step1').classList.remove('d-none');
+                        document.getElementById('stepDescription').innerText = "Sisteme giriş yapmak için telefon numaranızı girin.";
+                        document.getElementById('phoneNumber').disabled = true;
+                        document.getElementById('btnRequestOtp').disabled = true;
+                    } else {
+                        inputs.forEach(i => i.value = '');
+                        inputs[0].focus();
+                    }
+                }
+            } catch (err) {
+                showError("Doğrulama sırasında bir hata oluştu.");
+            } finally {
+                toggleButtonLoader(btn, false);
+            }
+        }
+
+        function backToStep1() {
+            document.getElementById('step2').classList.add('d-none');
+            document.getElementById('step1').classList.remove('d-none');
+            document.getElementById('stepDescription').innerText = "Sisteme giriş yapmak için telefon numaranızı girin.";
+            document.getElementById('errorMessage').classList.add('d-none');
+            clearInterval(countdownInterval);
+
+            // OTP inputlarını sıfırla ve aktif et
+            document.querySelectorAll('.otp-input').forEach(i => {
+                i.value = '';
+                i.disabled = false;
+            });
+            document.getElementById('btnVerifyOtp').disabled = false;
+            document.getElementById('btnRequestOtp').disabled = false;
+            document.getElementById('otpCountdownWrap').classList.remove('d-none');
+            document.getElementById('resendWrap').classList.add('d-none');
+        }
+
+        function showError(msg) {
+            const errBox = document.getElementById('errorMessage');
+            errBox.querySelector('span').innerText = msg;
+            errBox.classList.remove('d-none');
+            errBox.classList.add('d-flex');
+        }
+
+        function toggleButtonLoader(btn, isLoading) {
+            const text = btn.querySelector('.btn-text');
+            const spinner = btn.querySelector('.spinner-border');
+
+            if (isLoading) {
+                text.classList.add('opacity-50');
+                btn.classList.add('pe-none');
+                spinner.classList.remove('d-none');
+            } else {
+                text.classList.remove('opacity-50');
+                btn.classList.remove('pe-none');
+                spinner.classList.add('d-none');
+            }
+        }
+    </script>
+}

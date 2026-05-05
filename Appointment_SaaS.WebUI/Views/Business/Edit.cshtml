@@ -1,0 +1,173 @@
+@model Appointment_SaaS.WebUI.Models.BusinessEditViewModel
+@{
+    ViewData["Title"] = "İşletme Düzenle";
+}
+
+<style>
+    :root {
+        --primary-color: #4f46e5;
+        --primary-hover: #4338ca;
+        --surface: #ffffff;
+        --background: #f9fafb;
+        --border-color: #e5e7eb;
+    }
+    body { background-color: var(--background); }
+    .form-card {
+        background: var(--surface);
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        border: 1px solid var(--border-color);
+        overflow: hidden;
+        max-width: 800px;
+    }
+    .form-card-header {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        padding: 2rem;
+        color: white;
+    }
+    .form-card-body { padding: 2rem; }
+    .form-section-title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .form-label { font-weight: 500; font-size: 0.9rem; margin-bottom: 0.3rem; }
+    .form-control, .form-select {
+        border: 1.5px solid var(--border-color);
+        border-radius: 10px;
+        padding: 0.6rem 0.9rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+    .toggle-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+        background: #f8fafc;
+        border-radius: 10px;
+        border: 1.5px solid var(--border-color);
+    }
+    .toggle-info .toggle-title { font-weight: 500; font-size: 0.9rem; }
+    .toggle-info .toggle-desc { font-size: 0.8rem; color: #64748b; margin: 0; }
+    .form-check-input[type=checkbox] { width: 42px; height: 24px; cursor: pointer; }
+    .btn-save {
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 0.75rem 2rem;
+        border-radius: 9999px;
+        font-weight: 600;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .btn-save:hover { background: var(--primary-hover); transform: translateY(-1px); color: white; }
+</style>
+
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb" style="font-size:0.875rem">
+        <li class="breadcrumb-item">
+            <a asp-controller="Business" asp-action="Index" class="text-decoration-none text-secondary">
+                <i class="bi bi-building"></i> İşletmeler
+            </a>
+        </li>
+        <li class="breadcrumb-item active fw-500">@Model.Name - Düzenle</li>
+    </ol>
+</nav>
+
+@if (ViewBag.Error != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show border-0 rounded-4 shadow-sm mb-3" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i> @ViewBag.Error
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<form asp-action="Edit" asp-route-id="@Model.TenantID" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="TenantID" />
+
+    <div class="form-card">
+        <div class="form-card-header">
+            <h4 class="mb-1 fw-bold"><i class="bi bi-pencil-square me-2"></i>İşletme Düzenle</h4>
+            <p class="mb-0" style="opacity:.8;font-size:.9rem">#@Model.TenantID</p>
+        </div>
+
+        <div class="form-card-body">
+            <!-- Temel Bilgiler -->
+            <div class="form-section-title"><i class="bi bi-info-circle me-1"></i>Temel Bilgiler</div>
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label asp-for="Name" class="form-label">İşletme Adı <span class="text-danger">*</span></label>
+                    <input asp-for="Name" class="form-control" required />
+                    <span asp-validation-for="Name" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="InstanceName" class="form-label">Instance Adı <span class="badge bg-secondary ms-1" style="font-size:.65rem">Evolution API</span></label>
+                    <input asp-for="InstanceName" class="form-control" />
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="PhoneNumber" class="form-label">Telefon</label>
+                    <input asp-for="PhoneNumber" class="form-control" placeholder="+905xxxxxxxxx" />
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Address" class="form-label">Adres</label>
+                    <input asp-for="Address" class="form-control" />
+                </div>
+            </div>
+
+            <!-- Durum & Abonelik -->
+            <div class="form-section-title"><i class="bi bi-credit-card me-1"></i>Durum & Abonelik</div>
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <label asp-for="SubscriptionEndDate" class="form-label">Abonelik Bitiş</label>
+                    <input asp-for="SubscriptionEndDate" type="date" class="form-control"
+                           value="@Model.SubscriptionEndDate.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="col-md-4">
+                    <div class="toggle-card h-100">
+                        <div class="toggle-info">
+                            <div class="toggle-title">Hesap Aktif</div>
+                            <p class="toggle-desc">İşletme sisteme erişebilir</p>
+                        </div>
+                        <input asp-for="IsActive" type="checkbox" class="form-check-input" role="switch" />
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="toggle-card h-100">
+                        <div class="toggle-info">
+                            <div class="toggle-title">Deneme Süreci</div>
+                            <p class="toggle-desc">Ücretsiz deneme aktif</p>
+                        </div>
+                        <input asp-for="IsTrial" type="checkbox" class="form-check-input" role="switch" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kaydet -->
+            <div class="d-flex align-items-center gap-3 pt-3 border-top">
+                <button type="submit" class="btn-save">
+                    <i class="bi bi-floppy"></i> Değişiklikleri Kaydet
+                </button>
+                <a asp-action="Index" class="btn btn-light rounded-pill px-4 fw-500">
+                    <i class="bi bi-x me-1"></i> İptal
+                </a>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
