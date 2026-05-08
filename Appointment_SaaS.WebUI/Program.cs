@@ -64,11 +64,13 @@ builder.Services.AddHttpClient<IEvolutionApiService, EvolutionApiManager>(client
 builder.Services.AddScoped<ITenantRepository, EfTenantRepository>();
 builder.Services.AddScoped<IAppUserRepository, EfAppUserRepository>();
 builder.Services.AddScoped<IAuditLogRepository, EfAuditLogRepository>();
+builder.Services.AddScoped<IFeedbackRepository, EfFeedbackRepository>();
 
 // Business Services
 builder.Services.AddScoped<ITenantService, TenantManager>();
 builder.Services.AddScoped<IAppUserService, AppUserManager>();
 builder.Services.AddScoped<IAuditLogService, AuditLogManager>();
+builder.Services.AddScoped<IFeedbackService, FeedbackManager>();
 builder.Services.AddHttpContextAccessor(); // IP ve User bilgilerini yakalamak için şart!
 
 // WebUI API Services

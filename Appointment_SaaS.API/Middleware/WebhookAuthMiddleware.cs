@@ -19,16 +19,18 @@ public class WebhookAuthMiddleware
         new(@"^/api/appointments/\d+/google-event$", RegexOptions.IgnoreCase | RegexOptions.Compiled),
         new(@"^/api/appointments/lock$", RegexOptions.IgnoreCase | RegexOptions.Compiled),
         new(@"^/api/appointments/unlock$", RegexOptions.IgnoreCase | RegexOptions.Compiled),
-        new(@"^/api/auditlogs/workflow-error$", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+        new(@"^/api/auditlogs/workflow-error$", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+            new(@"^/api/appointments/\d+$", RegexOptions.IgnoreCase | RegexOptions.Compiled),
     };
 
     // Tüm metodlarda token gerektiren kritik endpoint'ler
     private static readonly string[] ProtectedApiPaths =
     {
         "/api/tenants/getcontextbyinstance",
-        "/api/tenants/getgoogleaccesstoken",
-        "/api/appointments/customer/",
-        "/api/appointments/tomorrow"
+    "/api/tenants/getgoogleaccesstoken",
+    "/api/appointments/customer/",
+    "/api/appointments/tomorrow",
+    "/api/appusers/staff/"
     };
 
     // Kendi güvenliğini sağlayan endpoint'ler — bu middleware'dan muaf

@@ -10,11 +10,13 @@ namespace Appointment_SaaS.WebUI.Controllers
     {
         private readonly ITenantService _tenantService;
         private readonly IAuditLogService _auditLogService;
+        private readonly IFeedbackService _feedbackService;
 
-        public BusinessController(ITenantService tenantService, IAuditLogService auditLogService)
+        public BusinessController(ITenantService tenantService, IAuditLogService auditLogService, IFeedbackService feedbackService)
         {
             _tenantService = tenantService;
             _auditLogService = auditLogService;
+            _feedbackService = feedbackService;
         }
 
         // GET: /Business
@@ -102,6 +104,19 @@ namespace Appointment_SaaS.WebUI.Controllers
         {
             var logs = await _auditLogService.GetLogsByTenantAsync(id);
             return Json(logs);
+        }
+        [HttpGet]
+        public async Task<IActionResult> Feedbacks()
+        {
+            var feedbacks = await _feedbackService.GetAllAsync();
+            return View(feedbacks);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> MarkAsRead(int id)
+        {
+            await _feedbackService.MarkAsReadAsync(id);
+            return Ok();
         }
     }
 }

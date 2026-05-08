@@ -195,6 +195,7 @@ public class TenantsController : ControllerBase
             Address = tenant.Address,
             Phone = tenant.PhoneNumber,
             GoogleEmail = tenant.GoogleEmail,
+            TenantID = tenant.TenantID,
             // GoogleToken burada YOK — /GetGoogleAccessToken endpoint'i kullanılmalı
             Services = tenant.Services?.Select(s => new
             {
@@ -296,6 +297,8 @@ public class TenantsController : ControllerBase
     /// Tenant'ın refresh token'ı ile Google'dan taze access token alır.
     /// WebhookAuthMiddleware tarafından X-Auth-Token ile korunur.
     /// </summary>
+
+    [AllowAnonymous]
     [HttpGet("GetGoogleAccessToken")]
     public async Task<IActionResult> GetGoogleAccessToken([FromQuery] string instanceName, [FromQuery] int? staffId = null)
     {

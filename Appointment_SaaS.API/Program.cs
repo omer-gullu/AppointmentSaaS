@@ -98,7 +98,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 }
             }
         };
-    });
+
+    })
+.AddScheme<WebhookAuthenticationOptions, WebhookAuthenticationHandler>(
+    "WebhookScheme", options => { });
+
 
 // --- DIGER SERVISLER ---
 builder.Services.AddFluentValidationAutoValidation();
@@ -111,6 +115,8 @@ builder.Services.AddScoped<IAppointmentRepository, EfAppointmentRepository>();
 builder.Services.AddScoped<ISectorRepository, EfSectorRepository>();
 builder.Services.AddScoped<IServiceRepository, EfServiceRepository>();
 builder.Services.AddScoped<IAppUserRepository, EfAppUserRepository>();
+builder.Services.AddScoped<IFeedbackRepository, EfFeedbackRepository>();
+
 
 
 // --- SERVICE KAYITLARI ---
@@ -134,6 +140,8 @@ builder.Services.AddScoped<IServiceService, ServiceManager>();
 builder.Services.AddScoped<IAppUserService, AppUserManager>();
 builder.Services.AddScoped<IAuthService, AuthManager>();
 builder.Services.AddScoped<IIyzicoPaymentService, IyzicoPaymentManager>();
+builder.Services.AddScoped<IGoogleCalendarService, GoogleCalendarManager>();
+builder.Services.AddScoped<IFeedbackService, FeedbackManager>();
 
 // --- YENI EKLENEN SERVISLER (OTP & ROLLER) ---
 builder.Services.AddScoped<IOtpService, OtpManager>();

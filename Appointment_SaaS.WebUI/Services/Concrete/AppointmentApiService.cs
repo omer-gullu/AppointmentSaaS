@@ -35,7 +35,7 @@ namespace Appointment_SaaS.WebUI.Services.Concrete
         }
 
         public async Task<(bool Success, string Message, int? AppointmentId, int? AppUserId)> CreateAppointmentAsync(
-            int tenantId, string customerName, string customerPhone, int serviceId, DateTime startDate)
+            int tenantId, string customerName, string customerPhone, int serviceId, DateTime startDate, int? appUserId = null)
         {
             try
             {
@@ -55,7 +55,8 @@ namespace Appointment_SaaS.WebUI.Services.Concrete
                     customerPhone,
                     serviceID = serviceId,
                     startDate,
-                    businessPhone = businessPhoneOrInstance
+                    businessPhone = businessPhoneOrInstance,
+                    appUserID = appUserId
                 };
 
                 var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
@@ -80,7 +81,7 @@ namespace Appointment_SaaS.WebUI.Services.Concrete
         }
 
         public async Task<(bool Success, string Message)> UpdateAppointmentAsync(
-            int tenantId, int appointmentId, string customerName, string customerPhone, int serviceId, DateTime startDate, string? googleEventId)
+            int tenantId, int appointmentId, string customerName, string customerPhone, int serviceId, DateTime startDate, string? googleEventId, int? appUserId = null)
         {
             try
             {
@@ -102,7 +103,8 @@ namespace Appointment_SaaS.WebUI.Services.Concrete
                     startDate,
                     businessPhone = instanceName,
                     note = (string?)null,
-                    googleEventID = googleEventId
+                    googleEventID = string.IsNullOrWhiteSpace(googleEventId) ? null : googleEventId,
+                    appUserID = appUserId
                 };
 
                 var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");

@@ -568,7 +568,7 @@
                                     <th class="ps-4">MÜŞTERİ</th>
                                     <th>HİZMET</th>
                                     <th>TARİH / SAAT</th>
-                                    <th>DURUM</th>
+                                    <th>PERSONEL</th>
                                     <th class="text-end pe-4">İŞLEM</th>
                                 </tr>
                             </thead>
@@ -615,10 +615,25 @@
                                             </td>
                                             <td>
                                                 @{
-                                                    var status = item.GetProperty("status").ToString();
-                                                    var color = status == "Beklemede" ? "warning" : "success";
+                                                    int auId = 0;
+                                                    try { auId = item.GetProperty("appUserID").GetInt32(); } catch { }
+                                                    string staffName = "—";
+                                                    if (Model.Staff != null)
+                                                    {
+                                                        foreach (var s in Model.Staff)
+                                                        {
+                                                            var se = (System.Text.Json.JsonElement)s;
+                                                            if (se.TryGetProperty("appUserID", out var sidProp) && sidProp.GetInt32() == auId)
+                                                            {
+                                                                var sfn = se.TryGetProperty("firstName", out var sfnP) ? sfnP.GetString() ?? "" : "";
+                                                                var sln = se.TryGetProperty("lastName", out var slnP) ? slnP.GetString() ?? "" : "";
+                                                                staffName = sfn + " " + sln;
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
                                                 }
-                                                <span class="badge rounded-pill bg-@color bg-opacity-10 text-@color" style="font-size:0.73rem;">@status</span>
+                                                <span class="badge bg-primary bg-opacity-10 text-primary">@staffName</span>
                                             </td>
                                             <td class="text-end pe-4">
                                                 @{
@@ -831,9 +846,21 @@
 </div>
 
 <!-- ── Abonelik İptal Butonu ── -->
-<div style="position:fixed;right:18px;bottom:18px;z-index:1050;">
+<div style="position:fixed;right:14px;bottom:14px;z-index:1050;" class="d-flex flex-column gap-2 align-items-end">
+    <button type="button"
+            class="btn btn-sm shadow-sm d-flex align-items-center justify-content-center"
+            style="width:44px;height:44px;border-radius:50%;background:#fff;border:1.5px solid #6366f1;color:#6366f1;"
+            data-bs-toggle="modal" data-bs-target="#feedbackModal"
+            title="Geliştirici'ye Yaz">
+        <i class="bi bi-chat-dots fs-5"></i>
+    </button>
     <form id="cancelSubscriptionForm" action="/Dashboard/CancelSubscription" method="post" class="m-0">
-        <button type="submit" class="btn btn-outline-danger btn-sm shadow-sm">Aboneliği İptal Et</button>
+        <button type="submit"
+                class="btn btn-sm shadow-sm d-flex align-items-center justify-content-center"
+                style="width:44px;height:44px;border-radius:50%;background:#fff;border:1.5px solid #ef4444;color:#ef4444;"
+                title="Aboneliği İptal Et">
+            <i class="bi bi-x-circle fs-5"></i>
+        </button>
     </form>
 </div>
 
@@ -852,7 +879,6 @@
                 <form asp-action="UpdateAppointment" asp-controller="Dashboard" method="post">
                     <input type="hidden" id="editAppointmentId" name="appointmentId" />
                     <input type="hidden" id="editGoogleEventId" name="googleEventId" />
-                    <input type="hidden" id="editAppUserId" name="appUserId" />
                     <div class="mb-3">
                         <label class="form-label text-muted small fw-bold">MÜŞTERİ ADI</label>
                         <input type="text" id="editCustomerName" name="customerName" class="form-control bg-light border-0 py-2" required>
@@ -869,6 +895,19 @@
                                 @foreach (var s in Model.Services)
                                 {
                                     <option value="@s.GetProperty("serviceID")">@s.GetProperty("name") (@s.GetProperty("durationInMinutes") dk)</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">PERSONEL SEÇİMİ</label>
+                        <select id="editAppUserIdSelect" name="appUserId" class="form-select bg-light border-0 py-2" required>
+                            <option value="">Personel Seçin</option>
+                            @if (Model.Staff != null)
+                            {
+                                @foreach (var s in Model.Staff)
+                                {
+                                    <option value="@s.GetProperty("appUserID")">@s.GetProperty("firstName") @s.GetProperty("lastName")</option>
                                 }
                             }
                         </select>
@@ -953,6 +992,19 @@
                             else
                             {
                                 <option value="">Önce hizmet tanımlayın</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">PERSONEL SEÇİMİ</label>
+                        <select name="appUserId" id="appUserId" class="form-select bg-light border-0 py-2" required>
+                            <option value="">Personel Seçin</option>
+                            @if (Model.Staff != null && Model.Staff.Count > 0)
+                            {
+                                @foreach (var s in Model.Staff)
+                                {
+                                    <option value="@s.GetProperty("appUserID")">@s.GetProperty("firstName") @s.GetProperty("lastName")</option>
+                                }
                             }
                         </select>
                     </div>
@@ -1154,6 +1206,37 @@
     <input type="hidden" id="deleteGoogleEventId" name="googleEventId" />
     <input type="hidden" id="deleteAppUserId" name="appUserId" />
 </form>
+<div class="modal fade" id="feedbackModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius:20px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold"><i class="bi bi-chat-dots-fill me-2 text-primary"></i>Geliştirici'ye Yaz</h5>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form asp-action="SendFeedback" asp-controller="Dashboard" method="post">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">KONU</label>
+                        <select name="feedbackType" class="form-select bg-light border-0 py-2" required>
+                            <option value="">Seçin</option>
+                            <option value="İstek">💡 Özellik İsteği</option>
+                            <option value="Talep">📋 Talep</option>
+                            <option value="Şikayet">⚠️ Şikayet</option>
+                            <option value="Teşekkür">🙏 Teşekkür</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">MESAJINIZ</label>
+                        <textarea name="message" class="form-control bg-light border-0 py-2" rows="4" placeholder="Mesajınızı buraya yazın..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-sm mt-2">
+                        <i class="bi bi-send me-2"></i>Gönder
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
     <script>
@@ -1241,10 +1324,10 @@
         function openEditAppointmentModal(id, customerName, customerPhone, serviceId, date, time, googleEventId, appUserId) {
             document.getElementById('editAppointmentId').value = id;
             document.getElementById('editGoogleEventId').value = googleEventId || '';
-            document.getElementById('editAppUserId').value = appUserId || '';
             document.getElementById('editCustomerName').value = customerName;
             document.getElementById('editCustomerPhone').value = customerPhone;
             document.getElementById('editServiceId').value = serviceId;
+            document.getElementById('editAppUserIdSelect').value = appUserId || '';
             document.getElementById('editAppointmentDate').value = date;
             document.getElementById('editAppointmentTime').value = time;
             editAppointmentModal.show();
@@ -1275,6 +1358,8 @@
         function validateCreateAppointment() {
             var name = document.getElementById('appCustomerName').value.trim();
             var phone = document.getElementById('appCustomerPhone').value.trim();
+            var staffId = document.getElementById('appUserId').value;
+
             if (!/^[a-zA-ZğüşıöçĞÜŞİÖÇ\s]+$/.test(name)) {
                 Swal.fire('Hata!', 'Müşteri adı sadece harflerden oluşmalıdır.', 'warning');
                 return false;
@@ -1282,6 +1367,10 @@
             var numericPhone = phone.replace(/[^0-9]/g, '');
             if (numericPhone.length < 10 || numericPhone.length > 11) {
                 Swal.fire('Hata!', 'Lütfen geçerli bir telefon numarası giriniz.', 'warning');
+                return false;
+            }
+            if (!staffId) {
+                Swal.fire('Hata!', 'Lütfen bir personel seçiniz.', 'warning');
                 return false;
             }
             return true;
@@ -1424,3 +1513,4 @@
         }
     </script>
 }
+

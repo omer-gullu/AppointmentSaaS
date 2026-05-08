@@ -32,7 +32,7 @@ public class ExceptionMiddleware
         await context.Response.WriteAsync(new ErrorDetails()
         {
             StatusCode = context.Response.StatusCode,
-            Message = "Sunucu tarafında beklenmedik bir hata oluştu. Teknik ekip (yani usta) bilgilendirildi!"
+            Message = "Sunucu tarafında beklenmedik bir hata oluştu!"
         }.ToString());
     }
 

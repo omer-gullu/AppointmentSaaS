@@ -83,46 +83,19 @@ namespace Appointment_SaaS.WebUI.Controllers
 
         [HttpPost]
         public async Task<IActionResult> CreateAppointment(
-            string customerName, string customerPhone, int serviceId, DateTime date, string time)
+            string customerName, string customerPhone, int serviceId, DateTime date, string time, int? appUserId)
         {
             int tenantId = GetCurrentTenantId();
             var startDate = DateTime.Parse($"{date:yyyy-MM-dd}T{time}:00");
             customerName = ToTurkishTitleCase(customerName);
 
-            var (success, msg, newAppointmentId, appUserId) = await _appointmentService.CreateAppointmentAsync(
-                tenantId, customerName, customerPhone, serviceId, startDate);
+            var (success, msg, newAppointmentId, assignedAppUserId) = await _appointmentService.CreateAppointmentAsync(
+                tenantId, customerName, customerPhone, serviceId, startDate, appUserId);
 
             if (success)
-            {
                 TempData["Success"] = "Randevu başarıyla eklendi.";
-                var viewModel = await _dashboardService.GetDashboardDataAsync(tenantId);
-
-                if (!string.IsNullOrWhiteSpace(viewModel.InstanceName))
-                {
-                    // Pass the assigned appUserId to ensure it syncs to the staff's Google Calendar if they have one connected.
-                    var googleEventId = await _googleCalendarService.CreateEventAsync(
-                        viewModel.InstanceName, customerName, serviceId, customerPhone, startDate, appUserId);
-
-                    if (googleEventId != null)
-                    {
-                        if (newAppointmentId > 0)
-                        {
-                            await _appointmentService.UpdateAppointmentGoogleEventIdAsync(
-                                newAppointmentId.Value, tenantId, customerName, customerPhone, serviceId, startDate, googleEventId);
-                        }
-                        TempData["Success"] = "Randevu başarıyla eklendi ve Google Takvim'e işlendi.";
-                    }
-                    else
-                    {
-                        // Note: If staff doesn't have Google Calendar connected, googleEventId will be null.
-                        // We don't want to show an error in that case, because the appointment was still successfully created in our system.
-                    }
-                }
-            }
             else
-            {
                 TempData["Error"] = msg;
-            }
 
             return RedirectToAction("Index");
         }
@@ -137,43 +110,12 @@ namespace Appointment_SaaS.WebUI.Controllers
             customerName = ToTurkishTitleCase(customerName);
 
             var (success, msg) = await _appointmentService.UpdateAppointmentAsync(
-                tenantId, appointmentId, customerName, customerPhone, serviceId, startDate, googleEventId);
+                tenantId, appointmentId, customerName, customerPhone, serviceId, startDate, googleEventId, appUserId);
 
             if (success)
-            {
                 TempData["Success"] = "Randevu başarıyla güncellendi.";
-                var viewModel = await _dashboardService.GetDashboardDataAsync(tenantId);
-
-                if (!string.IsNullOrWhiteSpace(viewModel.InstanceName))
-                {
-                    if (!string.IsNullOrWhiteSpace(googleEventId))
-                    {
-                        var googleUpdated = await _googleCalendarService.UpdateEventAsync(
-                            viewModel.InstanceName, googleEventId, customerName, serviceId, customerPhone, startDate, appUserId);
-                        
-                        TempData["Success"] = googleUpdated
-                            ? "Randevu ve Google Takvim başarıyla güncellendi."
-                            : "Randevu güncellendi ancak Google Takvim güncellenemedi.";
-                    }
-                    else
-                    {
-                        var newGoogleEventId = await _googleCalendarService.CreateEventAsync(
-                            viewModel.InstanceName, customerName, serviceId, customerPhone, startDate, appUserId);
-
-                        if (newGoogleEventId != null)
-                        {
-                            await _appointmentService.UpdateAppointmentGoogleEventIdAsync(
-                                appointmentId, tenantId, customerName, customerPhone, serviceId, startDate, newGoogleEventId);
-                            
-                            TempData["Success"] = "Randevu güncellendi ve Google Takvim'e eklendi.";
-                        }
-                    }
-                }
-            }
             else
-            {
                 TempData["Error"] = msg;
-            }
 
             return RedirectToAction("Index");
         }
@@ -181,17 +123,6 @@ namespace Appointment_SaaS.WebUI.Controllers
         [HttpPost]
         public async Task<IActionResult> DeleteAppointment(int appointmentId, string? googleEventId, int? appUserId)
         {
-            int tenantId = GetCurrentTenantId();
-
-            if (!string.IsNullOrWhiteSpace(googleEventId))
-            {
-                var viewModel = await _dashboardService.GetDashboardDataAsync(tenantId);
-                if (!string.IsNullOrWhiteSpace(viewModel.InstanceName) && !string.IsNullOrWhiteSpace(googleEventId))
-                {
-                    await _googleCalendarService.DeleteEventAsync(viewModel.InstanceName, googleEventId, appUserId);
-                }
-            }
-
             var (success, msg) = await _appointmentService.DeleteAppointmentAsync(appointmentId);
 
             TempData[success ? "Success" : "Error"] = msg;
@@ -538,6 +469,43 @@ namespace Appointment_SaaS.WebUI.Controllers
             {
                 return StatusCode(500, new { message = ex.Message });
             }
+        }
+        [HttpPost]
+        public async Task<IActionResult> SendFeedback(string feedbackType, string message)
+        {
+            try
+            {
+                int tenantId = GetCurrentTenantId();
+                var factory = HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
+                var httpClient = factory.CreateClient("Api");
+                await Services.HttpClientTokenHelper.AttachBearerTokenAsync(
+                    httpClient, HttpContext.RequestServices.GetRequiredService<Microsoft.AspNetCore.Http.IHttpContextAccessor>());
+
+                var payload = new
+                {
+                    tenantId,
+                    feedbackType,
+                    message,
+                    sentAt = DateTime.UtcNow
+                };
+
+                var content = new System.Net.Http.StringContent(
+                    System.Text.Json.JsonSerializer.Serialize(payload),
+                    System.Text.Encoding.UTF8, "application/json");
+
+                var response = await httpClient.PostAsync("api/Feedbacks", content);
+
+                if (response.IsSuccessStatusCode)
+                    TempData["Success"] = "Mesajınız iletildi. Teşekkürler! 🙏";
+                else
+                    TempData["Error"] = "Mesaj gönderilemedi, lütfen tekrar deneyin.";
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = $"Sistem hatası: {ex.Message}";
+            }
+
+            return RedirectToAction("Index");
         }
     }
 

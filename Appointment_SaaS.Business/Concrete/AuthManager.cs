@@ -321,12 +321,13 @@ namespace Appointment_SaaS.Business.Concrete
             user.LastOtpRequestDate = DateTime.Now;
             await _userService.UpdateAsync(user);
 
-            var tenantByPhone = await _tenantService.GetByPhoneNumberAsync(dto.PhoneNumber);
+            // OTP'yi bağlı olduğu işletmenin Evolution instance'ından gönder.
+            // (Eski kod: tenant'ı login telefonundan arıyordu; işletme hattı ≠ kullanıcı/ personel numarası olunca yanlış instance veya null kalıyordu.)
             bool isSent = false;
 
-            if (tenantByPhone != null && !string.IsNullOrEmpty(tenantByPhone.InstanceName))
+            if (!string.IsNullOrEmpty(tenant.InstanceName))
                 isSent = await _evolutionApiService.SendOtpMessageAsync(
-                    tenantByPhone.InstanceName, dto.PhoneNumber, otpCode);
+                    tenant.InstanceName, dto.PhoneNumber, otpCode);
 
             if (!isSent)
                 isSent = await _evolutionApiService.SendOtpMessageAsync(

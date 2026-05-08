@@ -177,15 +177,26 @@ public class AppointmentsController : ControllerBase
             if (service == null)
                 return BadRequest(new { Message = "Seçilen hizmet bulunamadı." });
 
+            var previousAppUserID = appointment.AppUserID; // Personel değişimi takibi
+
             appointment.CustomerName = dto.CustomerName;
             appointment.CustomerPhone = dto.CustomerPhone;
             appointment.ServiceID = dto.ServiceID;
             appointment.StartDate = dto.StartDate;
             appointment.EndDate = dto.StartDate.AddMinutes(service.DurationInMinutes);
             appointment.Note = dto.Note ?? appointment.Note;
-            if (dto.GoogleEventID != null) appointment.GoogleEventID = dto.GoogleEventID;
+            
+            if (dto.AppUserID.HasValue && dto.AppUserID.Value > 0)
+            {
+                appointment.AppUserID = dto.AppUserID.Value;
+            }
 
-            await _appointmentService.UpdateAsync(appointment);
+            // GoogleEventID: sadece gerçekten dolu bir değer gelirse güncelle,
+            // boş string veya null gelirse DB'deki mevcut değeri koru
+            if (!string.IsNullOrWhiteSpace(dto.GoogleEventID))
+                appointment.GoogleEventID = dto.GoogleEventID;
+
+            await _appointmentService.UpdateAsync(appointment, previousAppUserID);
             return Ok(new { Message = "Randevu başarıyla güncellendi." });
         }
         catch (Exception ex)
@@ -196,6 +207,7 @@ public class AppointmentsController : ControllerBase
     }
 
     // ─── Randevu sil ─────────────────────────────────────────────────────────
+    [Authorize(AuthenticationSchemes = "Bearer,WebhookScheme")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
@@ -249,7 +261,21 @@ public class AppointmentsController : ControllerBase
                 return BadRequest(new { Message = "Telefon ve tenantId gereklidir." });
 
             var history = await _appointmentService.GetCustomerHistoryAsync(phone, tenantId);
-            return Ok(history);
+
+            // Aktif randevuları da ekle
+            var activeAppointments = await _appointmentService.GetActiveAppointmentsByPhoneAsync(phone, tenantId);
+
+            return Ok(new
+            {
+                history.IsReturningCustomer,
+                history.TotalVisits,
+                history.CustomerName,
+                history.LastVisitDate,
+                history.LastServiceName,
+                history.LastVisitStatus,
+                history.SummaryForAI,
+                ActiveAppointments = activeAppointments
+            });
         }
         catch (Exception ex)
         {
@@ -284,6 +310,63 @@ public class AppointmentsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Yarınki randevular alınırken hata oluştu. TenantId={TenantId}", tenantId);
+            return StatusCode(500, new { Message = "Sistemsel bir hata oluştu." });
+        }
+    }
+    [AllowAnonymous]
+    [HttpGet("available-slots")]
+    public async Task<IActionResult> GetAvailableSlots(
+     [FromQuery] string instanceName,
+     [FromQuery] int staffId,
+     [FromQuery] string date,
+     [FromQuery] int durationMinutes = 30,
+     [FromQuery] string? requestedTime = null)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(instanceName))
+                return BadRequest(new { Message = "instanceName gereklidir." });
+
+            var tenant = await _tenantService.GetContextByInstanceAsync(instanceName);
+            if (tenant == null)
+                return NotFound(new { Message = "İşletme bulunamadı." });
+
+            if (!DateTime.TryParse(date, out var targetDate))
+                return BadRequest(new { Message = "Geçersiz tarih formatı. YYYY-MM-DD kullanın." });
+
+            if (staffId > 0)
+            {
+                var slots = await _appointmentService.GetAvailableSlotsByStaffAsync(
+                    tenant.TenantID, staffId, targetDate, durationMinutes, count: 100, requestedTime: requestedTime);
+
+                if (!string.IsNullOrEmpty(requestedTime))
+                {
+                    // Belirli saat kontrolü
+                    bool isAvailable = slots.Any();
+                    return Ok(new
+                    {
+                        Date = targetDate.ToString("dd.MM.yyyy"),
+                        StaffId = staffId,
+                        RequestedTime = requestedTime,
+                        IsAvailable = isAvailable,
+                        Message = isAvailable ? $"{requestedTime} saati müsait." : $"{requestedTime} saati müsait değil.",
+                        NearestSlots = isAvailable ? slots : await _appointmentService.GetAvailableSlotsByStaffAsync(
+                            tenant.TenantID, staffId, targetDate, durationMinutes, count: 3)
+                    });
+                }
+
+                return Ok(new { Date = targetDate.ToString("dd.MM.yyyy"), StaffId = staffId, AvailableSlots = slots, TotalSlots = slots.Count });
+            }
+            else
+            {
+                var allSlots = await _appointmentService.GetAvailableSlotsForAllStaffAsync(
+                    tenant.TenantID, targetDate, durationMinutes, count: 100);
+                return Ok(new { Date = targetDate.ToString("dd.MM.yyyy"), Staff = allSlots });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Müsait slotlar alınırken hata. Instance={Instance}", instanceName);
             return StatusCode(500, new { Message = "Sistemsel bir hata oluştu." });
         }
     }

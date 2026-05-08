@@ -8,9 +8,9 @@ public interface IAppointmentService
     Task<List<Appointment>> GetAllByTenantIdAsync(int tenantId);
     Task<Appointment?> GetByIdAsync(int id);
     Task<int> AddAppointmentAsync(AppointmentCreateDto dto);
-    Task<bool> IsSlotAvailableAsync(int tenantId, DateTime startDate, DateTime endDate);
+    Task<bool> IsSlotAvailableAsync(int tenantId, int staffId, DateTime startDate, DateTime endDate);
     Task<List<string>> GetAvailableSlotsAsync(int tenantId, DateTime targetDate, int durationMinutes, int count = 3);
-    Task UpdateAsync(Appointment appointment);
+    Task UpdateAsync(Appointment appointment, int? previousAppUserID = null);
     Task DeleteAsync(Appointment appointment);
 
     /// <summary>Google Takvim event kaydedildikten sonra n8n'den gelen ID'yi DB'ye işle.</summary>
@@ -24,6 +24,7 @@ public interface IAppointmentService
 
     /// <summary>Yarınki randevuları döndürür. Hatırlatma workflow'u için.</summary>
     Task<List<Appointment>> GetTomorrowAppointmentsAsync(int tenantId);
+    Task<List<object>> GetActiveAppointmentsByPhoneAsync(string phone, int tenantId);
 
     /// <summary>
     /// Slot için distributed lock alır.
@@ -34,4 +35,6 @@ public interface IAppointmentService
 
     /// <summary>Alınan slot kilidini serbest bırakır.</summary>
     void ReleaseSlotLock(string lockKey);
+    Task<List<string>> GetAvailableSlotsByStaffAsync(int tenantId, int staffId, DateTime targetDate, int durationMinutes, int count = 100, string? requestedTime = null);
+    Task<List<object>> GetAvailableSlotsForAllStaffAsync(int tenantId, DateTime targetDate, int durationMinutes, int count = 100);
 }

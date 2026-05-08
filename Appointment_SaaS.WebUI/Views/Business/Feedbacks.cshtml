@@ -1,0 +1,193 @@
+﻿@model List<Appointment_SaaS.Core.Entities.Feedback>
+@{
+    ViewData["Title"] = "Geri Bildirimler";
+}
+
+<style>
+    .feedback-page {
+        background: #f6f7fb;
+        min-height: 100vh;
+        padding: 28px 20px 80px;
+    }
+
+    .section-card {
+        background: #fff;
+        border-radius: 16px;
+        border: 1.5px solid #eef0f6;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        overflow: hidden;
+    }
+
+        .section-card .card-header {
+            background: #fff;
+            border-bottom: 1.5px solid #f1f4f9;
+            padding: 18px 24px;
+        }
+
+    .table thead th {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: #94a3b8;
+        background: #f8fafc;
+    }
+
+    .table td {
+        vertical-align: middle;
+        font-size: 0.88rem;
+    }
+
+    .unread {
+        background: #f0f7ff;
+    }
+</style>
+
+<div class="feedback-page">
+    <div class="container-fluid" style="max-width:1200px;">
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="fw-bold mb-0"><i class="bi bi-chat-dots-fill text-primary me-2"></i>Geri Bildirimler</h4>
+            <a href="/Business" class="btn btn-outline-secondary btn-sm rounded-pill px-4">
+                <i class="bi bi-arrow-left me-1"></i> Geri
+            </a>
+        </div>
+
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success border-0 shadow-sm rounded-3 mb-4">
+                <i class="bi bi-check-circle-fill me-2"></i> @TempData["Success"]
+            </div>
+        }
+
+        <div class="section-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0">Tüm Geri Bildirimler</h6>
+                <span class="badge bg-primary bg-opacity-10 text-primary">
+                    @Model.Count(f => !f.IsRead) okunmamış
+                </span>
+            </div>
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">İŞLETME</th>
+                            <th>KONU</th>
+                            <th>MESAJ</th>
+                            <th>TARİH</th>
+                            <th>DURUM</th>
+                            <th class="text-end pe-4">İŞLEM</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model != null && Model.Count > 0)
+                        {
+                            @foreach (var item in Model)
+                            {
+                                <tr class="@(!item.IsRead ? "unread" : "")">
+                                    <td class="ps-4 fw-bold">@(item.Tenant?.Name ?? "-")</td>
+                                    <td>
+                                        @{
+                                            var (icon, color) = item.FeedbackType switch
+                                            {
+                                                "İstek" => ("💡", "primary"),
+                                                "Talep" => ("📋", "info"),
+                                                "Şikayet" => ("⚠️", "danger"),
+                                                "Teşekkür" => ("🙏", "success"),
+                                                _ => ("📝", "secondary")
+                                            };
+                                        }
+                                        <span class="badge bg-@color bg-opacity-10 text-@color">@icon @item.FeedbackType</span>
+                                    </td>
+                                    <td style="max-width:300px;">
+                                        <span class="text-truncate d-inline-block" style="max-width:220px;">@item.Message</span>
+                                        <a href="#" class="text-primary small ms-1"
+                                           onclick="showMessage('@Html.Raw(item.Message.Replace("'", "\\'").Replace("\n", "\\n"))', '@(item.Tenant?.Name ?? "-")', '@item.FeedbackType'); return false;">
+                                            devamı →
+                                        </a>
+                                    </td>
+                                    <td class="text-muted small">@item.SentAt.ToString("dd.MM.yyyy HH:mm")</td>
+                                    <td>
+                                        @if (item.IsRead)
+                                        {
+                                            <span class="badge bg-success bg-opacity-10 text-success rounded-pill">Okundu</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning bg-opacity-10 text-warning rounded-pill">Okunmadı</span>
+                                        }
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        @if (!item.IsRead)
+                                        {
+                                            <button class="btn btn-light btn-sm rounded-pill px-3"
+                                                    onclick="markAsRead(@item.FeedbackID, this)">
+                                                <i class="bi bi-check2 me-1"></i> Okundu
+                                            </button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    <i class="bi bi-chat-dots" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:8px;"></i>
+                                    Henüz geri bildirim yok.
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mesaj Modal -->
+<div class="modal fade" id="messageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius:20px;">
+            <div class="modal-header border-0 pb-0">
+                <div>
+                    <h6 class="fw-bold mb-0" id="modalBusinessName"></h6>
+                    <span class="badge mt-1" id="modalFeedbackType"></span>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p id="modalMessage" class="text-dark" style="white-space:pre-wrap;line-height:1.7;"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const msgModal = new bootstrap.Modal(document.getElementById('messageModal'));
+
+        function showMessage(message, business, type) {
+            document.getElementById('modalBusinessName').innerText = business;
+            document.getElementById('modalFeedbackType').innerText = type;
+            document.getElementById('modalMessage').innerText = message;
+            msgModal.show();
+        }
+
+        async function markAsRead(id, btn) {
+            try {
+                const res = await fetch(`/Business/MarkAsRead?id=${id}`, { method: 'POST' });
+                if (res.ok) {
+                    const row = btn.closest('tr');
+                    row.classList.remove('unread');
+                    btn.parentElement.innerHTML = '';
+                    row.querySelector('.badge.bg-warning').outerHTML =
+                        '<span class="badge bg-success bg-opacity-10 text-success rounded-pill">Okundu</span>';
+                    const unreadBadge = document.querySelector('.badge.bg-primary.bg-opacity-10');
+                    const count = parseInt(unreadBadge.textContent) - 1;
+                    unreadBadge.textContent = `${count} okunmamış`;
+                }
+            } catch { alert('Bir hata oluştu.'); }
+        }
+    </script>
+}

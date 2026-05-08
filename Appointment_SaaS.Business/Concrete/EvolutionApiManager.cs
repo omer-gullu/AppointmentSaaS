@@ -207,7 +207,8 @@ public class EvolutionApiManager : IEvolutionApiService
     {
         try
         {
-            var formattedNumber = toPhoneNumber.Trim();
+            // Numara formatlama: 0531... -> 90531...
+            var formattedNumber = toPhoneNumber.Trim().Replace(" ", "").Replace("-", "").Replace("(", "").Replace(")", "");
             if (formattedNumber.StartsWith("0"))
                 formattedNumber = "90" + formattedNumber[1..];
             if (!formattedNumber.StartsWith("90") && formattedNumber.Length == 10)
@@ -223,15 +224,15 @@ public class EvolutionApiManager : IEvolutionApiService
 
             var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
-            if (!_httpClient.DefaultRequestHeaders.Contains("apikey"))
-                _httpClient.DefaultRequestHeaders.Add("apikey", _settings.GlobalApiKey);
+            // Headers temizliği ve yeniden ekleme (Önemli: apikey her zaman taze olmalı)
+            _httpClient.DefaultRequestHeaders.Clear();
+            _httpClient.DefaultRequestHeaders.Add("apikey", _settings.GlobalApiKey);
 
-            var response = await _httpClient.PostAsync($"/message/sendText/{instanceName}", content);
+            var response = await _httpClient.PostAsync($"/message/sendText/{Uri.EscapeDataString(instanceName)}", content);
 
             if (!response.IsSuccessStatusCode)
             {
                 var errorBody = await response.Content.ReadAsStringAsync();
-                // Hassas içerik içerebileceğinden mesaj metni loglanmıyor
                 _logger.LogWarning("[EvolutionApi] Mesaj gönderilemedi. Instance={Instance} To={To} Status={Status} Body={Body}",
                     instanceName, formattedNumber, response.StatusCode, errorBody);
                 return false;

@@ -46,16 +46,18 @@ public class AppUsersController : ControllerBase
         return Ok(users);
     }
 
-    // GET /api/AppUsers/staff/{tenantId} — Dashboard için personel listesi
+    [Authorize(AuthenticationSchemes = "Bearer,WebhookScheme")]
     [HttpGet("staff/{tenantId}")]
     public async Task<IActionResult> GetStaffByTenant(int tenantId)
     {
-        var currentTenantId = _tenantProvider.GetTenantId();
-        if (currentTenantId == null) return Unauthorized();
+        var isWebhook = User.Identity?.AuthenticationType == "WebhookScheme";
 
-        // Cross-tenant koruması
-        if (currentTenantId.Value != tenantId)
-            return Forbid();
+        if (!isWebhook)
+        {
+            var currentTenantId = _tenantProvider.GetTenantId();
+            if (currentTenantId == null) return Unauthorized();
+            if (currentTenantId.Value != tenantId) return Forbid();
+        }
 
         var users = await _appUserService.GetStaffByTenantAsync(tenantId);
         return Ok(users.Select(u => new

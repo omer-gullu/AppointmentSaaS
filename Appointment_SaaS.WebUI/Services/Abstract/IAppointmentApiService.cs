@@ -6,10 +6,10 @@ namespace Appointment_SaaS.WebUI.Services.Abstract
     public interface IAppointmentApiService
     {
         Task<(bool Success, string Message, int? AppointmentId, int? AppUserId)> CreateAppointmentAsync(
-            int tenantId, string customerName, string customerPhone, int serviceId, DateTime startDate);
+            int tenantId, string customerName, string customerPhone, int serviceId, DateTime startDate, int? appUserId = null);
         
         Task<(bool Success, string Message)> UpdateAppointmentAsync(
-            int tenantId, int appointmentId, string customerName, string customerPhone, int serviceId, DateTime startDate, string? googleEventId);
+            int tenantId, int appointmentId, string customerName, string customerPhone, int serviceId, DateTime startDate, string? googleEventId, int? appUserId = null);
         
         Task<(bool Success, string Message)> DeleteAppointmentAsync(int appointmentId);
         

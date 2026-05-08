@@ -45,6 +45,7 @@ namespace Appointment_SaaS.Data.Context
         public DbSet<BusinessHour> BusinessHours { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; } // YENİ: Audit log tablosu
         public DbSet<TransactionLog> TransactionLogs { get; set; } // YENİ: Finansal kanıt tablosu
+        public DbSet<Feedback> feedbacks { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
