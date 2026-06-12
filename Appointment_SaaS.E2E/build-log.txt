@@ -1,3 +1,0 @@
-﻿.NET i├ğin MSBuild s├╝r├╝m 17.8.3+195e7f5a3
-  Geri y├╝klenecek projeler belirleniyor...
-  c:\Users\pc\OneDrive\Masa├╝st├╝\AppointmentSaaS\Appointment_SaaS.E2E\Appointment_SaaS.E2E.csproj geri y├╝klendi (2,48 min i├ğinde).

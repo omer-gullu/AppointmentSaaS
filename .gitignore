@@ -142,6 +142,9 @@ ipch/
 *.e2e
 !Appointment_SaaS.E2E/
 !Appointment_SaaS.E2E/**
+Appointment_SaaS.E2E/**/bin/
+Appointment_SaaS.E2E/**/obj/
+Appointment_SaaS.E2E/build-log.txt
 
 # TFS 2012 Local Workspace
 $tf/
