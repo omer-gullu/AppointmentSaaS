@@ -12,6 +12,7 @@ using Appointment_SaaS.Data.Context;
 using AutoMapper;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using MockQueryable.Moq;
 using Moq;
 using Xunit;
@@ -35,15 +36,27 @@ namespace Appointment_SaaS.Test
             // InMemory DB — her test için izole
             var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId.TransactionIgnoredWarning))
                 .Options;
             _dbContext = new AppDbContext(dbOptions);
+
+            var mockEnvironment = new Mock<Microsoft.Extensions.Hosting.IHostEnvironment>();
+            var mockLogger = new Mock<Microsoft.Extensions.Logging.ILogger<TenantManager>>();
+
+            var scopeFactory = new Mock<IServiceScopeFactory>();
+            var scope = new Mock<IServiceScope>();
+            scope.Setup(s => s.ServiceProvider).Returns(new ServiceCollection().BuildServiceProvider());
+            scopeFactory.Setup(f => f.CreateScope()).Returns(scope.Object);
 
             _tenantManager = new TenantManager(
                 _mockTenantRepository.Object,
                 _mockMapper.Object,
                 _mockEvolutionApiService.Object,
-                _dbContext
-            );
+                _dbContext,
+                mockEnvironment.Object,
+                mockLogger.Object,
+                new TenantAccessEvaluator(),
+                scopeFactory.Object);
         }
 
         [Fact]
@@ -89,19 +102,21 @@ namespace Appointment_SaaS.Test
         }
 
         [Fact]
-        public async Task GetContextByInstanceAsync_ShouldOnlyReturnActiveTenants()
+        public async Task GetContextByInstanceAsync_ShouldReturnTenant_ByInstanceName_RegardlessOfActiveFlag()
         {
             string instanceName = "test_instance";
             var tenants = new List<Tenant>
             {
-                new Tenant { TenantID = 1, InstanceName = instanceName, IsActive = false }
+                new Tenant { TenantID = 1, InstanceName = instanceName, IsActive = false, IsSubscriptionActive = false }
             };
             _mockTenantRepository.Setup(x => x.Where(It.IsAny<Expression<Func<Tenant, bool>>>()))
                                  .Returns((Expression<Func<Tenant, bool>> predicate) => tenants.AsQueryable().Where(predicate).BuildMock());
 
             var result = await _tenantManager.GetContextByInstanceAsync(instanceName);
 
-            result.Should().BeNull();
+            result.Should().NotBeNull();
+            result!.InstanceName.Should().Be(instanceName);
+            result.IsActive.Should().BeFalse("Aktiflik kontrolü API katmanında yapılır");
         }
 
         [Fact]
@@ -136,7 +151,7 @@ namespace Appointment_SaaS.Test
             Func<Task> act = async () => await _tenantManager.AddTenantAsync(dto, It.IsAny<string>());
 
             var exception = await act.Should().ThrowAsync<Exception>();
-            exception.WithMessage("İşletme kaydedilemedi, oluşturulan WhatsApp entegrasyonu geri alındı. Hata: DB Connection Error");
+            exception.WithMessage("İşletme kaydedilemedi: DB Connection Error");
             _mockEvolutionApiService.Verify(x => x.DeleteInstanceAsync("rollback_test"), Times.Once);
         }
 

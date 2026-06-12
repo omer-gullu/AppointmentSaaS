@@ -1,3 +1,4 @@
+using Appointment_SaaS.API.Authorization;
 using Appointment_SaaS.Business.Abstract;
 using Appointment_SaaS.Core.DTOs;
 using Microsoft.AspNetCore.Authorization;
@@ -23,15 +24,23 @@ public class ServicesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] ServiceCreateDto dto)
     {
+        var enforce = ControllerTenantAccess.EnforceDtoTenantForManager(this, tid => dto.TenantID = tid);
+        if (enforce != null)
+            return enforce;
+
         var id = await _serviceService.AddServiceAsync(dto);
         return Ok(new { Message = "Hizmet başarıyla oluşturuldu", ServiceID = id });
     }
 
-    // Task<List<Service>> GetServicesByTenantIdAsync(int tenantId) metodunu kullanır
+    // n8n: X-Auth-Token (WebhookAuthMiddleware) veya JWT
     [HttpGet("tenant/{tenantId}")]
     [AllowAnonymous]
     public async Task<IActionResult> GetByTenantId(int tenantId)
     {
+        var denied = ControllerTenantAccess.DenyUnlessCanAccessTenant(this, tenantId);
+        if (denied != null)
+            return denied;
+
         var result = await _serviceService.GetServicesByTenantIdAsync(tenantId);
 
         if (result == null || !result.Any())
@@ -40,16 +49,22 @@ public class ServicesController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>n8n: X-Auth-Token veya JWT ile korunur.</summary>
     [HttpGet("{id}")]
     [AllowAnonymous]
     public async Task<IActionResult> GetById(int id)
     {
         var service = await _serviceService.GetByIdAsync(id);
         if (service == null) return NotFound(new { Message = "Hizmet bulunamadı." });
+
+        var denied = ControllerTenantAccess.DenyUnlessCanAccessTenant(this, service.TenantID);
+        if (denied != null)
+            return denied;
+
         return Ok(service);
     }
 
-    // YENİ: n8n Workflow başlarken işletme numarasıyla hizmetleri dinamik çekmek için!
+    /// <summary>n8n workflow: işletme numarasıyla hizmet listesi. X-Auth-Token veya JWT.</summary>
     [HttpGet("businessPhone/{phone}")]
     [AllowAnonymous]
     public async Task<IActionResult> GetByBusinessPhone(string phone)
@@ -57,6 +72,10 @@ public class ServicesController : ControllerBase
         var tenant = await _tenantService.GetByPhoneNumberAsync(phone);
         if (tenant == null)
             return NotFound(new { Message = "Bu numaraya ait işletme bulunamadı." });
+
+        var denied = ControllerTenantAccess.DenyUnlessCanAccessTenant(this, tenant.TenantID);
+        if (denied != null)
+            return denied;
 
         var services = await _serviceService.GetServicesByTenantIdAsync(tenant.TenantID);
         
@@ -81,6 +100,10 @@ public class ServicesController : ControllerBase
         if (service == null)
             return NotFound(new { Message = "Hizmet bulunamadı." });
 
+        var denied = ControllerTenantAccess.DenyUnlessCanAccessTenant(this, service.TenantID);
+        if (denied != null)
+            return denied;
+
         service.Name = dto.Name;
         service.Price = dto.Price;
         service.DurationInMinutes = dto.DurationMinutes;
@@ -95,6 +118,10 @@ public class ServicesController : ControllerBase
         var service = await _serviceService.GetByIdAsync(id);
         if (service == null)
             return NotFound(new { Message = "Hizmet bulunamadı." });
+
+        var denied = ControllerTenantAccess.DenyUnlessCanAccessTenant(this, service.TenantID);
+        if (denied != null)
+            return denied;
 
         await _serviceService.DeleteAsync(service);
         return Ok(new { Message = "Hizmet başarıyla silindi." });

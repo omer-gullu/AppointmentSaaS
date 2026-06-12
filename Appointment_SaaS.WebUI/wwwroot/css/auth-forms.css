@@ -1,0 +1,30 @@
+/* Auth login/register form polish (lean layout) */
+.auth-page .premium-card,
+.reg-page .premium-card {
+    border-radius: 20px;
+    overflow: hidden;
+    background: #fff;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.auth-page .form-control,
+.reg-page .form-control {
+    border-radius: 12px;
+}
+
+.auth-page .form-control:focus,
+.reg-page .form-control:focus {
+    box-shadow: 0 0 0 0.25rem rgba(79, 70, 229, 0.15);
+    background-color: #fff !important;
+}
+
+.auth-page .otp-input {
+    width: 50px;
+    height: 60px;
+    font-size: 1.5rem;
+    border-radius: 12px !important;
+}
+
+.auth-page .otp-input:focus {
+    border: 2px solid #4f46e5 !important;
+}

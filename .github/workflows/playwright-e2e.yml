@@ -1,0 +1,126 @@
+name: Playwright E2E
+
+on:
+  push:
+    branches: [main, master, develop]
+    paths:
+      - 'e2e/**'
+      - 'Appointment_SaaS.WebUI/**'
+      - 'Appointment_SaaS.API/**'
+      - '.github/workflows/playwright-e2e.yml'
+  pull_request:
+    paths:
+      - 'e2e/**'
+      - 'Appointment_SaaS.WebUI/**'
+      - 'Appointment_SaaS.API/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'PLAYWRIGHT_ENV'
+        required: true
+        default: development
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  NODE_VERSION: '20'
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      PLAYWRIGHT_ENV: ${{ github.event.inputs.environment || 'development' }}
+      E2E_WEB_UI_URL: ${{ secrets.E2E_WEB_UI_URL || 'https://localhost:7140' }}
+      E2E_API_URL: ${{ secrets.E2E_API_URL || 'http://localhost:5294' }}
+      E2E_DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+      E2E_MANAGER_PHONE: ${{ secrets.E2E_MANAGER_PHONE }}
+      E2E_TENANT_ID: ${{ secrets.E2E_TENANT_ID }}
+      E2E_INSTANCE_NAME: ${{ secrets.E2E_INSTANCE_NAME }}
+      E2E_SERVICE_ID: ${{ secrets.E2E_SERVICE_ID }}
+      E2E_STAFF_ID: ${{ secrets.E2E_STAFF_ID }}
+      E2E_N8N_TOKEN: ${{ secrets.E2E_N8N_TOKEN }}
+      IYZICO_WEBHOOK_SECRET: ${{ secrets.IYZICO_WEBHOOK_SECRET }}
+      E2E_SUBSCRIPTION_REF: ${{ secrets.E2E_SUBSCRIPTION_REF }}
+      ConnectionStrings__DefaultConnection: ${{ secrets.E2E_DATABASE_URL }}
+      ASPNETCORE_ENVIRONMENT: Development
+      CI: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Restore & build API
+        run: |
+          dotnet restore Appointment_SaaS.sln
+          dotnet build Appointment_SaaS.API/Appointment_SaaS.API.csproj -c Release --no-restore
+
+      - name: Restore & build WebUI
+        run: dotnet build Appointment_SaaS.WebUI/Appointment_SaaS.WebUI.csproj -c Release --no-restore
+
+      - name: Install Playwright npm deps
+        working-directory: e2e
+        run: |
+          npm ci || npm install
+          npx playwright install --with-deps chromium
+
+      - name: Start API (background)
+        run: |
+          dotnet run --project Appointment_SaaS.API/Appointment_SaaS.API.csproj -c Release --no-build --urls "http://localhost:5294" &
+          echo $! > api.pid
+        env:
+          ConnectionStrings__DefaultConnection: ${{ secrets.E2E_DATABASE_URL }}
+          WebhookSecurity__N8nAuthToken: ${{ secrets.E2E_N8N_TOKEN }}
+          IyzicoSettings__WebhookSecret: ${{ secrets.IYZICO_WEBHOOK_SECRET }}
+
+      - name: Start WebUI (background)
+        run: |
+          dotnet run --project Appointment_SaaS.WebUI/Appointment_SaaS.WebUI.csproj -c Release --no-build --urls "https://localhost:7140;http://localhost:5259" &
+          echo $! > webui.pid
+        env:
+          ConnectionStrings__DefaultConnection: ${{ secrets.E2E_DATABASE_URL }}
+          ApiBaseUrl: http://localhost:5294
+
+      - name: Wait for health
+        run: |
+          for i in {1..60}; do
+            curl -sk -o /dev/null -w "%{http_code}" https://localhost:7140/Pricing | grep -qE '200|302' && break
+            sleep 2
+          done
+          curl -sf http://localhost:5294/swagger/index.html > /dev/null || curl -sf http://localhost:5294/ > /dev/null
+
+      - name: Run Playwright tests
+        working-directory: e2e
+        run: npx playwright test
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ env.PLAYWRIGHT_ENV }}
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 14
+
+      - name: Stop apps
+        if: always()
+        run: |
+          kill $(cat api.pid 2>/dev/null) 2>/dev/null || true
+          kill $(cat webui.pid 2>/dev/null) 2>/dev/null || true

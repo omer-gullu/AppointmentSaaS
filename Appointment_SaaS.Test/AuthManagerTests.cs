@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Appointment_SaaS.Business.Abstract;
 using Appointment_SaaS.Business.Concrete;
@@ -15,6 +16,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 using Appointment_SaaS.Core.Utilities.Security.Jwt;
+using Appointment_SaaS.Test.TestHelpers;
 
 namespace Appointment_SaaS.Test
 {
@@ -24,12 +26,12 @@ namespace Appointment_SaaS.Test
         private readonly Mock<ITenantService> _mockTenantService;
         private readonly Mock<ITokenHelper> _mockTokenHelper;
         private readonly Mock<IMapper> _mockMapper;
-        private readonly Mock<IOtpService> _mockOtpService;
         private readonly Mock<IEvolutionApiService> _mockEvolutionApiService;
         private readonly Mock<IUserOperationClaimService> _mockUserOpClaimService;
         private readonly Mock<IOptions<EvolutionApiSettings>> _mockEvoOptions;
         private readonly Mock<IIyzicoPaymentService> _mockIyzicoPaymentService;
         private readonly Mock<IOptions<IyzicoSettings>> _mockIyzicoOptions;
+        private readonly Mock<ITenantPlanService> _mockTenantPlanService;
 
         private readonly AuthManager _authManager;
 
@@ -39,7 +41,6 @@ namespace Appointment_SaaS.Test
             _mockTenantService = new Mock<ITenantService>();
             _mockTokenHelper = new Mock<ITokenHelper>();
             _mockMapper = new Mock<IMapper>();
-            _mockOtpService = new Mock<IOtpService>();
             _mockEvolutionApiService = new Mock<IEvolutionApiService>();
             _mockUserOpClaimService = new Mock<IUserOperationClaimService>();
 
@@ -47,9 +48,13 @@ namespace Appointment_SaaS.Test
             _mockEvoOptions.Setup(x => x.Value).Returns(new EvolutionApiSettings { DefaultInstance = "defaultConfig" });
 
             _mockIyzicoOptions = new Mock<IOptions<IyzicoSettings>>();
-            _mockIyzicoOptions.Setup(x => x.Value).Returns(new IyzicoSettings { Enabled = true });
+            _mockIyzicoOptions.Setup(x => x.Value).Returns(new IyzicoSettings { Enabled = false });
 
             _mockIyzicoPaymentService = new Mock<IIyzicoPaymentService>();
+            _mockTenantPlanService = new Mock<ITenantPlanService>();
+            _mockTenantPlanService
+                .Setup(x => x.TryReconcileFromIyzicoAsync(It.IsAny<Tenant>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
 
             var lockoutOptions = new Mock<IOptions<LockoutSettings>>();
             lockoutOptions.Setup(x => x.Value).Returns(new LockoutSettings
@@ -59,62 +64,74 @@ namespace Appointment_SaaS.Test
             });
 
             var logger = new Mock<ILogger<AuthManager>>();
+            var hostEnv = new Mock<Microsoft.Extensions.Hosting.IHostEnvironment>();
+            hostEnv.Setup(x => x.EnvironmentName).Returns("Production");
 
             _authManager = new AuthManager(
                 _mockUserService.Object,
                 _mockTenantService.Object,
                 _mockTokenHelper.Object,
-                _mockMapper.Object,
-                _mockOtpService.Object,
                 _mockEvolutionApiService.Object,
-                _mockUserOpClaimService.Object,
                 _mockEvoOptions.Object,
                 _mockIyzicoPaymentService.Object,
                 _mockIyzicoOptions.Object,
                 lockoutOptions.Object,
+                new TenantAccessEvaluator(),
+                _mockTenantPlanService.Object,
+                hostEnv.Object,
                 logger.Object
             );
         }
 
         [Fact]
-        public async Task RegisterBusinessOwnerAsync_ShouldThrowException_WhenUserOrPhoneExists()
+        public async Task RegisterBusinessOwnerAsync_ShouldThrowException_WhenEmailExists()
         {
             var dto = new BusinessRegistrationDto { UserEmail = "test@test.com", PhoneNumber = "5551112233" };
             _mockUserService.Setup(x => x.GetByMail(dto.UserEmail)).ReturnsAsync(new AppUser());
+            _mockUserService.Setup(x => x.GetByPhoneNumberAsync(dto.PhoneNumber)).ReturnsAsync((AppUser?)null);
             Func<Task> act = async () => await _authManager.RegisterBusinessOwnerAsync(dto);
             var exception = await act.Should().ThrowAsync<BadHttpRequestException>();
-            exception.WithMessage("Bu e-posta veya telefon numarası zaten kullanımda.");
+            exception.WithMessage("Bu e-posta adresi zaten kullanımda.");
             _mockTenantService.Verify(x => x.AddTenantAsync(It.IsAny<TenantCreateDto>(), It.IsAny<string>()), Times.Never);
         }
 
         [Fact]
-        public async Task RegisterBusinessOwnerAsync_ShouldThrowException_WhenCardInfoMissing()
+        public async Task RegisterBusinessOwnerAsync_ShouldThrowException_WhenPhoneExists()
         {
-            // Kart bilgisi boş — artık kart ZORUNLU
+            var dto = new BusinessRegistrationDto { UserEmail = "yeni@firma.com", PhoneNumber = "05551112233" };
+            _mockUserService.Setup(x => x.GetByMail(dto.UserEmail)).ReturnsAsync((AppUser?)null);
+            _mockUserService.Setup(x => x.GetByPhoneNumberAsync(dto.PhoneNumber)).ReturnsAsync(new AppUser());
+            Func<Task> act = async () => await _authManager.RegisterBusinessOwnerAsync(dto);
+            var exception = await act.Should().ThrowAsync<BadHttpRequestException>();
+            exception.WithMessage("Bu numara zaten kullanımda.");
+            _mockTenantService.Verify(x => x.AddTenantAsync(It.IsAny<TenantCreateDto>(), It.IsAny<string>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task RegisterBusinessOwnerAsync_ShouldNotCreateAppUser()
+        {
             var dto = new BusinessRegistrationDto
             {
-                UserEmail = "test@firma.com",
-                PhoneNumber = "5551112233",
-                UserFullName = "Test Kullanıcı",
-                BusinessName = "Test İşletme",
-                SectorID = 1,
-                CardHolderName = "", // BOŞ!
-                CardNumber = "",
-                ExpireMonth = "",
-                ExpireYear = "",
-                Cvc = ""
+                UserEmail = "owner@new.com",
+                PhoneNumber = "5550000099",
+                BusinessName = "Yeni Isletme",
+                PlanType = "trial",
+                BillingCycle = "Monthly",
+                SectorID = 1
             };
-
             _mockUserService.Setup(x => x.GetByMail(dto.UserEmail)).ReturnsAsync((AppUser?)null);
             _mockUserService.Setup(x => x.GetByPhoneNumberAsync(dto.PhoneNumber)).ReturnsAsync((AppUser?)null);
             _mockTenantService.Setup(x => x.GetByFingerprintAsync(It.IsAny<string>())).ReturnsAsync((Tenant?)null);
-            _mockTenantService.Setup(x => x.AddTenantAsync(It.IsAny<TenantCreateDto>(), It.IsAny<string>())).ReturnsAsync(1);
-            _mockTenantService.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(new Tenant { TenantID = 1 });
+            _mockTenantService.Setup(x => x.AddTenantAsync(It.IsAny<TenantCreateDto>(), It.IsAny<string>())).ReturnsAsync(99);
+            _mockTenantService.Setup(x => x.GetByIdAsync(99)).ReturnsAsync(new Tenant { TenantID = 99 });
+            _mockTenantService.Setup(x => x.UpdateAsync(It.IsAny<Tenant>())).Returns(Task.CompletedTask);
 
-            Func<Task> act = async () => await _authManager.RegisterBusinessOwnerAsync(dto);
-            (await act.Should().ThrowAsync<BadHttpRequestException>())
-                .WithMessage("Kart bilgileri zorunludur. Lütfen tüm alanları eksiksiz doldurunuz.");
+            await _authManager.RegisterBusinessOwnerAsync(dto);
+
+            _mockUserService.Verify(x => x.AddAppUserAsync(It.IsAny<AppUser>()), Times.Never);
         }
+
+
 
         [Fact]
         public async Task GenerateOtpForLoginAsync_ShouldThrowException_WhenSpamLimitHit()
@@ -133,9 +150,10 @@ namespace Appointment_SaaS.Test
         [Fact]
         public async Task GenerateOtpForLoginAsync_ShouldThrowException_WhenTenantIsPassive()
         {
-            var dto = new OtpLoginDto { PhoneNumber = "5551234567" };
+            var phone = OtpTestHelper.Normalize("5551234567");
+            var dto = new OtpLoginDto { PhoneNumber = phone };
             var user = new AppUser { TenantID = 1, LastOtpRequestDate = DateTime.Now.AddMinutes(-5) };
-            _mockUserService.Setup(x => x.GetByPhoneNumberAsync(dto.PhoneNumber)).ReturnsAsync(user);
+            _mockUserService.Setup(x => x.GetByPhoneNumberAsync(phone)).ReturnsAsync(user);
 
             // İşletme PASİF
             var tenant = new Tenant { TenantID = 1, IsActive = false, IsSubscriptionActive = true, SubscriptionEndDate = DateTime.Now.AddDays(10) };
@@ -149,9 +167,10 @@ namespace Appointment_SaaS.Test
         [Fact]
         public async Task VerifyOtpAndLoginAsync_ShouldThrowException_WhenTenantIsPassive()
         {
-            var dto = new OtpVerifyDto { PhoneNumber = "5551234567", OtpCode = "123456" };
+            var phone = OtpTestHelper.Normalize("5551234567");
+            var dto = new OtpVerifyDto { PhoneNumber = phone, OtpCode = "123456" };
             var user = new AppUser { TenantID = 1, OtpCode = "123456", OtpExpiry = DateTime.Now.AddMinutes(1) };
-            _mockUserService.Setup(x => x.GetByPhoneNumberAsync(dto.PhoneNumber)).ReturnsAsync(user);
+            _mockUserService.Setup(x => x.GetByPhoneNumberAsync(phone)).ReturnsAsync(user);
 
             // İşletme PASİF
             var tenant = new Tenant { TenantID = 1, IsActive = false, IsSubscriptionActive = true, SubscriptionEndDate = DateTime.Now.AddDays(10) };
@@ -189,9 +208,10 @@ namespace Appointment_SaaS.Test
         [Fact]
         public async Task GenerateOtpForLoginAsync_ShouldUseTenantInstance_WhenGetByTenantPhoneFails()
         {
-            var dto = new OtpLoginDto { PhoneNumber = "5360001122" };
+            var phone = OtpTestHelper.Normalize("5360001122");
+            var dto = new OtpLoginDto { PhoneNumber = phone };
             var user = new AppUser { TenantID = 1, LastOtpRequestDate = DateTime.Now.AddMinutes(-5) };
-            _mockUserService.Setup(x => x.GetByPhoneNumberAsync(dto.PhoneNumber)).ReturnsAsync(user);
+            _mockUserService.Setup(x => x.GetByPhoneNumberAsync(phone)).ReturnsAsync(user);
 
             var tenant = new Tenant
             {
@@ -202,17 +222,16 @@ namespace Appointment_SaaS.Test
                 SubscriptionEndDate = DateTime.Now.AddDays(10)
             };
             _mockTenantService.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(tenant);
-            _mockTenantService.Setup(x => x.GetByPhoneNumberAsync(dto.PhoneNumber)).ReturnsAsync((Tenant?)null);
 
             _mockEvolutionApiService
-                .Setup(x => x.SendOtpMessageAsync("FirmaXYZ_ab12", dto.PhoneNumber, It.IsAny<string>()))
+                .Setup(x => x.SendOtpMessageAsync("FirmaXYZ_ab12", phone, It.IsAny<string>()))
                 .ReturnsAsync(true);
 
             var result = await _authManager.GenerateOtpForLoginAsync(dto);
 
             result.Should().BeTrue();
             _mockEvolutionApiService.Verify(
-                x => x.SendOtpMessageAsync("FirmaXYZ_ab12", dto.PhoneNumber, It.IsAny<string>()),
+                x => x.SendOtpMessageAsync("FirmaXYZ_ab12", phone, It.IsAny<string>()),
                 Times.Once);
         }
 

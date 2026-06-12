@@ -1,8 +1,10 @@
+using Appointment_SaaS.API.Authorization;
 using Appointment_SaaS.Business.Abstract;
 using Appointment_SaaS.Core.Constants;
 using Appointment_SaaS.Core.DTOs;
 using Appointment_SaaS.Core.Entities;
 using Appointment_SaaS.Core.Services;
+using Appointment_SaaS.Core.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -18,12 +20,14 @@ public class AppUsersController : ControllerBase
 
     private readonly IConfiguration _configuration;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IUserOperationClaimService _userOperationClaimService;
 
     public AppUsersController(
         IAppUserService appUserService,
         IAuthService authService,
         ITenantService tenantService,
         ITenantProvider tenantProvider,
+        IUserOperationClaimService userOperationClaimService,
         IConfiguration configuration,
         IHttpClientFactory httpClientFactory)
     {
@@ -31,6 +35,7 @@ public class AppUsersController : ControllerBase
         _authService = authService;
         _tenantService = tenantService;
         _tenantProvider = tenantProvider;
+        _userOperationClaimService = userOperationClaimService;
         _configuration = configuration;
         _httpClientFactory = httpClientFactory;
     }
@@ -43,7 +48,7 @@ public class AppUsersController : ControllerBase
         if (tenantId == null) return Unauthorized();
 
         var users = await _appUserService.GetStaffByTenantAsync(tenantId.Value);
-        return Ok(users);
+        return Ok(users.Select(StaffListItemDto.FromEntity));
     }
 
     [Authorize(AuthenticationSchemes = "Bearer,WebhookScheme")]
@@ -58,20 +63,15 @@ public class AppUsersController : ControllerBase
             if (currentTenantId == null) return Unauthorized();
             if (currentTenantId.Value != tenantId) return Forbid();
         }
+        else
+        {
+            var scopeDenied = ControllerTenantAccess.DenyUnlessCanAccessTenant(this, tenantId);
+            if (scopeDenied != null)
+                return scopeDenied;
+        }
 
         var users = await _appUserService.GetStaffByTenantAsync(tenantId);
-        return Ok(users.Select(u => new
-        {
-            appUserID = u.AppUserID,
-            firstName = u.FirstName,
-            lastName = u.LastName,
-            email = u.Email,
-            phoneNumber = u.PhoneNumber,
-            specialization = u.Specialization,
-            googleCalendarId = u.GoogleCalendarId,
-            googleRefreshToken = !string.IsNullOrEmpty(u.GoogleRefreshToken) ? "***" : null,
-            status = u.Status
-        }));
+        return Ok(users.Select(StaffListItemDto.FromEntity));
     }
 
     // POST /api/AppUsers/add-staff
@@ -84,12 +84,13 @@ public class AppUsersController : ControllerBase
         var tenant = await _tenantService.GetByIdAsync(tenantId.Value);
         if (tenant == null) return NotFound(new { Message = "İşletme bulunamadı." });
 
-        // Plan limiti kontrolü
         var currentStaffCount = await _appUserService.GetActiveStaffCountAsync(tenantId.Value);
-        var staffOnly = currentStaffCount - 1; // Owner zaten 1 kişi
+        var isFirstStaff = currentStaffCount == 0;
+
+        var additionalStaffCount = isFirstStaff ? 0 : currentStaffCount - 1; // İlk personel = Manager; kotaya dahil değil
         var staffLimit = PlanPricing.GetStaffLimit(tenant.PlanType);
 
-        if (staffLimit == 0)
+        if (!isFirstStaff && staffLimit == 0)
             return StatusCode(403, new
             {
                 Message = "Deneme planında personel ekleyemezsiniz. Lütfen bir plan seçin.",
@@ -97,7 +98,7 @@ public class AppUsersController : ControllerBase
                 CurrentPlan = tenant.PlanType
             });
 
-        if (staffOnly >= staffLimit)
+        if (!isFirstStaff && additionalStaffCount >= staffLimit)
             return StatusCode(403, new
             {
                 Message = $"{tenant.PlanType} planda en fazla {staffLimit} personel ekleyebilirsiniz. Daha fazlası için planınızı yükseltin.",
@@ -124,11 +125,83 @@ public class AppUsersController : ControllerBase
             Specialization = dto.Specialization,
             GoogleCalendarId = dto.GoogleCalendarId,
             TenantID = tenantId.Value,
-            Status = true
+            Status = true,
+            SecurityStamp = Guid.NewGuid().ToString()
         };
 
         var userId = await _appUserService.AddAppUserAsync(newUser);
-        return Ok(new { Message = "Personel başarıyla eklendi.", UserId = userId });
+        if (isFirstStaff)
+        {
+            await _userOperationClaimService.AddAsync(new UserOperationClaim
+            {
+                UserId = userId,
+                OperationClaimId = 2
+            });
+        }
+
+        return Ok(new
+        {
+            Message = isFirstStaff
+                ? "İlk personel (yönetici) eklendi."
+                : "Personel başarıyla eklendi.",
+            UserId = userId
+        });
+    }
+
+    /// <summary>
+    /// Kayıt sonrası ilk personel (Manager). Tenant'ta aktif AppUser yokken; telefon işletme kaydı ile eşleşmeli.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpPost("bootstrap-first-staff")]
+    public async Task<IActionResult> BootstrapFirstStaff([FromBody] BootstrapFirstStaffDto dto)
+    {
+        if (dto.TenantId <= 0)
+            return BadRequest(new { Message = "Geçersiz işletme." });
+
+        var tenant = await _tenantService.GetByIdAsync(dto.TenantId);
+        if (tenant == null)
+            return NotFound(new { Message = "İşletme bulunamadı." });
+
+        var activeCount = await _appUserService.GetActiveStaffCountAsync(dto.TenantId);
+        if (activeCount > 0)
+            return BadRequest(new { Message = "Bu işletmede zaten personel var. Giriş yapıp Personel Ekle kullanın." });
+
+        var tenantPhone = OtpPhoneNormalizer.Normalize(tenant.PhoneNumber);
+        var dtoPhone = OtpPhoneNormalizer.Normalize(dto.PhoneNumber);
+        if (string.IsNullOrEmpty(tenantPhone) || tenantPhone != dtoPhone)
+            return BadRequest(new { Message = "Telefon numarası işletme kaydı ile eşleşmiyor." });
+
+        var existingByPhone = await _appUserService.GetByPhoneNumberAsync(dtoPhone);
+        if (existingByPhone != null)
+            return BadRequest(new { Message = "Bu telefon numarası zaten kayıtlı." });
+
+        if (!string.IsNullOrWhiteSpace(dto.Email))
+        {
+            var existingByEmail = await _appUserService.GetByMail(dto.Email);
+            if (existingByEmail != null)
+                return BadRequest(new { Message = "Bu e-posta adresi zaten kayıtlı." });
+        }
+
+        var newUser = new AppUser
+        {
+            FirstName = dto.FirstName.Trim(),
+            LastName = dto.LastName?.Trim() ?? "",
+            Email = dto.Email?.Trim() ?? "",
+            PhoneNumber = dtoPhone,
+            Specialization = dto.Specialization,
+            TenantID = dto.TenantId,
+            Status = true,
+            SecurityStamp = Guid.NewGuid().ToString()
+        };
+
+        var userId = await _appUserService.AddAppUserAsync(newUser);
+        await _userOperationClaimService.AddAsync(new UserOperationClaim
+        {
+            UserId = userId,
+            OperationClaimId = 2
+        });
+
+        return Ok(new { Message = "İlk personel kaydedildi. OTP ile giriş yapabilirsiniz.", UserId = userId });
     }
 
     // PUT /api/AppUsers/{id} — Personel güncelle
@@ -208,11 +281,15 @@ public class AppUsersController : ControllerBase
         return Ok(new { Message = "Personelin Google Takvim bilgileri güncellendi." });
     }
 
-    [AllowAnonymous]
+    [Authorize(Roles = "Manager")]
     [HttpGet("{id}/google-token")]
     public async Task<IActionResult> GetGoogleToken(int id)
     {
-        var users = await _appUserService.GetAllUsersAsync();
+        var tenantId = _tenantProvider.GetTenantId();
+        if (tenantId == null)
+            return Unauthorized();
+
+        var users = await _appUserService.GetStaffByTenantAsync(tenantId.Value);
         var user = users.FirstOrDefault(u => u.AppUserID == id);
 
         if (user == null || string.IsNullOrWhiteSpace(user.GoogleRefreshToken) || string.IsNullOrWhiteSpace(user.GoogleCalendarId))

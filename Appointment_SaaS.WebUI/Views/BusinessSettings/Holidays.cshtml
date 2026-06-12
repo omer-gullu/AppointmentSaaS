@@ -1,0 +1,145 @@
+@model Appointment_SaaS.WebUI.Models.DashboardViewModel
+@{
+    ViewData["RequireSweetAlert"] = true;
+    ViewData["Title"] = "Tatil Yönetimi";
+}
+<partial name="_PageStyles" />
+<div class="biz-page">
+    <div class="container-fluid" style="max-width:1100px;">
+        <partial name="_BusinessSettingsNav" />
+        <div class="section-card">
+            <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#fee2e2,#fecaca);display:flex;align-items:center;justify-content:center;">
+                        <i class="bi bi-calendar-x text-danger fs-5"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold">Tatil Yönetimi</div>
+                        <div style="font-size:0.75rem;color:#94a3b8;">Listedeki günlerde asistan randevu vermez. Sildiğiniz gün tekrar randevuya açılır.</div>
+                    </div>
+                </div>
+                <button class="btn btn-sm rounded-pill px-3" style="background:linear-gradient(135deg,#fee2e2,#fecaca);color:#dc2626;border:none;font-weight:600;"
+                        onclick="document.getElementById('addHolidayForm').classList.toggle('d-none')">
+                    <i class="bi bi-plus-lg me-1"></i>Tatil Ekle
+                </button>
+            </div>
+            <div id="addHolidayForm" class="d-none px-4 py-3 border-bottom bg-light">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-semibold text-muted">Tarih</label>
+                        <input type="date" id="holidayDate" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label small fw-semibold text-muted">Tatil Adı</label>
+                        <input type="text" id="holidayName" class="form-control form-control-sm" placeholder="ör: Kurban Bayramı" />
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-danger btn-sm w-100" onclick="addHoliday()">
+                            <i class="bi bi-check-lg me-1"></i>Kaydet
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table mb-0" id="holidayTable">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">TARİH</th>
+                            <th>TATİL ADI</th>
+                            <th>TÜR</th>
+                            <th class="text-end pe-4">İŞLEM</th>
+                        </tr>
+                    </thead>
+                    <tbody id="holidayTableBody">
+                        <tr>
+                            <td colspan="4" class="text-center py-4 text-muted">
+                                <i class="bi bi-hourglass-split me-1"></i>Yükleniyor...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function swToast(icon, title) {
+        Swal.fire({ toast: true, position: 'top-end', icon, title, showConfirmButton: false, timer: 3000, timerProgressBar: true });
+    }
+    function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+    function formatDate(dateStr) {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' });
+    }
+    async function loadHolidays() {
+        try {
+            const res = await fetch('/Dashboard/GetHolidays');
+            const data = await res.json();
+            const tbody = document.getElementById('holidayTableBody');
+            if (!data.length) {
+                tbody.innerHTML = `<tr><td colspan="4" class="empty-state">
+                    <i class="bi bi-calendar-x me-1"></i>Tatil tanımlı değil — tüm günler randevuya açık.
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" onclick="seedDefaultHolidays()">
+                            <i class="bi bi-download me-1"></i>Resmi tatil önerilerini yükle
+                        </button>
+                    </div>
+                </td></tr>`;
+                return;
+            }
+            tbody.innerHTML = data.map(h => `
+                <tr>
+                    <td class="ps-4"><span class="badge bg-danger-subtle text-danger">${formatDate(h.date)}</span></td>
+                    <td class="fw-semibold">${escapeHtml(h.name)}</td>
+                    <td>${h.isDefault ? '<span class="badge bg-secondary-subtle text-secondary">Sistem</span>' : '<span class="badge bg-warning-subtle text-warning">Özel</span>'}</td>
+                    <td class="text-end pe-4">
+                        <button class="btn btn-sm btn-outline-danger rounded-pill px-2 py-0" onclick="deleteHoliday(${h.id}, '${escapeHtml(h.name).replace(/'/g, "\\'")}', ${h.isDefault === true})"><i class="bi bi-trash"></i></button>
+                    </td>
+                </tr>`).join('');
+        } catch { swToast('error', 'Tatiller yüklenemedi.'); }
+    }
+    async function addHoliday() {
+        const date = document.getElementById('holidayDate').value;
+        const name = document.getElementById('holidayName').value.trim();
+        if (!date || !name) { swToast('warning', 'Tarih ve tatil adı zorunludur.'); return; }
+        try {
+            const res = await fetch('/Dashboard/AddHoliday', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date, name }) });
+            const data = await res.json();
+            if (res.ok) {
+                swToast('success', 'Tatil eklendi.');
+                document.getElementById('addHolidayForm').classList.add('d-none');
+                document.getElementById('holidayDate').value = '';
+                document.getElementById('holidayName').value = '';
+                loadHolidays();
+            } else {
+                swToast('error', data.message || 'Tatil eklenemedi.');
+            }
+        } catch (e) { swToast('error', 'Sistemle bağlantı kurulamadı.'); }
+    }
+    async function deleteHoliday(id, name, isSystem) {
+        const hint = isSystem ? ' Bu gün artık tatil sayılmaz; WhatsApp asistanı o tarihe randevu verebilir.' : '';
+        const result = await Swal.fire({ title: 'Tatili Sil', text: `"${name}" tatilini kaldırmak istediğinize emin misiniz?${hint}`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#6b7280', confirmButtonText: 'Evet, Sil', cancelButtonText: 'İptal' });
+        if (!result.isConfirmed) return;
+        try {
+            const res = await fetch(`/Dashboard/DeleteHoliday?id=${id}`, { method: 'POST', credentials: 'include' });
+            if (res.ok) { swToast('success', 'Tatil silindi.'); loadHolidays(); }
+            else { swToast('error', 'Tatil silinemedi.'); }
+        } catch { swToast('error', 'Tatil silinemedi.'); }
+    }
+    async function seedDefaultHolidays() {
+        try {
+            const res = await fetch('/Dashboard/SeedDefaultHolidays', { method: 'POST' });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                swToast('success', data.message || 'Öneriler yüklendi.');
+                loadHolidays();
+            } else {
+                swToast('error', data.message || 'Yüklenemedi.');
+            }
+        } catch { swToast('error', 'Sistemle bağlantı kurulamadı.'); }
+    }
+    document.addEventListener('DOMContentLoaded', loadHolidays);
+</script>
+}

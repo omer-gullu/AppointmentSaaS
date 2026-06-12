@@ -1,0 +1,289 @@
+:root {
+    --primary-color: #4f46e5;
+    --primary-hover: #4338ca;
+    --surface: #ffffff;
+    --background: #f8fafc;
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+    --border-color: #e2e8f0;
+}
+
+body {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    background-color: var(--background);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+body.lean-public {
+    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+html.lean-public,
+body.lean-public {
+    overflow-x: clip;
+    max-width: 100%;
+}
+
+.premium-navbar {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.8) !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    padding: 0.8rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    width: 100%;
+    max-width: 100%;
+}
+
+.premium-navbar .site-navbar__inner {
+    width: 100%;
+    max-width: 1400px;
+    margin-left: auto;
+    margin-right: auto;
+    min-width: 0;
+}
+
+.premium-navbar .navbar-brand {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.premium-navbar .ar-brand-lockup__text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.site-navbar__menu {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.site-navbar__menu-toggle {
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+}
+
+.site-navbar__menu-toggle::-webkit-details-marker {
+    display: none;
+}
+
+.site-navbar__dropdown {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.4rem);
+    z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 11.5rem;
+    padding: 0.45rem;
+    background: #fff;
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 25px -8px rgba(15, 23, 42, 0.18);
+}
+
+.site-navbar__menu:not([open]) .site-navbar__dropdown {
+    display: none;
+}
+
+.site-navbar__dropdown-item {
+    display: block;
+    padding: 0.5rem 0.85rem;
+    border-radius: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #334155;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.site-navbar__dropdown-item:hover,
+.site-navbar__dropdown-item:focus {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.site-navbar__dropdown-item--cta {
+    background: var(--bs-primary, #6366f1);
+    color: #fff !important;
+    text-align: center;
+    margin-top: 0.15rem;
+}
+
+.site-navbar__dropdown-item--cta:hover,
+.site-navbar__dropdown-item--cta:focus {
+    background: #4f46e5;
+    color: #fff !important;
+}
+
+@media (max-width: 575.98px) {
+    .premium-navbar .site-navbar__inner {
+        justify-content: space-between !important;
+    }
+}
+
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.25rem;
+    letter-spacing: -0.5px;
+    color: var(--primary-color) !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.nav-link {
+    font-weight: 500;
+    color: var(--text-secondary) !important;
+    padding: 0.5rem 1rem !important;
+    border-radius: 8px;
+    transition: color 0.2s ease, background 0.2s ease;
+}
+
+.nav-link:hover,
+.nav-link.active {
+    color: var(--primary-color) !important;
+    background: #f1f5f9;
+}
+
+.nav-link i {
+    margin-right: 0.4rem;
+}
+
+main {
+    flex: 1;
+}
+
+.premium-footer {
+    background: var(--surface);
+    border-top: 1px solid var(--border-color);
+    padding: 1.5rem 0;
+    margin-top: auto;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+/* Brand-consistent buttons (lean + full layouts) */
+.btn-primary:hover,
+.btn-primary:focus {
+    filter: brightness(1.06);
+    color: #fff;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus {
+    background: #eef2ff;
+    color: #4338ca;
+    border-color: #4338ca;
+}
+
+.btn-outline-secondary:hover,
+.btn-outline-secondary:focus {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #475569;
+}
+
+.btn-outline-success:hover,
+.btn-outline-success:focus {
+    background: #ecfdf5;
+    color: #15803d;
+    border-color: #16a34a;
+}
+
+.btn-icon-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    border-radius: 50%;
+    border: 2px solid #4f46e5;
+    color: #4f46e5;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(99, 102, 241, 0.12);
+    transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.btn-icon-action:hover,
+.btn-icon-action:focus {
+    background: #eef2ff;
+    color: #4338ca;
+    border-color: #4338ca;
+}
+
+.btn-icon-action--danger {
+    border-color: #fca5a5;
+    color: #ef4444;
+    box-shadow: 0 1px 2px rgba(239, 68, 68, 0.1);
+}
+
+.btn-icon-action--danger:hover,
+.btn-icon-action--danger:focus {
+    background: #fef2f2;
+    border-color: #ef4444;
+    color: #dc2626;
+}
+
+.btn-icon-action .bi {
+    pointer-events: none;
+}
+
+.btn-fab {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    border: 1.5px solid #6366f1;
+    color: #6366f1;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
+    transition: background 0.15s, box-shadow 0.15s;
+    touch-action: manipulation;
+}
+
+.btn-fab:hover,
+.btn-fab:focus {
+    background: #eef2ff;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.22);
+    color: #4f46e5;
+}
+
+.btn-fab--danger {
+    border-color: #ef4444;
+    color: #ef4444;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.12);
+}
+
+.btn-fab--danger:hover,
+.btn-fab--danger:focus {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+@media (max-width: 767.98px) {
+    .btn.rounded-pill.btn-sm {
+        min-height: 44px;
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+}

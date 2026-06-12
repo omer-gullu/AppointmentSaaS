@@ -12,11 +12,13 @@ namespace Appointment_SaaS.Business.Validation
     {
         public TenantValidator()
         {
-            RuleFor(x => x.Name).NotEmpty().WithMessage("İşletme adı zorunludur.");
+            RuleFor(x => x.Name)
+                .NotEmpty().WithMessage("İşletme adı zorunludur.")
+                .MustBeSafeName(minLength: 2, maxLength: 150);
+
             RuleFor(x => x.SectorID).NotEmpty().WithMessage("Bir sektör seçilmesi zorunludur.");
 
-            // Vergi dairesi veya adres gibi alanlar varsa ekleyebiliriz
-            RuleFor(x => x.Address).MaximumLength(250).WithMessage("Adres çok uzun.");
+            RuleFor(x => x.Address).MustBeSafeText(maxLength: 250);
         }
     }
 }

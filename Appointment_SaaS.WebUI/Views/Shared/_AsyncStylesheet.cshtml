@@ -1,0 +1,7 @@
+@* Non-render-blocking stylesheet (FCP/LCP). Set ViewData["AsyncStylesheetHref"] e.g. ~/css/pricing.css *@
+@{
+    var href = ViewData["AsyncStylesheetHref"] as string ?? "";
+    if (string.IsNullOrEmpty(href)) { return; }
+}
+<link rel="stylesheet" href="@href" asp-append-version="true" media="print" onload="this.media='all'" />
+<noscript><link rel="stylesheet" href="@href" asp-append-version="true" /></noscript>

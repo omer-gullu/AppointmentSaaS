@@ -1,0 +1,36 @@
+@{
+    var brandController = ViewData["NavbarBrandController"] as string ?? "Pricing";
+    var brandAction = ViewData["NavbarBrandAction"] as string ?? "Index";
+    var logoSize = ViewData["NavbarLogoSize"] as int? ?? 48;
+    var isDarkNav = ViewData["NavbarDark"] as bool? ?? false;
+    var navTextClass = isDarkNav ? "text-white" : "";
+}
+<header>
+    <nav class="navbar premium-navbar">
+        <div class="container-fluid site-navbar__inner d-flex flex-wrap align-items-center justify-content-between gap-2 py-1">
+            <a class="navbar-brand ar-brand-lockup text-decoration-none mb-0" asp-controller="@brandController" asp-action="@brandAction">
+                @{ ViewData["ArLogoSize"] = logoSize; ViewData["ArLogoVariant"] = isDarkNav ? "light" : "brand"; }
+                <partial name="_ArLogo" />
+                <span class="ar-brand-lockup__text @navTextClass">Akıllı Randevu</span>
+            </a>
+            <details class="site-navbar__menu">
+                <summary class="btn btn-outline-secondary btn-sm rounded-pill px-3 site-navbar__menu-toggle" aria-label="Menüyü aç">
+                    Menü
+                </summary>
+                <div class="site-navbar__dropdown" role="menu">
+                    <a asp-controller="Pricing" asp-action="Index" class="site-navbar__dropdown-item" role="menuitem">Planlar</a>
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <a asp-controller="Dashboard" asp-action="Index" class="site-navbar__dropdown-item" role="menuitem">Panel</a>
+                        <a href="/Auth/Logout" class="site-navbar__dropdown-item" role="menuitem">Çıkış</a>
+                    }
+                    else
+                    {
+                        <a href="/Auth/Login" class="site-navbar__dropdown-item" role="menuitem">Giriş</a>
+                        <a href="/Pricing" class="site-navbar__dropdown-item site-navbar__dropdown-item--cta" role="menuitem">Ücretsiz Dene</a>
+                    }
+                </div>
+            </details>
+        </div>
+    </nav>
+</header>

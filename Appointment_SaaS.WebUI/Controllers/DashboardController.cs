@@ -7,6 +7,7 @@ using Appointment_SaaS.WebUI.Services.Abstract;
 using Appointment_SaaS.Business.Abstract;
 using Microsoft.AspNetCore.Authentication;
 using System.Globalization;
+using Appointment_SaaS.Core.DTOs;
 
 namespace Appointment_SaaS.WebUI.Controllers
 {
@@ -17,17 +18,26 @@ namespace Appointment_SaaS.WebUI.Controllers
         private readonly IGoogleCalendarApiService _googleCalendarService;
         private readonly IAppointmentApiService _appointmentService;
         private readonly IEvolutionApiService _evolutionApiService;
+        private readonly ITenantService _tenantService;
+        private readonly IWhatsAppBlockedPhoneApiService _blockedPhoneApiService;
+        private readonly ILogger<DashboardController> _logger;
 
         public DashboardController(
             IDashboardApiService dashboardService,
             IGoogleCalendarApiService googleCalendarService,
             IAppointmentApiService appointmentService,
-            IEvolutionApiService evolutionApiService)
+            IEvolutionApiService evolutionApiService,
+            ITenantService tenantService,
+            IWhatsAppBlockedPhoneApiService blockedPhoneApiService,
+            ILogger<DashboardController> logger)
         {
             _dashboardService = dashboardService;
             _googleCalendarService = googleCalendarService;
             _appointmentService = appointmentService;
             _evolutionApiService = evolutionApiService;
+            _tenantService = tenantService;
+            _blockedPhoneApiService = blockedPhoneApiService;
+            _logger = logger;
         }
 
         private int GetCurrentTenantId()
@@ -57,20 +67,46 @@ namespace Appointment_SaaS.WebUI.Controllers
                 if (string.IsNullOrEmpty(instanceName))
                     return Json(new { success = false, message = "Dükkan bilgisi bulunamadı veya Instance adı atanmamış." });
 
-                await _evolutionApiService.DisconnectInstanceAsync(instanceName);
-                await Task.Delay(5000);
-                await _evolutionApiService.ConnectInstanceAsync(instanceName);
+                // ── OTOMATİK DÜZELTME: Türkçe karakter kontrolü ──
+                var turkishChars = "çÇğĞıİöÖşŞüÜ";
+                if (instanceName.Any(c => turkishChars.Contains(c)))
+                {
+                    _logger.LogInformation("[AutoFix] Instance isminde geçersiz karakter: {OldName}", instanceName);
+                    var mapping = new Dictionary<char, char> {
+                        {'ç','c'}, {'Ç','C'}, {'ğ','g'}, {'Ğ','G'}, {'ı','i'}, {'İ','I'},
+                        {'ö','o'}, {'Ö','O'}, {'ş','s'}, {'Ş','S'}, {'ü','u'}, {'Ü','U'}
+                    };
+                    var normalized = instanceName;
+                    foreach (var m in mapping) normalized = normalized.Replace(m.Key, m.Value);
 
-                var qrCodeBase64 = await _evolutionApiService.GetQrCodeAsync(instanceName);
+                    var tenant = await _tenantService.GetByIdAsync(tenantId);
+                    if (tenant != null)
+                    {
+                        tenant.InstanceName = normalized;
+                        await _tenantService.UpdateAsync(tenant);
+                        await _evolutionApiService.CreateInstanceAsync(normalized);
+                        instanceName = normalized;
+                        _logger.LogInformation("[AutoFix] Instance ismi düzeltildi: {NewName}", instanceName);
+                    }
+                }
+
+                // ── QR AKIŞI: Önce bağlantıyı kes, sonra TEK çağrıyla bağlan + QR al ──
+                // Eski akış: Disconnect → Connect (QR kaybolur) → GetQr = hep null
+                // Yeni akış: Disconnect → ConnectAndGetQr (tek çağrı, QR kaybolmaz)
+                await _evolutionApiService.DisconnectInstanceAsync(instanceName);
+                await Task.Delay(2000);
+
+                var qrCodeBase64 = await _evolutionApiService.ConnectAndGetQrAsync(instanceName);
 
                 if (string.IsNullOrEmpty(qrCodeBase64))
-                    return Json(new { success = false, message = "QR kod şu an üretilemedi. Cihaz zaten bağlı olabilir." });
+                    return Json(new { success = false, message = "QR kod üretilemedi. Lütfen birkaç saniye bekleyip tekrar deneyin." });
 
                 return Json(new { success = true, qrCode = qrCodeBase64, instanceName });
             }
             catch (Exception ex)
             {
-                return Json(new { success = false, message = ex.Message });
+                _logger.LogError(ex, "[Dashboard] GetWhatsAppQr exception. TenantId={TenantId}", tenantId);
+                return Json(new { success = false, message = "Beklenmeyen bir hata oluştu." });
             }
         }
 
@@ -82,6 +118,7 @@ namespace Appointment_SaaS.WebUI.Controllers
         }
 
         [HttpPost]
+[ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateAppointment(
             string customerName, string customerPhone, int serviceId, DateTime date, string time, int? appUserId)
         {
@@ -101,6 +138,7 @@ namespace Appointment_SaaS.WebUI.Controllers
         }
 
         [HttpPost]
+[ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateAppointment(
             int appointmentId, string customerName, string customerPhone,
             int serviceId, DateTime date, string time, string? googleEventId, int? appUserId)
@@ -121,6 +159,7 @@ namespace Appointment_SaaS.WebUI.Controllers
         }
 
         [HttpPost]
+[ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteAppointment(int appointmentId, string? googleEventId, int? appUserId)
         {
             var (success, msg) = await _appointmentService.DeleteAppointmentAsync(appointmentId);
@@ -130,6 +169,7 @@ namespace Appointment_SaaS.WebUI.Controllers
         }
 
         [HttpPost]
+[ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateService(string name, decimal price, int durationMinutes)
         {
             int tenantId = GetCurrentTenantId();
@@ -157,10 +197,11 @@ namespace Appointment_SaaS.WebUI.Controllers
                 TempData["Error"] = $"Sistem Hatası: {ex.Message}";
             }
 
-            return RedirectToAction("Index");
+            return RedirectToAction("Services", "BusinessSettings");
         }
 
         [HttpPost]
+[ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateService(int serviceId, string name, decimal price, int durationMinutes)
         {
             int tenantId = GetCurrentTenantId();
@@ -170,10 +211,11 @@ namespace Appointment_SaaS.WebUI.Controllers
                 ? "Hizmet başarıyla güncellendi."
                 : "Hata: Hizmet güncellenemedi.";
 
-            return RedirectToAction("Index");
+            return RedirectToAction("Services", "BusinessSettings");
         }
 
         [HttpPost]
+[ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteService(int serviceId)
         {
             bool success = await _dashboardService.DeleteServiceAsync(serviceId);
@@ -182,10 +224,11 @@ namespace Appointment_SaaS.WebUI.Controllers
                 ? "Hizmet başarıyla silindi."
                 : "Hata: Hizmet silinemedi.";
 
-            return RedirectToAction("Index");
+            return RedirectToAction("Services", "BusinessSettings");
         }
 
         [HttpPost]
+[ValidateAntiForgeryToken]
         public async Task<IActionResult> ToggleAssistant(bool isActive)
         {
             int tenantId = GetCurrentTenantId();
@@ -223,6 +266,7 @@ namespace Appointment_SaaS.WebUI.Controllers
         }
 
         [HttpPost]
+[ValidateAntiForgeryToken]
         public async Task<IActionResult> CancelSubscription()
         {
             int tenantId = GetCurrentTenantId();
@@ -242,6 +286,62 @@ namespace Appointment_SaaS.WebUI.Controllers
         {
             var authUrl = _googleCalendarService.GetConnectStaffUrl(staffId);
             return Redirect(authUrl);
+        }
+
+        /// <summary>
+        /// Personelin kayıtlı Google refresh token'ı ile access token alınabiliyor mu test eder.
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> RefreshStaffGoogle(int staffId)
+        {
+            if (staffId <= 0)
+                return BadRequest(new { success = false, message = "Geçersiz personel." });
+
+            try
+            {
+                var factory = HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
+                var httpClient = factory.CreateClient("Api");
+                await Services.HttpClientTokenHelper.AttachBearerTokenAsync(
+                    httpClient,
+                    HttpContext.RequestServices.GetRequiredService<Microsoft.AspNetCore.Http.IHttpContextAccessor>());
+
+                var response = await httpClient.GetAsync($"api/AppUsers/{staffId}/google-token");
+                var body = await response.Content.ReadAsStringAsync();
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        message = "Google Takvim bağlantısı aktif; token yenilendi."
+                    });
+                }
+
+                var needsReconnect = body.Contains("invalid_grant", StringComparison.OrdinalIgnoreCase)
+                    || body.Contains("bağlı değil", StringComparison.OrdinalIgnoreCase);
+
+                string message = needsReconnect
+                    ? "Google bağlantısı geçersiz veya süresi dolmuş. Google ile yeniden yetkilendirmeniz gerekiyor."
+                    : "Google token yenilenemedi. Lütfen tekrar deneyin.";
+
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(body);
+                    if (doc.RootElement.TryGetProperty("error", out var err))
+                        message = err.GetString() ?? message;
+                    if (doc.RootElement.TryGetProperty("detail", out var detail)
+                        && detail.GetString()?.Contains("invalid_grant", StringComparison.OrdinalIgnoreCase) == true)
+                        needsReconnect = true;
+                }
+                catch { /* API gövdesi JSON değilse varsayılan mesaj */ }
+
+                return StatusCode((int)response.StatusCode, new { success = false, message, needsReconnect });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "RefreshStaffGoogle hatası. StaffId={StaffId}", staffId);
+                return StatusCode(500, new { success = false, message = "Sistem hatası. Lütfen tekrar deneyin." });
+            }
         }
 
         [HttpGet]
@@ -288,80 +388,17 @@ namespace Appointment_SaaS.WebUI.Controllers
             return RedirectToAction("Index");
         }
 
-        /// <summary>
-        /// DEBUG: Token ve API bağlantısını test eder. Production'da kaldırılmalı.
-        /// </summary>
-        [HttpGet]
-        public async Task<IActionResult> DebugTokenTest()
-        {
-            var httpContext = HttpContext;
-            var tokenFromAuth = await httpContext.GetTokenAsync("access_token");
-            var tokenFromCookie = httpContext.Request.Cookies["token"];
-            var token = tokenFromAuth ?? tokenFromCookie;
-            var tenantId = User.FindFirst("TenantId")?.Value ?? "YOK";
-
-            // Gerçek API çağrısı testi
-            string apiTestResult = "Yapılmadı";
-            string apiTestHeaders = "";
-            string apiBaseUrl = "";
-            try
-            {
-                var factory = HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
-                var testClient = factory.CreateClient("Api");
-                apiBaseUrl = testClient.BaseAddress?.ToString() ?? "BOŞ";
-                
-                if (!string.IsNullOrEmpty(token))
-                {
-                    testClient.DefaultRequestHeaders.Authorization = 
-                        new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-                }
-                
-                apiTestHeaders = string.Join("; ", testClient.DefaultRequestHeaders
-                    .Select(h => $"{h.Key}={string.Join(",", h.Value)}"));
-
-                // AllowAnonymous endpoint'i test et
-                var anonResponse = await testClient.GetAsync($"api/Tenants/{tenantId}");
-                string anonResult = $"GET Tenants/{tenantId} (AllowAnonymous) → {(int)anonResponse.StatusCode} {anonResponse.StatusCode}";
-                
-                // Korumalı endpoint test et  
-                var authResponse = await testClient.PostAsync(
-                    $"api/Tenants/UpdateBotStatus?tenantId={tenantId}&isBotActive=true", null);
-                string authResult = $"POST UpdateBotStatus (Authorize) → {(int)authResponse.StatusCode} {authResponse.StatusCode}";
-                string authBody = await authResponse.Content.ReadAsStringAsync();
-
-                apiTestResult = $"{anonResult} | {authResult} | Body: {authBody}";
-            }
-            catch (Exception ex)
-            {
-                apiTestResult = $"HATA: {ex.Message}";
-            }
-
-            var debugInfo = new
-            {
-                HasAuthToken = !string.IsNullOrEmpty(tokenFromAuth),
-                AuthTokenLength = tokenFromAuth?.Length ?? 0,
-                AuthTokenPreview = tokenFromAuth != null ? tokenFromAuth[..Math.Min(20, tokenFromAuth.Length)] + "..." : "NULL",
-                HasCookieToken = !string.IsNullOrEmpty(tokenFromCookie),
-                IsAuthenticated = User.Identity?.IsAuthenticated ?? false,
-                UserRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "YOK",
-                TenantId = tenantId,
-                ApiBaseUrl = apiBaseUrl,
-                ApiHeaders = apiTestHeaders,
-                ApiTestResult = apiTestResult
-            };
-
-            return Json(debugInfo);
-        }
-
         public IActionResult ConnectWhatsApp()
         {
             return RedirectToAction("Index", "Instance");
         }
 
+
         /// <summary>
         /// Personel ekleme — JavaScript'ten gelen isteği Backend API'ye proxy eder.
         /// </summary>
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddStaff([FromBody] AddStaffRequest request)
         {
             try
@@ -414,6 +451,7 @@ namespace Appointment_SaaS.WebUI.Controllers
         /// Personel silme — JavaScript'ten gelen isteği Backend API'ye proxy eder.
         /// </summary>
         [HttpDelete]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> RemoveStaff(int userId)
         {
             try
@@ -435,7 +473,7 @@ namespace Appointment_SaaS.WebUI.Controllers
                 catch { }
 
                 if (response.IsSuccessStatusCode)
-                    return Ok(jsonBody ?? new { message = "Personel başarıyla eklendi." });
+                    return Ok(jsonBody ?? new { message = "Personel başarıyla silindi." });
 
                 // 403 plan limiti gibi özel durumları olduğu gibi ilet
                 return StatusCode((int)response.StatusCode,
@@ -448,6 +486,50 @@ namespace Appointment_SaaS.WebUI.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateBreakTime([FromBody] Appointment_SaaS.Core.DTOs.BreakTimeSettingsDto settings)
+        {
+            try
+            {
+                var factory = HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
+                var httpClient = factory.CreateClient("Api");
+                await Services.HttpClientTokenHelper.AttachBearerTokenAsync(
+                    httpClient, HttpContext.RequestServices.GetRequiredService<Microsoft.AspNetCore.Http.IHttpContextAccessor>());
+
+                var content = new StringContent(
+                    System.Text.Json.JsonSerializer.Serialize(settings),
+                    System.Text.Encoding.UTF8,
+                    "application/json");
+                var response = await httpClient.PostAsync("api/Tenants/update-break-time", content);
+
+                var body = await response.Content.ReadAsStringAsync();
+                if (response.IsSuccessStatusCode)
+                    return Ok(new { success = true, message = "Mola saatleri başarıyla güncellendi." });
+
+                string message = body;
+                try
+                {
+                    var json = System.Text.Json.JsonDocument.Parse(body);
+                    if (json.RootElement.TryGetProperty("message", out var mp))
+                        message = mp.GetString() ?? body;
+                    else if (json.RootElement.TryGetProperty("Message", out var mp2))
+                        message = mp2.GetString() ?? body;
+                }
+                catch { }
+
+                if (string.IsNullOrWhiteSpace(message))
+                    message = $"API hatası ({(int)response.StatusCode})";
+
+                return StatusCode((int)response.StatusCode, new { success = false, message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+[ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateBusinessHours([FromBody] List<Appointment_SaaS.Core.DTOs.BusinessHourDto> hours)
         {
             try
@@ -471,6 +553,7 @@ namespace Appointment_SaaS.WebUI.Controllers
             }
         }
         [HttpPost]
+[ValidateAntiForgeryToken]
         public async Task<IActionResult> SendFeedback(string feedbackType, string message)
         {
             try
@@ -506,6 +589,88 @@ namespace Appointment_SaaS.WebUI.Controllers
             }
 
             return RedirectToAction("Index");
+        }
+
+        public async Task<IActionResult> GetHolidays()
+        {
+            var tenantId = GetCurrentTenantId();
+            var result = await _tenantService.GetHolidaysAsync(tenantId);
+            return Json(result);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SeedDefaultHolidays()
+        {
+            try
+            {
+                var tenantId = GetCurrentTenantId();
+                var added = await _tenantService.SeedDefaultHolidaysIfEmptyAsync(tenantId);
+                if (added == 0)
+                    return Json(new { success = true, message = "Zaten tatil kaydı var veya öneriler yüklenemedi.", added });
+                return Json(new { success = true, message = $"{added} resmi tatil önerisi eklendi.", added });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        public async Task<IActionResult> AddHoliday([FromBody] HolidayCreateDto dto)
+        {
+            try
+            {
+                var tenantId = GetCurrentTenantId();
+                await _tenantService.AddHolidayAsync(tenantId, dto.Date, dto.Name);
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        public async Task<IActionResult> DeleteHoliday(int id)
+        {
+            try
+            {
+                var tenantId = GetCurrentTenantId();
+                await _tenantService.DeleteHolidayAsync(tenantId, id);
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public IActionResult BlockedPhones()
+        {
+            return RedirectToAction("BlockedPhones", "BusinessSettings");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddBlockedPhone(BlockedPhonesViewModel model)
+        {
+            if (string.IsNullOrWhiteSpace(model.NewPhone))
+            {
+                TempData["Error"] = "Telefon numarası gereklidir.";
+                return RedirectToAction(nameof(BlockedPhones));
+            }
+
+            var (success, message, _) = await _blockedPhoneApiService.AddAsync(model.NewPhone.Trim(), model.NewNote);
+            TempData[success ? "Success" : "Error"] = message;
+            return RedirectToAction(nameof(BlockedPhones));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteBlockedPhone(int id)
+        {
+            var (success, message) = await _blockedPhoneApiService.DeleteAsync(id);
+            TempData[success ? "Success" : "Error"] = message;
+            return RedirectToAction(nameof(BlockedPhones));
         }
     }
 

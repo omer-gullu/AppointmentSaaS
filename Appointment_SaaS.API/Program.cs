@@ -10,6 +10,7 @@ using FluentValidation.AspNetCore;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Appointment_SaaS.Business.Mapping;
+using Appointment_SaaS.API.Authorization;
 using Appointment_SaaS.API.Middleware;
 using Appointment_SaaS.Core.Utilities.Security.JWT;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -28,6 +29,7 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
     })
     .ConfigureApiBehaviorOptions(options =>
     {
@@ -60,7 +62,8 @@ builder.Services.AddCors(options =>
 // --- VERITABANI BAGLANTISI ---
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseSqlServer(connectionString, sql =>
+        sql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
 
 // --- JWT AUTHENTICATION AYARLARI ---
 var tokenOptions = builder.Configuration.GetSection("TokenOptions").Get<TokenOptions>();
@@ -76,8 +79,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = tokenOptions.Issuer,
             ValidAudience = tokenOptions.Audience,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = SecurityKeyHelper.CreateSecurityKey(tokenOptions.SecurityKey),
-            RoleClaimType = ClaimTypes.Role
+            IssuerSigningKey = SecurityKeyHelper.CreateSecurityKey(tokenOptions!.SecurityKey),
+            RoleClaimType = ClaimTypes.Role,
+            ClockSkew = TimeSpan.FromMinutes(1)
         };
 
         options.Events = new JwtBearerEvents
@@ -88,14 +92,15 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 var userIdClaim = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 var stampClaim = context.Principal?.FindFirst("SecurityStamp")?.Value;
 
-                if (int.TryParse(userIdClaim, out int userId))
+                if (!int.TryParse(userIdClaim, out int userId))
                 {
-                    var user = await dbContext.AppUsers.FindAsync(userId);
-                    if (user == null || user.SecurityStamp != stampClaim)
-                    {
-                        context.Fail("Güvenlik ihlali: Oturumunuz sonlandırılmıştır.");
-                    }
+                    context.Fail("Geçersiz oturum: kullanıcı kimliği eksik.");
+                    return;
                 }
+
+                var user = await dbContext.AppUsers.FindAsync(userId);
+                if (!JwtSecurityStampValidator.IsValid(userIdClaim, stampClaim, user))
+                    context.Fail("Güvenlik ihlali: Oturumunuz sonlandırılmıştır.");
             }
         };
 
@@ -116,12 +121,15 @@ builder.Services.AddScoped<ISectorRepository, EfSectorRepository>();
 builder.Services.AddScoped<IServiceRepository, EfServiceRepository>();
 builder.Services.AddScoped<IAppUserRepository, EfAppUserRepository>();
 builder.Services.AddScoped<IFeedbackRepository, EfFeedbackRepository>();
+builder.Services.AddScoped<ITenantBlockedPhoneRepository, EfTenantBlockedPhoneRepository>();
 
 
 
 // --- SERVICE KAYITLARI ---
 builder.Services.Configure<EvolutionApiSettings>(builder.Configuration.GetSection("EvolutionApi"));
 builder.Services.Configure<IyzicoSettings>(builder.Configuration.GetSection("IyzicoSettings"));
+builder.Services.Configure<SubscriptionBillingOptions>(
+    builder.Configuration.GetSection(SubscriptionBillingOptions.SectionName));
 builder.Services.Configure<LockoutSettings>(builder.Configuration.GetSection("LockoutSettings"));
 builder.Services.AddHttpClient<IEvolutionApiService, EvolutionApiManager>(client =>
 {
@@ -138,10 +146,15 @@ builder.Services.AddScoped<IAppointmentService, AppointmentManager>();
 builder.Services.AddScoped<ISectorService, SectorManager>();
 builder.Services.AddScoped<IServiceService, ServiceManager>();
 builder.Services.AddScoped<IAppUserService, AppUserManager>();
+builder.Services.AddSingleton<ITenantAccessEvaluator, TenantAccessEvaluator>();
+builder.Services.AddScoped<WebhookAuthValidator>();
 builder.Services.AddScoped<IAuthService, AuthManager>();
 builder.Services.AddScoped<IIyzicoPaymentService, IyzicoPaymentManager>();
+builder.Services.AddScoped<ITenantPlanService, TenantPlanManager>();
 builder.Services.AddScoped<IGoogleCalendarService, GoogleCalendarManager>();
 builder.Services.AddScoped<IFeedbackService, FeedbackManager>();
+builder.Services.AddScoped<ITenantBlockedPhoneService, TenantBlockedPhoneManager>();
+builder.Services.AddScoped<IDashboardService, DashboardManager>();
 
 // --- YENI EKLENEN SERVISLER (OTP & ROLLER) ---
 builder.Services.AddScoped<IOtpService, OtpManager>();
@@ -160,7 +173,15 @@ builder.Services.AddSingleton<IEncryptionService, AesEncryptionService>();
 // --- TENANT PROVIDER (Scoped: Her HTTP request başına bir kez oluşturulur, performans kaybı yok) ---
 builder.Services.AddScoped<ITenantProvider, TenantProvider>();
 
+// --- BACKGROUND SERVICES ---
+builder.Services.AddHostedService<Appointment_SaaS.API.BackgroundServices.SubscriptionExpirationWorker>();
+
 var app = builder.Build();
+
+var subscriptionBilling = app.Configuration
+    .GetSection(SubscriptionBillingOptions.SectionName)
+    .Get<SubscriptionBillingOptions>() ?? new SubscriptionBillingOptions();
+SubscriptionAccessPolicy.Configure(subscriptionBilling);
 
 // --- MIDDLEWARE PIPELINE ---
 
@@ -172,8 +193,11 @@ if (app.Environment.IsDevelopment())
 
 // HTTPS yönlendirmesi sadece production'da aktif
 // Development'ta HTTP→HTTPS redirect, HttpClient'ın Authorization header'ını silmesine sebep olur
+app.UseSecurityHeaders();
+
 if (!app.Environment.IsDevelopment())
 {
+    app.UseHsts();
     app.UseHttpsRedirection();
 }
 
@@ -182,9 +206,9 @@ app.UseMiddleware<ExceptionMiddleware>();
 app.UseIpRateLimiting();
 app.UseCors("StrictCorsPolicy");
 
-app.UseWebhookAuth();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseWebhookAuth();
 
 app.MapControllers();
 

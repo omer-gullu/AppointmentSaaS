@@ -1,0 +1,90 @@
+{
+  "name": "AI Failover - Customer Apology Fragment",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Bu fragment ana WhatsApp workflow'una eklenir\n\n### Akış\nAI Agent (Vertex AI) > IF (hata?) > Fallback AI Agent (Gemini) > IF (hata?) > **Müşteri Özür Mesajı + AuditLog** (BU FRAGMENT)\n\n### Kullanım\nAşağıdaki iki node'u kopyalayıp ana workflow'da \"Fallback da hata verdi\" dalına bağlayın.\nMap Variables / Get Mega Context node'ları zaten ana workflow'da olduğu için CustomerPhone ve TenantID erişilebilir.\n\n### Tek seferlik düzeltmeler\n- `YOUR-EVOLUTION-HOST` -> Evolution API host\n- `YOUR-API-HOST` -> kendi API host'unuz\n- `YOUR_SYSTEM_N8N_AUTH_TOKEN` -> production'da güçlü sistem token",
+        "height": 280,
+        "width": 480
+      },
+      "id": "sticky-note",
+      "name": "Not",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [200, 60]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://YOUR-EVOLUTION-HOST/message/sendText/{{ $('Map Variables').item.json.BusinessInstance }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_EVOLUTION_GLOBAL_API_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $('Map Variables').item.json.CustomerPhone, text: 'Şu an yapay zeka asistanımızda kısa bir aksaklık var. En kısa sürede size dönüyoruz. Acil durumlar için doğrudan işletmemizle iletişime geçebilirsiniz.' }) }}",
+        "options": {}
+      },
+      "id": "wa-apology",
+      "name": "Müşteriye Özür (WhatsApp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 360],
+      "notes": "Evolution API üzerinden müşteriye sabit özür metni gönderir. CustomerPhone Map Variables'tan, BusinessInstance da."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR-API-HOST/api/AuditLogs/workflow-error",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Auth-Token",
+              "value": "YOUR_SYSTEM_N8N_AUTH_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ nodeName: 'AI Agent (Fallback)', workflowId: $workflow.id, errorMessage: 'Hem Vertex AI hem AI Studio Gemini başarısız. Müşteriye özür gönderildi.', inputData: $('Map Variables').item.json.MessageText, tenantId: $('Get Mega Context').item.json.tenantID || 0 }) }}"
+      },
+      "id": "audit-fallback-failed",
+      "name": "AuditLog: ikili AI hatası",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 540]
+    }
+  ],
+  "connections": {
+    "Müşteriye Özür (WhatsApp)": {
+      "main": [
+        [
+          {
+            "node": "AuditLog: ikili AI hatası",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

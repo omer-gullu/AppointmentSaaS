@@ -1,0 +1,42 @@
+@{
+    var current = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
+}
+<style>
+    .biz-settings-nav {
+        background: #fff;
+        border: 1.5px solid #eef0f6;
+        border-radius: 14px;
+        padding: 8px 12px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    }
+    .biz-settings-nav .nav-link {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #64748b;
+        border-radius: 10px;
+        padding: 8px 14px;
+    }
+    .biz-settings-nav .nav-link.active {
+        background: #eef2ff;
+        color: #4f46e5;
+    }
+    .biz-settings-nav .nav-link:hover:not(.active) {
+        background: #f8fafc;
+        color: #334155;
+    }
+</style>
+@Html.AntiForgeryToken()
+<div class="biz-settings-nav mb-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div class="d-flex flex-wrap gap-1">
+            <span class="align-self-center small text-muted fw-bold me-2 d-none d-md-inline"><i class="bi bi-gear me-1"></i>İşletme Ayarları</span>
+            <a class="nav-link @(current == "Holidays" ? "active" : "")" href="/BusinessSettings/Holidays"><i class="bi bi-calendar-x me-1"></i>Tatiller</a>
+            <a class="nav-link @(current == "Staff" ? "active" : "")" href="/BusinessSettings/Staff"><i class="bi bi-people me-1"></i>Personel</a>
+            <a class="nav-link @(current == "Services" ? "active" : "")" href="/BusinessSettings/Services"><i class="bi bi-scissors me-1"></i>Hizmetler</a>
+            <a class="nav-link @(current == "BlockedPhones" ? "active" : "")" href="/BusinessSettings/BlockedPhones"><i class="bi bi-person-lock me-1"></i>Kısıtlı Liste</a>
+        </div>
+        <a href="/Dashboard" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+            <i class="bi bi-arrow-left me-1"></i>Panele dön
+        </a>
+    </div>
+</div>

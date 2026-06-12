@@ -1,0 +1,20 @@
+@{
+    var size = ViewData["ArLogoSize"] as int? ?? 65;
+    var variant = (ViewData["ArLogoVariant"] as string ?? "brand").ToLowerInvariant();
+    var cssClass = "ar-logo ar-logo--" + variant;
+    if (ViewData["ArLogoClass"] is string extra && !string.IsNullOrWhiteSpace(extra))
+    {
+        cssClass += " " + extra;
+    }
+    var assetSize = size <= 96 ? 96 : 192;
+    var logoSrc = Url.Content($"~/images/brand-logo-{assetSize}.png");
+}
+<span class="@cssClass" style="--ar-logo-size:@(size)px;" aria-hidden="true">
+    <img src="@logoSrc"
+         asp-append-version="true"
+         width="@size"
+         height="@size"
+         alt="Akıllı Randevu"
+         class="ar-logo__img"
+         decoding="async" />
+</span>

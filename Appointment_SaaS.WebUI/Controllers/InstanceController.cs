@@ -1,4 +1,5 @@
 using Appointment_SaaS.WebUI.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Text;
 using System.Text.Json;
@@ -7,6 +8,7 @@ using Appointment_SaaS.Business.Abstract;
 
 namespace Appointment_SaaS.WebUI.Controllers
 {
+    [Authorize]
     public class InstanceController : Controller
     {
         private readonly HttpClient _httpClient;
@@ -89,6 +91,7 @@ namespace Appointment_SaaS.WebUI.Controllers
         }
 
         // GET: /Instance/Create
+        [AllowAnonymous]
         public async Task<IActionResult> Create()
         {
             var model = new InstanceCreateViewModel();
@@ -119,6 +122,7 @@ namespace Appointment_SaaS.WebUI.Controllers
         }
 
         [HttpPost]
+        [AllowAnonymous]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(InstanceCreateViewModel model)
         {
@@ -173,7 +177,26 @@ namespace Appointment_SaaS.WebUI.Controllers
 
                 if (response.IsSuccessStatusCode)
                 {
-                    TempData["Success"] = "İşletme başarıyla oluşturuldu! Şimdi telefon numaranız ile giriş yapabilirsiniz.";
+                    var body = await response.Content.ReadAsStringAsync();
+                    var tenantId = 0;
+                    try
+                    {
+                        var json = JsonDocument.Parse(body).RootElement;
+                        tenantId = json.TryGetProperty("tenantId", out var t1) ? t1.GetInt32()
+                            : json.TryGetProperty("TenantId", out var t2) ? t2.GetInt32() : 0;
+                    }
+                    catch { }
+
+                    if (tenantId > 0)
+                    {
+                        TempData["SetupTenantId"] = tenantId.ToString();
+                        TempData["SetupPhone"] = model.PhoneNumber;
+                        TempData["SetupEmail"] = model.UserEmail;
+                        TempData["SetupFullName"] = model.UserFullName;
+                    }
+
+                    TempData["RegisterSuccess"] =
+                        "Kayıt tamamlandı. Personel listeniz boş; OTP ile giriş için önce «İlk personeli ekle» adımını tamamlayın.";
                     return RedirectToAction("Login", "Auth");
                 }
 

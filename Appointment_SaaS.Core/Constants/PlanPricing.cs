@@ -40,7 +40,7 @@ namespace Appointment_SaaS.Core.Constants
 
         /// <summary>
         /// Plana göre maksimum personel sayısını döndürür.
-        /// Trial: 0 (ekleyemez), Starter: 1, Pro: 3, Business: sınırsız (-1)
+        /// Trial: 1 ek personel, Starter: 1, Pro: 3, Business: sınırsız (-1)
         /// </summary>
         public static int GetStaffLimit(string? planType)
         {

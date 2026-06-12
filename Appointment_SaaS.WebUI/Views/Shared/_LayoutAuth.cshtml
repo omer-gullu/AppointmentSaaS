@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+@{
+    var requireSweetAlert = ViewData["RequireSweetAlert"] as bool? ?? false;
+    var requireBootstrapIcons = ViewData["RequireBootstrapIcons"] as bool? ?? false;
+}
+<html lang="tr" class="lean-public">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="@(ViewData["Description"] ?? "Akıllı Randevu - Giriş ve kayıt.")" />
+    <title>@ViewData["Title"] - Akıllı Randevu</title>
+   
+    @if (requireBootstrapIcons)
+    {
+        <link rel="preload" href="~/fonts/bootstrap-icons.woff2" as="font" type="font/woff2" crossorigin="anonymous" asp-append-version="true" />
+        <link rel="stylesheet" href="~/css/bootstrap-icons.css" asp-append-version="true" />
+    }
+
+    <link rel="icon" type="image/png" sizes="32x32" href="~/images/favicon-32.png" asp-append-version="true" />
+    <style>
+        body.lean-auth{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f8fafc;color:#0f172a;-webkit-font-smoothing:antialiased}
+        main.lean-auth-main{padding:0!important;flex:1}
+    </style>
+    
+    <link rel="stylesheet" href="~/css/bundle.min.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/auth-forms.css" asp-append-version="true" />
+</head>
+<body class="lean-auth lean-public">
+    @{ ViewData["NavbarLogoSize"] = 48; }
+    <partial name="_SiteNavbar" />
+    <main role="main" class="lean-auth-main">
+        @RenderBody()
+    </main>
+
+    <script src="~/js/csrf-fetch.js" asp-append-version="true" defer></script>
+    @if (requireSweetAlert)
+    {
+        <script src="~/js/lazy-sweetalert.js" asp-append-version="true" defer></script>
+    }
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

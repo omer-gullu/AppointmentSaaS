@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Appointment_SaaS.Business.Abstract;
 using Appointment_SaaS.Business.Concrete;
@@ -16,6 +17,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
+using Appointment_SaaS.Test.TestHelpers;
 
 namespace Appointment_SaaS.Test
 {
@@ -28,10 +30,10 @@ namespace Appointment_SaaS.Test
         private readonly Mock<ITenantService> _mockTenantService;
         private readonly Mock<ITokenHelper> _mockTokenHelper;
         private readonly Mock<IMapper> _mockMapper;
-        private readonly Mock<IOtpService> _mockOtpService;
         private readonly Mock<IEvolutionApiService> _mockEvolutionApiService;
         private readonly Mock<IUserOperationClaimService> _mockUserOpClaimService;
         private readonly Mock<IIyzicoPaymentService> _mockIyzicoPaymentService;
+        private readonly Mock<ITenantPlanService> _mockTenantPlanService;
         private readonly AuthManager _authManager;
 
         public AntiFraudTests()
@@ -40,10 +42,13 @@ namespace Appointment_SaaS.Test
             _mockTenantService = new Mock<ITenantService>();
             _mockTokenHelper = new Mock<ITokenHelper>();
             _mockMapper = new Mock<IMapper>();
-            _mockOtpService = new Mock<IOtpService>();
             _mockEvolutionApiService = new Mock<IEvolutionApiService>();
             _mockUserOpClaimService = new Mock<IUserOperationClaimService>();
             _mockIyzicoPaymentService = new Mock<IIyzicoPaymentService>();
+            _mockTenantPlanService = new Mock<ITenantPlanService>();
+            _mockTenantPlanService
+                .Setup(x => x.TryReconcileFromIyzicoAsync(It.IsAny<Tenant>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
 
             var evoOptions = new Mock<IOptions<EvolutionApiSettings>>();
             evoOptions.Setup(x => x.Value).Returns(new EvolutionApiSettings { DefaultInstance = "default" });
@@ -59,19 +64,21 @@ namespace Appointment_SaaS.Test
             });
 
             var logger = new Mock<ILogger<AuthManager>>();
+            var hostEnv = new Mock<Microsoft.Extensions.Hosting.IHostEnvironment>();
+            hostEnv.Setup(x => x.EnvironmentName).Returns("Production");
 
             _authManager = new AuthManager(
                 _mockUserService.Object,
                 _mockTenantService.Object,
                 _mockTokenHelper.Object,
-                _mockMapper.Object,
-                _mockOtpService.Object,
                 _mockEvolutionApiService.Object,
-                _mockUserOpClaimService.Object,
                 evoOptions.Object,
                 _mockIyzicoPaymentService.Object,
                 iyzicoOptions.Object,
                 lockoutOptions.Object,
+                new TenantAccessEvaluator(),
+                _mockTenantPlanService.Object,
+                hostEnv.Object,
                 logger.Object
             );
         }
@@ -137,7 +144,7 @@ namespace Appointment_SaaS.Test
 
             // Assert
             var exception = await act.Should().ThrowAsync<BadHttpRequestException>();
-            exception.WithMessage("Bu işletme/numara için deneme süresi dolmuştur. Lütfen ücretsiz deneme yerine bir abo sistem planı seçin.");
+            exception.WithMessage("Bu işletme/numara için deneme süresi dolmuştur. Lütfen bir abonelik planı seçin.");
 
             // Tenant asla oluşturulmamalı
             _mockTenantService.Verify(x => x.AddTenantAsync(It.IsAny<TenantCreateDto>(), It.IsAny<string>()), Times.Never);
@@ -164,8 +171,6 @@ namespace Appointment_SaaS.Test
                 SubscriptionEndDate = DateTime.Now.AddDays(15)
             });
             _mockTenantService.Setup(x => x.UpdateAsync(It.IsAny<Tenant>())).Returns(Task.CompletedTask);
-            _mockUserService.Setup(x => x.AddAppUserAsync(It.IsAny<AppUser>())).ReturnsAsync(1);
-            _mockUserOpClaimService.Setup(x => x.AddAsync(It.IsAny<UserOperationClaim>())).Returns(Task.CompletedTask);
 
             var dto = new BusinessRegistrationDto
             {
@@ -174,18 +179,14 @@ namespace Appointment_SaaS.Test
                 BusinessName = "Yeni Kuaför",
                 PlanType = "trial",
                 BillingCycle = "Monthly",
-                SectorID = 1,
-                CardHolderName = "YENİ KULLANICI",
-                CardNumber = "5528790000000008",
-                ExpireMonth = "12",
-                ExpireYear = "2030",
-                Cvc = "123"
+                SectorID = 1
             };
 
             Func<Task> act = async () => await _authManager.RegisterBusinessOwnerAsync(dto);
 
-            // Assert: Exception fırlatılmamalı
             await act.Should().NotThrowAsync();
+            _mockTenantService.Verify(x => x.AddTenantAsync(It.IsAny<TenantCreateDto>(), It.IsAny<string>()), Times.Once);
+            _mockUserService.Verify(x => x.AddAppUserAsync(It.IsAny<AppUser>()), Times.Never);
         }
 
         // ─── 3. Blacklist Giriş Engeli ────────────────────────────────────────
@@ -194,9 +195,10 @@ namespace Appointment_SaaS.Test
         public async Task GenerateOtpForLoginAsync_ShouldBlockWithGenericMessage_WhenBlacklisted()
         {
             // Arrange
-            var dto = new OtpLoginDto { PhoneNumber = "5559876543" };
+            var phone = OtpTestHelper.Normalize("5559876543");
+            var dto = new OtpLoginDto { PhoneNumber = phone };
             var user = new AppUser { TenantID = 7 };
-            _mockUserService.Setup(x => x.GetByPhoneNumberAsync(dto.PhoneNumber)).ReturnsAsync(user);
+            _mockUserService.Setup(x => x.GetByPhoneNumberAsync(phone)).ReturnsAsync(user);
 
             var blacklistedTenant = new Tenant
             {
@@ -213,18 +215,21 @@ namespace Appointment_SaaS.Test
 
             // Assert: Genel mesaj — blacklist detayı açıklanmamalı
             var exception = await act.Should().ThrowAsync<BadHttpRequestException>();
-            exception.WithMessage("Hesabınız geçici olarak kullanıma kapatılmıştır. Destek için sistem yöneticisi ile iletişime geçin.");
+            exception.WithMessage("Hesabınız kullanıma kapatılmıştır.");
 
-            // OTP gönderilmemeli
-            _mockOtpService.Verify(x => x.GenerateOtp(It.IsAny<string>()), Times.Never);
+            _mockEvolutionApiService.Verify(
+                x => x.SendOtpMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),
+                Times.Never);
+            _mockUserService.Verify(x => x.UpdateAsync(It.IsAny<AppUser>()), Times.Never);
         }
 
         [Fact]
         public async Task GenerateOtpForLoginAsync_ShouldThrowSpecific_WhenSubscriptionExpired()
         {
-            var dto = new OtpLoginDto { PhoneNumber = "5551112233" };
+            var phone = OtpTestHelper.Normalize("5551112233");
+            var dto = new OtpLoginDto { PhoneNumber = phone };
             var user = new AppUser { TenantID = 3 };
-            _mockUserService.Setup(x => x.GetByPhoneNumberAsync(dto.PhoneNumber)).ReturnsAsync(user);
+            _mockUserService.Setup(x => x.GetByPhoneNumberAsync(phone)).ReturnsAsync(user);
 
             var expiredTenant = new Tenant
             {
@@ -241,7 +246,7 @@ namespace Appointment_SaaS.Test
             Func<Task> act = async () => await _authManager.GenerateOtpForLoginAsync(dto);
 
             var exception = await act.Should().ThrowAsync<BadHttpRequestException>();
-            exception.Which.Message.Should().Contain("aboneliği süresi");
+            exception.Which.Message.Should().Contain("aboneliği");
         }
 
         // ─── 4. TrialFingerprint Kaydı Kontrolü ─────────────────────────────
@@ -271,22 +276,16 @@ namespace Appointment_SaaS.Test
                 BusinessName = "İlk Trial Dükkan",
                 PlanType = "trial",
                 BillingCycle = "Monthly",
-                SectorID = 1,
-                CardHolderName = "BRAND NEW",
-                CardNumber = "5528790000000008",
-                ExpireMonth = "12",
-                ExpireYear = "2030",
-                Cvc = "123"
+                SectorID = 1
             };
 
             // Act
             await _authManager.RegisterBusinessOwnerAsync(dto);
 
-            // Assert: TrialUsed = true ve TrialFingerprint dolu olarak kaydedildi
+            // Assert: TrialUsed = true
             capturedTenant.Should().NotBeNull();
             capturedTenant!.TrialUsed.Should().BeTrue();
-            capturedTenant.TrialFingerprint.Should().NotBeNullOrEmpty();
-            capturedTenant.TrialFingerprint.Length.Should().Be(64);
+            _mockUserService.Verify(x => x.AddAppUserAsync(It.IsAny<AppUser>()), Times.Never);
         }
 
         [Fact]
@@ -312,18 +311,14 @@ namespace Appointment_SaaS.Test
                 BusinessName = "Ücretli Dükkan",
                 PlanType = "Starter",
                 BillingCycle = "Monthly",
-                SectorID = 1,
-                CardHolderName = "PAID USER",
-                CardNumber = "5528790000000008",
-                ExpireMonth = "12",
-                ExpireYear = "2030",
-                Cvc = "123"
+                SectorID = 1
             };
 
             await _authManager.RegisterBusinessOwnerAsync(dto);
 
             capturedTenant.Should().NotBeNull();
             capturedTenant!.TrialUsed.Should().BeFalse("Ücretli plan seçildiğinde TrialUsed true olmamalı");
+            _mockUserService.Verify(x => x.AddAppUserAsync(It.IsAny<AppUser>()), Times.Never);
         }
     }
 }

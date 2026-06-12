@@ -33,25 +33,13 @@ namespace Appointment_SaaS.Core.DTOs
 
         public string Address { get; set; } = string.Empty;
 
-        // Ödeme (Kart) Bilgileri — TÜM PLANLAR İÇİN ZORUNLU
-        [Required(ErrorMessage = "Kart üzerindeki isim zorunludur.")]
-        public string CardHolderName { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Kart numarası zorunludur.")]
-        [RegularExpression(@"^[0-9]{16}$", ErrorMessage = "Kart numarası tam 16 haneli olmalıdır.")]
-        public string CardNumber { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Son kullanma ayı zorunludur.")]
-        public string ExpireMonth { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Son kullanma yılı zorunludur.")]
-        public string ExpireYear { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "CVV zorunludur.")]
-        public string Cvc { get; set; } = string.Empty;
-
         // Abonelik Planı Bilgileri
         public string PlanType { get; set; } = "trial"; // trial, Starter, Business, Pro
         public string BillingCycle { get; set; } = "Monthly"; // Monthly, Yearly
+
+        /// <summary>
+        /// İyzico checkout sonrası dönüş URL'i (örn. WebUI https://host/Auth/PaymentCallback). Boşsa API varsayılanını kullanır.
+        /// </summary>
+        public string? PaymentCallbackUrl { get; set; }
     }
 }

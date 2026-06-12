@@ -1,0 +1,166 @@
+@model Appointment_SaaS.WebUI.Models.BlockedPhonesViewModel
+@using Appointment_SaaS.Core.Constants
+@{
+    ViewData["Title"] = "WhatsApp Gri Liste";
+}
+
+<style>
+    .greylist-page {
+        background: #f6f7fb;
+        min-height: 100vh;
+        padding: 28px 20px 80px;
+    }
+
+    .section-card {
+        background: #fff;
+        border-radius: 16px;
+        border: 1.5px solid #eef0f6;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        overflow: hidden;
+    }
+
+    .section-card .card-header {
+        background: #fff;
+        border-bottom: 1.5px solid #f1f4f9;
+        padding: 18px 24px;
+    }
+
+    .table thead th {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: #94a3b8;
+        background: #f8fafc;
+    }
+
+    .table td {
+        vertical-align: middle;
+        font-size: 0.88rem;
+    }
+
+    .info-box {
+        background: #f0f7ff;
+        border: 1px solid #dbeafe;
+        border-radius: 12px;
+        padding: 14px 18px;
+        font-size: 0.85rem;
+        color: #1e40af;
+    }
+</style>
+
+<div class="greylist-page">
+    <div class="container-fluid" style="max-width:960px;">
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <div>
+                <h4 class="fw-bold mb-1"><i class="bi bi-slash-circle text-danger me-2"></i>WhatsApp Gri Liste</h4>
+                <p class="text-muted small mb-0">Bu numaralar AI asistanından yanıt almaz.</p>
+            </div>
+            <a href="/Dashboard" class="btn btn-outline-secondary btn-sm rounded-pill px-4">
+                <i class="bi bi-arrow-left me-1"></i> Panele dön
+            </a>
+        </div>
+
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success border-0 shadow-sm rounded-3 mb-4">
+                <i class="bi bi-check-circle-fill me-2"></i> @TempData["Success"]
+            </div>
+        }
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert alert-danger border-0 shadow-sm rounded-3 mb-4">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i> @TempData["Error"]
+            </div>
+        }
+
+        <div class="info-box mb-4">
+            <i class="bi bi-info-circle me-1"></i>
+            Müşteri WhatsApp’tan <strong>“Asistanı kapat”</strong> yazdığında numara otomatik eklenir.
+            Buradan manuel ekleyebilir veya listeden kaldırabilirsiniz.
+        </div>
+
+        <div class="section-card mb-4">
+            <div class="card-header">
+                <h6 class="fw-bold mb-0"><i class="bi bi-plus-circle me-2 text-primary"></i>Numara ekle</h6>
+            </div>
+            <div class="p-4">
+                <form asp-action="AddBlockedPhone" asp-controller="Dashboard" method="post" class="row g-3 align-items-end">
+                    @Html.AntiForgeryToken()
+                    <div class="col-md-5">
+                        <label class="form-label small fw-bold">Telefon</label>
+                        <input asp-for="NewPhone" class="form-control" placeholder="05XX XXX XX XX" required />
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label small fw-bold">Not (isteğe bağlı)</label>
+                        <input asp-for="NewNote" class="form-control" placeholder="Örn. Spam, istek üzerine" />
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill">
+                            <i class="bi bi-plus-lg me-1"></i> Ekle
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0">Engelli numaralar</h6>
+                <span class="badge bg-danger bg-opacity-10 text-danger">@Model.Items.Count kayıt</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">TELEFON</th>
+                            <th>KAYNAK</th>
+                            <th>NOT</th>
+                            <th>TARİH</th>
+                            <th class="text-end pe-4">İŞLEM</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Items.Count > 0)
+                        {
+                            @foreach (var item in Model.Items)
+                            {
+                                var sourceLabel = item.Source == WhatsAppBlockedPhoneSources.SelfOptOut
+                                    ? "WhatsApp (Asistanı kapat)"
+                                    : item.Source == WhatsAppBlockedPhoneSources.Manual
+                                        ? "Panel"
+                                        : item.Source;
+                                var sourceClass = item.Source == WhatsAppBlockedPhoneSources.SelfOptOut ? "warning" : "secondary";
+                                <tr>
+                                    <td class="ps-4 fw-semibold">@item.Phone</td>
+                                    <td><span class="badge bg-@sourceClass bg-opacity-10 text-@sourceClass">@sourceLabel</span></td>
+                                    <td class="text-muted small">@(string.IsNullOrWhiteSpace(item.Note) ? "—" : item.Note)</td>
+                                    <td class="text-muted small">@item.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                                    <td class="text-end pe-4">
+                                        <form asp-action="DeleteBlockedPhone" asp-controller="Dashboard" method="post" class="d-inline"
+                                              onsubmit="return confirm('Bu numarayı listeden kaldırmak istediğinize emin misiniz? Asistan tekrar yanıt verebilir.');">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@item.Id" />
+                                            <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3">
+                                                <i class="bi bi-trash me-1"></i> Kaldır
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-muted">
+                                    <i class="bi bi-slash-circle" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:8px;"></i>
+                                    Gri listede numara yok.
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

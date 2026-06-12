@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore solution
+        run: dotnet restore Appointment_SaaS.sln
+
+      - name: Build solution (7 proje)
+        run: dotnet build Appointment_SaaS.sln -c Release --no-restore
+
+      - name: Unit tests (Appointment_SaaS.Test)
+        run: dotnet test Appointment_SaaS.Test/Appointment_SaaS.Test.csproj -c Release --no-build --verbosity normal
+
+      - name: Build E2E project (.NET Playwright — derleme kontrolü)
+        run: dotnet build Appointment_SaaS.E2E/Appointment_SaaS.E2E.csproj -c Release -p:SkipPlaywrightInstall=true

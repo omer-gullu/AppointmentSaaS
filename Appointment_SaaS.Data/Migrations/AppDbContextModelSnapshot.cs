@@ -100,7 +100,7 @@ namespace Appointment_SaaS.Data.Migrations
                             FirstName = "Kurucu",
                             LastName = "Admin",
                             PhoneNumber = "05078283441",
-                            SecurityStamp = "e2d9dc3a-99fc-49d3-a43d-b13929046d7d",
+                            SecurityStamp = "b276aa7e-f7b7-4194-a9b0-22a14f140df1",
                             Status = true,
                             TenantID = 1
                         });
@@ -138,6 +138,9 @@ namespace Appointment_SaaS.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("ReminderSentAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("ServiceID")
                         .HasColumnType("int");
 
@@ -162,6 +165,32 @@ namespace Appointment_SaaS.Data.Migrations
                         .HasDatabaseName("IX_Appointment_Tenant_Staff_Slot");
 
                     b.ToTable("Appointments");
+                });
+
+            modelBuilder.Entity("Appointment_SaaS.Core.Entities.AppointmentServiceLink", b =>
+                {
+                    b.Property<int>("AppointmentServiceLinkID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AppointmentServiceLinkID"));
+
+                    b.Property<int>("AppointmentID")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ServiceID")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("AppointmentServiceLinkID");
+
+                    b.HasIndex("AppointmentID");
+
+                    b.HasIndex("ServiceID");
+
+                    b.ToTable("AppointmentServiceLinks");
                 });
 
             modelBuilder.Entity("Appointment_SaaS.Core.Entities.AuditLog", b =>
@@ -339,7 +368,421 @@ namespace Appointment_SaaS.Data.Migrations
 
                     b.HasIndex("TenantID");
 
-                    b.ToTable("feedbacks");
+                    b.ToTable("Feedbacks");
+                });
+
+            modelBuilder.Entity("Appointment_SaaS.Core.Entities.Holiday", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("Holidays");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Date = new DateOnly(2026, 1, 1),
+                            IsDefault = true,
+                            Name = "Yılbaşı",
+                            TenantId = 1
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Date = new DateOnly(2026, 3, 20),
+                            IsDefault = true,
+                            Name = "Ramazan Bayramı 1. Gün",
+                            TenantId = 1
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Date = new DateOnly(2026, 3, 21),
+                            IsDefault = true,
+                            Name = "Ramazan Bayramı 2. Gün",
+                            TenantId = 1
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Date = new DateOnly(2026, 3, 22),
+                            IsDefault = true,
+                            Name = "Ramazan Bayramı 3. Gün",
+                            TenantId = 1
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Date = new DateOnly(2026, 4, 23),
+                            IsDefault = true,
+                            Name = "Ulusal Egemenlik ve Çocuk Bayramı",
+                            TenantId = 1
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Date = new DateOnly(2026, 5, 1),
+                            IsDefault = true,
+                            Name = "Emek ve Dayanışma Günü",
+                            TenantId = 1
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Date = new DateOnly(2026, 5, 19),
+                            IsDefault = true,
+                            Name = "Atatürk'ü Anma, Gençlik ve Spor Bayramı",
+                            TenantId = 1
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Date = new DateOnly(2026, 5, 26),
+                            IsDefault = true,
+                            Name = "Kurban Bayramı Arifesi",
+                            TenantId = 1
+                        },
+                        new
+                        {
+                            Id = 9,
+                            Date = new DateOnly(2026, 5, 27),
+                            IsDefault = true,
+                            Name = "Kurban Bayramı 1. Gün",
+                            TenantId = 1
+                        },
+                        new
+                        {
+                            Id = 10,
+                            Date = new DateOnly(2026, 5, 28),
+                            IsDefault = true,
+                            Name = "Kurban Bayramı 2. Gün",
+                            TenantId = 1
+                        },
+                        new
+                        {
+                            Id = 11,
+                            Date = new DateOnly(2026, 5, 29),
+                            IsDefault = true,
+                            Name = "Kurban Bayramı 3. Gün",
+                            TenantId = 1
+                        },
+                        new
+                        {
+                            Id = 12,
+                            Date = new DateOnly(2026, 5, 30),
+                            IsDefault = true,
+                            Name = "Kurban Bayramı 4. Gün",
+                            TenantId = 1
+                        },
+                        new
+                        {
+                            Id = 13,
+                            Date = new DateOnly(2026, 7, 15),
+                            IsDefault = true,
+                            Name = "Demokrasi ve Millî Birlik Günü",
+                            TenantId = 1
+                        },
+                        new
+                        {
+                            Id = 14,
+                            Date = new DateOnly(2026, 8, 30),
+                            IsDefault = true,
+                            Name = "Zafer Bayramı",
+                            TenantId = 1
+                        },
+                        new
+                        {
+                            Id = 15,
+                            Date = new DateOnly(2026, 10, 29),
+                            IsDefault = true,
+                            Name = "Cumhuriyet Bayramı",
+                            TenantId = 1
+                        },
+                        new
+                        {
+                            Id = 16,
+                            Date = new DateOnly(2026, 11, 10),
+                            IsDefault = true,
+                            Name = "Atatürkü Anma Günü",
+                            TenantId = 1
+                        },
+                        new
+                        {
+                            Id = 17,
+                            Date = new DateOnly(2026, 1, 1),
+                            IsDefault = true,
+                            Name = "Yılbaşı",
+                            TenantId = 2
+                        },
+                        new
+                        {
+                            Id = 18,
+                            Date = new DateOnly(2026, 3, 20),
+                            IsDefault = true,
+                            Name = "Ramazan Bayramı 1. Gün",
+                            TenantId = 2
+                        },
+                        new
+                        {
+                            Id = 19,
+                            Date = new DateOnly(2026, 3, 21),
+                            IsDefault = true,
+                            Name = "Ramazan Bayramı 2. Gün",
+                            TenantId = 2
+                        },
+                        new
+                        {
+                            Id = 20,
+                            Date = new DateOnly(2026, 3, 22),
+                            IsDefault = true,
+                            Name = "Ramazan Bayramı 3. Gün",
+                            TenantId = 2
+                        },
+                        new
+                        {
+                            Id = 21,
+                            Date = new DateOnly(2026, 4, 23),
+                            IsDefault = true,
+                            Name = "Ulusal Egemenlik ve Çocuk Bayramı",
+                            TenantId = 2
+                        },
+                        new
+                        {
+                            Id = 22,
+                            Date = new DateOnly(2026, 5, 1),
+                            IsDefault = true,
+                            Name = "Emek ve Dayanışma Günü",
+                            TenantId = 2
+                        },
+                        new
+                        {
+                            Id = 23,
+                            Date = new DateOnly(2026, 5, 19),
+                            IsDefault = true,
+                            Name = "Atatürk'ü Anma, Gençlik ve Spor Bayramı",
+                            TenantId = 2
+                        },
+                        new
+                        {
+                            Id = 24,
+                            Date = new DateOnly(2026, 5, 26),
+                            IsDefault = true,
+                            Name = "Kurban Bayramı Arifesi",
+                            TenantId = 2
+                        },
+                        new
+                        {
+                            Id = 25,
+                            Date = new DateOnly(2026, 5, 27),
+                            IsDefault = true,
+                            Name = "Kurban Bayramı 1. Gün",
+                            TenantId = 2
+                        },
+                        new
+                        {
+                            Id = 26,
+                            Date = new DateOnly(2026, 5, 28),
+                            IsDefault = true,
+                            Name = "Kurban Bayramı 2. Gün",
+                            TenantId = 2
+                        },
+                        new
+                        {
+                            Id = 27,
+                            Date = new DateOnly(2026, 5, 29),
+                            IsDefault = true,
+                            Name = "Kurban Bayramı 3. Gün",
+                            TenantId = 2
+                        },
+                        new
+                        {
+                            Id = 28,
+                            Date = new DateOnly(2026, 5, 30),
+                            IsDefault = true,
+                            Name = "Kurban Bayramı 4. Gün",
+                            TenantId = 2
+                        },
+                        new
+                        {
+                            Id = 29,
+                            Date = new DateOnly(2026, 7, 15),
+                            IsDefault = true,
+                            Name = "Demokrasi ve Millî Birlik Günü",
+                            TenantId = 2
+                        },
+                        new
+                        {
+                            Id = 30,
+                            Date = new DateOnly(2026, 8, 30),
+                            IsDefault = true,
+                            Name = "Zafer Bayramı",
+                            TenantId = 2
+                        },
+                        new
+                        {
+                            Id = 31,
+                            Date = new DateOnly(2026, 10, 29),
+                            IsDefault = true,
+                            Name = "Cumhuriyet Bayramı",
+                            TenantId = 2
+                        },
+                        new
+                        {
+                            Id = 32,
+                            Date = new DateOnly(2026, 11, 10),
+                            IsDefault = true,
+                            Name = "Atatürkü Anma Günü",
+                            TenantId = 2
+                        },
+                        new
+                        {
+                            Id = 33,
+                            Date = new DateOnly(2026, 1, 1),
+                            IsDefault = true,
+                            Name = "Yılbaşı",
+                            TenantId = 3
+                        },
+                        new
+                        {
+                            Id = 34,
+                            Date = new DateOnly(2026, 3, 20),
+                            IsDefault = true,
+                            Name = "Ramazan Bayramı 1. Gün",
+                            TenantId = 3
+                        },
+                        new
+                        {
+                            Id = 35,
+                            Date = new DateOnly(2026, 3, 21),
+                            IsDefault = true,
+                            Name = "Ramazan Bayramı 2. Gün",
+                            TenantId = 3
+                        },
+                        new
+                        {
+                            Id = 36,
+                            Date = new DateOnly(2026, 3, 22),
+                            IsDefault = true,
+                            Name = "Ramazan Bayramı 3. Gün",
+                            TenantId = 3
+                        },
+                        new
+                        {
+                            Id = 37,
+                            Date = new DateOnly(2026, 4, 23),
+                            IsDefault = true,
+                            Name = "Ulusal Egemenlik ve Çocuk Bayramı",
+                            TenantId = 3
+                        },
+                        new
+                        {
+                            Id = 38,
+                            Date = new DateOnly(2026, 5, 1),
+                            IsDefault = true,
+                            Name = "Emek ve Dayanışma Günü",
+                            TenantId = 3
+                        },
+                        new
+                        {
+                            Id = 39,
+                            Date = new DateOnly(2026, 5, 19),
+                            IsDefault = true,
+                            Name = "Atatürk'ü Anma, Gençlik ve Spor Bayramı",
+                            TenantId = 3
+                        },
+                        new
+                        {
+                            Id = 40,
+                            Date = new DateOnly(2026, 5, 26),
+                            IsDefault = true,
+                            Name = "Kurban Bayramı Arifesi",
+                            TenantId = 3
+                        },
+                        new
+                        {
+                            Id = 41,
+                            Date = new DateOnly(2026, 5, 27),
+                            IsDefault = true,
+                            Name = "Kurban Bayramı 1. Gün",
+                            TenantId = 3
+                        },
+                        new
+                        {
+                            Id = 42,
+                            Date = new DateOnly(2026, 5, 28),
+                            IsDefault = true,
+                            Name = "Kurban Bayramı 2. Gün",
+                            TenantId = 3
+                        },
+                        new
+                        {
+                            Id = 43,
+                            Date = new DateOnly(2026, 5, 29),
+                            IsDefault = true,
+                            Name = "Kurban Bayramı 3. Gün",
+                            TenantId = 3
+                        },
+                        new
+                        {
+                            Id = 44,
+                            Date = new DateOnly(2026, 5, 30),
+                            IsDefault = true,
+                            Name = "Kurban Bayramı 4. Gün",
+                            TenantId = 3
+                        },
+                        new
+                        {
+                            Id = 45,
+                            Date = new DateOnly(2026, 7, 15),
+                            IsDefault = true,
+                            Name = "Demokrasi ve Millî Birlik Günü",
+                            TenantId = 3
+                        },
+                        new
+                        {
+                            Id = 46,
+                            Date = new DateOnly(2026, 8, 30),
+                            IsDefault = true,
+                            Name = "Zafer Bayramı",
+                            TenantId = 3
+                        },
+                        new
+                        {
+                            Id = 47,
+                            Date = new DateOnly(2026, 10, 29),
+                            IsDefault = true,
+                            Name = "Cumhuriyet Bayramı",
+                            TenantId = 3
+                        },
+                        new
+                        {
+                            Id = 48,
+                            Date = new DateOnly(2026, 11, 10),
+                            IsDefault = true,
+                            Name = "Atatürkü Anma Günü",
+                            TenantId = 3
+                        });
                 });
 
             modelBuilder.Entity("Appointment_SaaS.Core.Entities.OperationClaim", b =>
@@ -402,21 +845,21 @@ namespace Appointment_SaaS.Data.Migrations
                         new
                         {
                             SectorID = 1,
-                            CreatedAt = new DateTime(2026, 5, 8, 11, 18, 29, 623, DateTimeKind.Local).AddTicks(3030),
+                            CreatedAt = new DateTime(2026, 5, 21, 1, 18, 3, 113, DateTimeKind.Local).AddTicks(2583),
                             DefaultPrompt = "Sen profesyonel bir erkek kuaförü asistanısın. Maskülen, net ve çözüm odaklı konuş.",
                             Name = "Erkek Kuaförü"
                         },
                         new
                         {
                             SectorID = 2,
-                            CreatedAt = new DateTime(2026, 5, 8, 11, 18, 29, 623, DateTimeKind.Local).AddTicks(3054),
+                            CreatedAt = new DateTime(2026, 5, 21, 1, 18, 3, 113, DateTimeKind.Local).AddTicks(2637),
                             DefaultPrompt = "Sen nazik ve detaycı bir kadın kuaförü asistanısın. Estetik ve bakım konularına hakim konuş.",
                             Name = "Kadın Kuaförü"
                         },
                         new
                         {
                             SectorID = 3,
-                            CreatedAt = new DateTime(2026, 5, 8, 11, 18, 29, 623, DateTimeKind.Local).AddTicks(3056),
+                            CreatedAt = new DateTime(2026, 5, 21, 1, 18, 3, 113, DateTimeKind.Local).AddTicks(2640),
                             DefaultPrompt = "Sen modern ve kapsayıcı bir kuaför asistanısın. Her türlü bakım hizmetine uygun profesyonel bir dille konuş.",
                             Name = "Unisex Kuaför"
                         });
@@ -540,8 +983,15 @@ namespace Appointment_SaaS.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("CancelAtPeriodEnd")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("AutoRenew")
                         .HasColumnType("bit");
+
+                    b.Property<string>("BillingCycle")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -585,12 +1035,27 @@ namespace Appointment_SaaS.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("PendingBillingCycle")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PendingCheckoutToken")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("PendingPlanEffectiveDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PendingPlanType")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PlanType")
                         .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PreviousSubscriptionReferenceCode")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("SectorID")
@@ -629,7 +1094,8 @@ namespace Appointment_SaaS.Data.Migrations
                             Address = "İstanbul, Şişli No:10",
                             ApiKey = "JNT-123-ABC",
                             AutoRenew = true,
-                            CreatedAt = new DateTime(2026, 5, 8, 11, 18, 29, 623, DateTimeKind.Local).AddTicks(3126),
+                            BillingCycle = "Monthly",
+                            CreatedAt = new DateTime(2026, 5, 21, 1, 18, 3, 113, DateTimeKind.Local).AddTicks(2780),
                             IsActive = true,
                             IsBlacklisted = false,
                             IsBotActive = true,
@@ -650,7 +1116,8 @@ namespace Appointment_SaaS.Data.Migrations
                             Address = "Ankara, Çankaya No:25",
                             ApiKey = "ISL-456-DEF",
                             AutoRenew = true,
-                            CreatedAt = new DateTime(2026, 5, 8, 11, 18, 29, 623, DateTimeKind.Local).AddTicks(3132),
+                            BillingCycle = "Monthly",
+                            CreatedAt = new DateTime(2026, 5, 21, 1, 18, 3, 113, DateTimeKind.Local).AddTicks(2791),
                             IsActive = true,
                             IsBlacklisted = false,
                             IsBotActive = true,
@@ -671,7 +1138,8 @@ namespace Appointment_SaaS.Data.Migrations
                             Address = "İzmir, Alsancak No:5",
                             ApiKey = "MOD-789-GHI",
                             AutoRenew = true,
-                            CreatedAt = new DateTime(2026, 5, 8, 11, 18, 29, 623, DateTimeKind.Local).AddTicks(3137),
+                            BillingCycle = "Monthly",
+                            CreatedAt = new DateTime(2026, 5, 21, 1, 18, 3, 113, DateTimeKind.Local).AddTicks(2800),
                             IsActive = true,
                             IsBlacklisted = false,
                             IsBotActive = true,
@@ -686,6 +1154,41 @@ namespace Appointment_SaaS.Data.Migrations
                             TrialFingerprint = "",
                             TrialUsed = false
                         });
+                });
+
+            modelBuilder.Entity("Appointment_SaaS.Core.Entities.TenantBlockedPhone", b =>
+                {
+                    b.Property<int>("TenantBlockedPhoneID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TenantBlockedPhoneID"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PhoneCore")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<int>("TenantID")
+                        .HasColumnType("int");
+
+                    b.HasKey("TenantBlockedPhoneID");
+
+                    b.HasIndex("TenantID", "PhoneCore")
+                        .IsUnique();
+
+                    b.ToTable("TenantBlockedPhones");
                 });
 
             modelBuilder.Entity("Appointment_SaaS.Core.Entities.TransactionLog", b =>
@@ -812,6 +1315,25 @@ namespace Appointment_SaaS.Data.Migrations
                     b.Navigation("Tenant");
                 });
 
+            modelBuilder.Entity("Appointment_SaaS.Core.Entities.AppointmentServiceLink", b =>
+                {
+                    b.HasOne("Appointment_SaaS.Core.Entities.Appointment", "Appointment")
+                        .WithMany("AppointmentServiceLinks")
+                        .HasForeignKey("AppointmentID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Appointment_SaaS.Core.Entities.Service", "Service")
+                        .WithMany()
+                        .HasForeignKey("ServiceID")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Appointment");
+
+                    b.Navigation("Service");
+                });
+
             modelBuilder.Entity("Appointment_SaaS.Core.Entities.BusinessHour", b =>
                 {
                     b.HasOne("Appointment_SaaS.Core.Entities.Tenant", "Tenant")
@@ -828,6 +1350,17 @@ namespace Appointment_SaaS.Data.Migrations
                     b.HasOne("Appointment_SaaS.Core.Entities.Tenant", "Tenant")
                         .WithMany()
                         .HasForeignKey("TenantID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("Appointment_SaaS.Core.Entities.Holiday", b =>
+                {
+                    b.HasOne("Appointment_SaaS.Core.Entities.Tenant", "Tenant")
+                        .WithMany("Holidays")
+                        .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -856,9 +1389,25 @@ namespace Appointment_SaaS.Data.Migrations
                     b.Navigation("Sector");
                 });
 
+            modelBuilder.Entity("Appointment_SaaS.Core.Entities.TenantBlockedPhone", b =>
+                {
+                    b.HasOne("Appointment_SaaS.Core.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
             modelBuilder.Entity("Appointment_SaaS.Core.Entities.AppUser", b =>
                 {
                     b.Navigation("Appointments");
+                });
+
+            modelBuilder.Entity("Appointment_SaaS.Core.Entities.Appointment", b =>
+                {
+                    b.Navigation("AppointmentServiceLinks");
                 });
 
             modelBuilder.Entity("Appointment_SaaS.Core.Entities.Sector", b =>
@@ -873,6 +1422,8 @@ namespace Appointment_SaaS.Data.Migrations
                     b.Navigation("Appointments");
 
                     b.Navigation("BusinessHours");
+
+                    b.Navigation("Holidays");
 
                     b.Navigation("Services");
                 });

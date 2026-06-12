@@ -1,3 +1,4 @@
+using Appointment_SaaS.API.Authorization;
 using Appointment_SaaS.Business.Abstract;
 using Appointment_SaaS.Core.Entities;
 using Appointment_SaaS.Data.Context;
@@ -83,6 +84,19 @@ namespace Appointment_SaaS.API.Controllers
             {
                 if (string.IsNullOrWhiteSpace(dto.ErrorMessage))
                     return BadRequest(new { message = "ErrorMessage boş olamaz." });
+
+                if (dto.TenantId.HasValue && dto.TenantId.Value > 0)
+                {
+                    var scopeDenied = ControllerTenantAccess.DenyUnlessCanAccessTenant(this, dto.TenantId.Value);
+                    if (scopeDenied != null)
+                        return scopeDenied;
+                }
+                else if (ControllerTenantAccess.IsWebhook(User))
+                {
+                    var scoped = ControllerTenantAccess.GetWebhookScopedTenantId(HttpContext);
+                    if (scoped.HasValue)
+                        dto.TenantId = scoped;
+                }
 
                 var log = new AuditLog
                 {

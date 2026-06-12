@@ -12,6 +12,7 @@ namespace Appointment_SaaS.Business.Abstract
     {
         Task<List<Tenant>> GetAllAsync();
         Task<Tenant?> GetByIdAsync(int id);
+        Task<Tenant?> GetByIdWithBusinessHoursAsync(int id);
         Task<Tenant?> GetByApiKeyAsync(string apiKey);
         Task<Tenant?> GetByPhoneNumberAsync(string phoneNumber); // n8n webhook'undan dükkanı bulmak için
         Task<Tenant?> GetContextByInstanceAsync(string instanceName); // Mega Context API için
@@ -21,6 +22,7 @@ namespace Appointment_SaaS.Business.Abstract
         Task UpdateAsync(Tenant tenant);
         Task DeleteAsync(Tenant tenant);
         Task UpdateBusinessHoursAsync(int tenantId, List<BusinessHourDto> hours);
+        Task UpdateBreakTimeSettingsAsync(int tenantId, BreakTimeSettingsDto settings);
 
         // --- Anti-Fraud & Finansal Güvenlik ---
         /// <summary>Trial parmak izini kontrol et. Aynı karmaşık hash varsa null dönülmez.</summary>
@@ -29,5 +31,13 @@ namespace Appointment_SaaS.Business.Abstract
         Task SuspendForRefundAsync(Tenant tenant, string? ipAddress, string? rawPayload, string? paymentId);
         /// <summary>Mükerrer iade suistimali: kara listeye al.</summary>
         Task BlacklistAsync(Tenant tenant, string reason);
+        Task<List<Holiday>> GetHolidaysAsync(int tenantId);
+        /// <summary>Hiç tatil yoksa 2026 resmi tatil önerilerini ekler; aksi halde 0 döner.</summary>
+        Task<int> SeedDefaultHolidaysIfEmptyAsync(int tenantId);
+        Task<Holiday> AddHolidayAsync(int tenantId, DateOnly date, string name);
+        Task DeleteHolidayAsync(int tenantId, int holidayId);
+
+        /// <summary>Randevu/n8n için işletme erişilebilir mi (trial/abonelik/askı).</summary>
+        Task<TenantAccessEvaluation> EvaluateOperationalAccessAsync(int tenantId);
     }
 }

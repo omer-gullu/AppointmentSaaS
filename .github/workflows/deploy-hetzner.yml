@@ -1,0 +1,254 @@
+name: Deploy to Hetzner
+
+# Secrets hazır olunca push tetikleyicisini açın (aşağıdaki yorum satırları).
+on:
+  # push:
+  #   branches: [main, master]
+  #   paths:
+  #     - 'Appointment_SaaS.API/**'
+  #     - 'Appointment_SaaS.WebUI/**'
+  #     - 'Appointment_SaaS.Business/**'
+  #     - 'Appointment_SaaS.Core/**'
+  #     - 'Appointment_SaaS.Data/**'
+  #     - 'deploy/api/**'
+  #     - 'deploy/webui/**'
+  #     - '.github/workflows/deploy-hetzner.yml'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Deploy target'
+        required: true
+        default: both
+        type: choice
+        options:
+          - api
+          - webui
+          - both
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  API_DEPLOY_PATH: /opt/appointmentsaas/api
+  WEBUI_DEPLOY_PATH: /opt/appointmentsaas/webui
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.result.outputs.api }}
+      webui: ${{ steps.result.outputs.webui }}
+      shared: ${{ steps.result.outputs.shared }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        if: github.event_name == 'push'
+        id: paths
+        with:
+          filters: |
+            api:
+              - 'Appointment_SaaS.API/**'
+              - 'deploy/api/**'
+            webui:
+              - 'Appointment_SaaS.WebUI/**'
+              - 'deploy/webui/**'
+            shared:
+              - 'Appointment_SaaS.Business/**'
+              - 'Appointment_SaaS.Core/**'
+              - 'Appointment_SaaS.Data/**'
+              - '.github/workflows/deploy-hetzner.yml'
+
+      - id: result
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TARGET="${{ github.event.inputs.target }}"
+            if [ "$TARGET" = "api" ] || [ "$TARGET" = "both" ]; then
+              echo "api=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "api=false" >> "$GITHUB_OUTPUT"
+            fi
+            if [ "$TARGET" = "webui" ] || [ "$TARGET" = "both" ]; then
+              echo "webui=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "webui=false" >> "$GITHUB_OUTPUT"
+            fi
+            echo "shared=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "api=${{ steps.paths.outputs.api }}" >> "$GITHUB_OUTPUT"
+            echo "webui=${{ steps.paths.outputs.webui }}" >> "$GITHUB_OUTPUT"
+            echo "shared=${{ steps.paths.outputs.shared }}" >> "$GITHUB_OUTPUT"
+          fi
+
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore & build solution
+        run: |
+          dotnet restore Appointment_SaaS.sln
+          dotnet build Appointment_SaaS.sln -c Release --no-restore
+
+      - name: Unit tests
+        run: dotnet test Appointment_SaaS.Test/Appointment_SaaS.Test.csproj -c Release --no-build --verbosity normal
+
+  deploy-api:
+    needs: [validate, changes]
+    if: |
+      needs.validate.result == 'success' && (
+        (github.event_name == 'workflow_dispatch' && (github.event.inputs.target == 'api' || github.event.inputs.target == 'both')) ||
+        (github.event_name == 'push' && (needs.changes.outputs.api == 'true' || needs.changes.outputs.shared == 'true'))
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: hetzner
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Publish API
+        run: |
+          dotnet publish Appointment_SaaS.API/Appointment_SaaS.API.csproj \
+            -c Release \
+            -o ./publish/api \
+            --self-contained false
+
+      - name: Setup SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.HETZNER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Upload API
+        env:
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER }}
+        run: |
+          USER="${DEPLOY_USER:-root}"
+          rsync -avz --delete -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes" \
+            ./publish/api/ "${USER}@${DEPLOY_HOST}:${{ env.API_DEPLOY_PATH }}/"
+
+      - name: Restart API
+        env:
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER }}
+        run: |
+          USER="${DEPLOY_USER:-root}"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "${USER}@${DEPLOY_HOST}" bash -s << 'REMOTE'
+          set -euo pipefail
+          mkdir -p /opt/appointmentsaas/api
+          if [ ! -f /etc/systemd/system/appointmentsaas-api.service ]; then
+            cat > /etc/systemd/system/appointmentsaas-api.service << 'UNIT'
+          [Unit]
+          Description=AppointmentSaaS API
+          After=network.target
+
+          [Service]
+          WorkingDirectory=/opt/appointmentsaas/api
+          ExecStart=/usr/bin/dotnet /opt/appointmentsaas/api/Appointment_SaaS.API.dll
+          Restart=always
+          RestartSec=5
+          EnvironmentFile=-/opt/appointmentsaas/api.env
+          Environment=ASPNETCORE_URLS=http://127.0.0.1:5294
+          User=www-data
+          Group=www-data
+
+          [Install]
+          WantedBy=multi-user.target
+          UNIT
+            systemctl daemon-reload
+            systemctl enable appointmentsaas-api
+          fi
+          chown -R www-data:www-data /opt/appointmentsaas/api
+          systemctl restart appointmentsaas-api
+          systemctl is-active appointmentsaas-api
+          REMOTE
+
+  deploy-webui:
+    needs: [validate, changes]
+    if: |
+      needs.validate.result == 'success' && (
+        (github.event_name == 'workflow_dispatch' && (github.event.inputs.target == 'webui' || github.event.inputs.target == 'both')) ||
+        (github.event_name == 'push' && (needs.changes.outputs.webui == 'true' || needs.changes.outputs.shared == 'true'))
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: hetzner
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Publish WebUI
+        run: |
+          dotnet publish Appointment_SaaS.WebUI/Appointment_SaaS.WebUI.csproj \
+            -c Release \
+            -o ./publish/webui \
+            --self-contained false
+
+      - name: Setup SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.HETZNER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Upload WebUI
+        env:
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER }}
+        run: |
+          USER="${DEPLOY_USER:-root}"
+          rsync -avz --delete -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes" \
+            ./publish/webui/ "${USER}@${DEPLOY_HOST}:${{ env.WEBUI_DEPLOY_PATH }}/"
+
+      - name: Restart WebUI
+        env:
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER }}
+        run: |
+          USER="${DEPLOY_USER:-root}"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "${USER}@${DEPLOY_HOST}" bash -s << 'REMOTE'
+          set -euo pipefail
+          mkdir -p /opt/appointmentsaas/webui
+          if [ ! -f /etc/systemd/system/appointmentsaas-webui.service ]; then
+            cat > /etc/systemd/system/appointmentsaas-webui.service << 'UNIT'
+          [Unit]
+          Description=AppointmentSaaS WebUI
+          After=network.target appointmentsaas-api.service
+
+          [Service]
+          WorkingDirectory=/opt/appointmentsaas/webui
+          ExecStart=/usr/bin/dotnet /opt/appointmentsaas/webui/Appointment_SaaS.WebUI.dll
+          Restart=always
+          RestartSec=5
+          EnvironmentFile=-/opt/appointmentsaas/webui.env
+          Environment=ASPNETCORE_URLS=http://127.0.0.1:5259
+          User=www-data
+          Group=www-data
+
+          [Install]
+          WantedBy=multi-user.target
+          UNIT
+            systemctl daemon-reload
+            systemctl enable appointmentsaas-webui
+          fi
+          chown -R www-data:www-data /opt/appointmentsaas/webui
+          systemctl restart appointmentsaas-webui
+          systemctl is-active appointmentsaas-webui
+          REMOTE

@@ -15,6 +15,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Appointment_SaaS.WebUI", "A
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Appointment_SaaS.Test", "Appointment_SaaS.Test\Appointment_SaaS.Test.csproj", "{1BD816EA-BF9D-4040-8772-86131A0AE6B5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Appointment_SaaS.E2E", "Appointment_SaaS.E2E\Appointment_SaaS.E2E.csproj", "{E8F4A2B1-3C5D-4E6F-9A0B-1C2D3E4F5A6B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -45,6 +47,10 @@ Global
 		{1BD816EA-BF9D-4040-8772-86131A0AE6B5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1BD816EA-BF9D-4040-8772-86131A0AE6B5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1BD816EA-BF9D-4040-8772-86131A0AE6B5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E8F4A2B1-3C5D-4E6F-9A0B-1C2D3E4F5A6B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E8F4A2B1-3C5D-4E6F-9A0B-1C2D3E4F5A6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E8F4A2B1-3C5D-4E6F-9A0B-1C2D3E4F5A6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E8F4A2B1-3C5D-4E6F-9A0B-1C2D3E4F5A6B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

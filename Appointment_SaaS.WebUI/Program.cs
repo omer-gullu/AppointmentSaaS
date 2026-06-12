@@ -1,3 +1,4 @@
+using Appointment_SaaS.WebUI.Diagnostics;
 using Appointment_SaaS.WebUI.Middlewares;
 using Appointment_SaaS.Business.Abstract;
 using Appointment_SaaS.Business.Concrete;
@@ -8,22 +9,55 @@ using Appointment_SaaS.Data.Concrete;
 using Appointment_SaaS.Data.Context;
 using Appointment_SaaS.DataAccess.Abstract;
 using AutoMapper;
+using Appointment_SaaS.WebUI.Middleware;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
+using System.IO.Compression;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "RequestVerificationToken";
+});
+
 // Add services to the container.
-builder.Services.AddControllersWithViews()
+builder.Services.AddControllersWithViews(options =>
+    {
+        options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
     });
 builder.Services.AddMemoryCache();
+builder.Services.AddResponseCaching();
 
-// DbContext
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[]
+    {
+        "image/svg+xml",
+        "application/javascript",
+        "text/css"
+    });
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
+    options.Level = CompressionLevel.Fastest);
+builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+    options.Level = CompressionLevel.Fastest);
+
+// DbContext (pool reduces per-request context allocation — helps TTFB under load)
+builder.Services.AddDbContextPool<AppDbContext>(options =>
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sql => sql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
 
 // AutoMapper
 var mapperConfig = new MapperConfiguration(mc =>
@@ -35,19 +69,16 @@ builder.Services.AddSingleton(mapper);
 
 // Evolution API Settings
 builder.Services.Configure<EvolutionApiSettings>(builder.Configuration.GetSection("EvolutionApi"));
+builder.Services.Configure<SubscriptionBillingOptions>(
+    builder.Configuration.GetSection(SubscriptionBillingOptions.SectionName));
 
 // HttpClient for API communication
 builder.Services.AddHttpClient("Api", client =>
 {
     var baseUrl = builder.Configuration["ApiBaseUrl"] ?? "http://localhost:5294";
     client.BaseAddress = new Uri(baseUrl);
-    client.Timeout = TimeSpan.FromSeconds(40);
-    
-    // API tarafinda WebhookAuthMiddleware, POST firlatilinca Token istiyor.
-    // Dashboard icerisindeki manuel eklemeler form araciligi ile HttpClient uzerinden aktigindan
-    // bu token'i daimi HttpClient defaultlarina ekliyoruz.
-    var webhookToken = builder.Configuration["WebhookSecurity:N8nAuthToken"] ?? "dev-webhook-token";
-    client.DefaultRequestHeaders.Add("X-Auth-Token", webhookToken);
+    // Kayıt: Evolution + İyzico checkout tek istekte 40 sn'yi aşabiliyor
+    client.Timeout = TimeSpan.FromSeconds(180);
 });
 
 // Typed HttpClient for Evolution API
@@ -67,6 +98,7 @@ builder.Services.AddScoped<IAuditLogRepository, EfAuditLogRepository>();
 builder.Services.AddScoped<IFeedbackRepository, EfFeedbackRepository>();
 
 // Business Services
+builder.Services.AddSingleton<ITenantAccessEvaluator, TenantAccessEvaluator>();
 builder.Services.AddScoped<ITenantService, TenantManager>();
 builder.Services.AddScoped<IAppUserService, AppUserManager>();
 builder.Services.AddScoped<IAuditLogService, AuditLogManager>();
@@ -77,6 +109,7 @@ builder.Services.AddHttpContextAccessor(); // IP ve User bilgilerini yakalamak i
 builder.Services.AddScoped<Appointment_SaaS.WebUI.Services.Abstract.IGoogleCalendarApiService, Appointment_SaaS.WebUI.Services.Concrete.GoogleCalendarApiService>();
 builder.Services.AddScoped<Appointment_SaaS.WebUI.Services.Abstract.IDashboardApiService, Appointment_SaaS.WebUI.Services.Concrete.DashboardApiService>();
 builder.Services.AddScoped<Appointment_SaaS.WebUI.Services.Abstract.IAppointmentApiService, Appointment_SaaS.WebUI.Services.Concrete.AppointmentApiService>();
+builder.Services.AddScoped<Appointment_SaaS.WebUI.Services.Abstract.IWhatsAppBlockedPhoneApiService, Appointment_SaaS.WebUI.Services.Concrete.WhatsAppBlockedPhoneApiService>();
 
 // Auth (Adding cookie auth so User.FindFirst works)
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -84,9 +117,21 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     {
         options.LoginPath = "/Auth/Login";
         options.AccessDeniedPath = "/Auth/Login";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+            ? CookieSecurePolicy.SameAsRequest
+            : CookieSecurePolicy.Always;
     });
 
 var app = builder.Build();
+
+PerfProbeLog.Configure(Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, "..", "debug-4e7483.log")));
+
+var subscriptionBilling = app.Configuration
+    .GetSection(SubscriptionBillingOptions.SectionName)
+    .Get<SubscriptionBillingOptions>() ?? new SubscriptionBillingOptions();
+SubscriptionAccessPolicy.Configure(subscriptionBilling);
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
@@ -96,9 +141,25 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
-app.UseStaticFiles();
+app.UseResponseCompression();
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        var headers = ctx.Context.Response.Headers;
+        if (!headers.ContainsKey("Cache-Control"))
+        {
+            headers["Cache-Control"] = "public,max-age=604800";
+        }
+    }
+});
 
 app.UseRouting();
+
+app.UseResponseCaching();
+
+app.UseSecurityHeaders();
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -35,10 +35,20 @@ public class AppUserManager : IAppUserService
         return await _userRepository.GetAllAsync();
     }
 
-    public async Task<AppUser> GetByMail(string email)
+    public async Task<AppUser?> GetByMail(string email)
     {
+        if (string.IsNullOrWhiteSpace(email))
+            return null;
+
         return await _userRepository
             .Where(u => u.Email != null && u.Email.ToLower() == email.ToLower())
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task<AppUser?> GetByIdAsync(int appUserId)
+    {
+        return await _userRepository
+            .Where(u => u.AppUserID == appUserId)
             .FirstOrDefaultAsync();
     }
 
@@ -100,6 +110,27 @@ public class AppUserManager : IAppUserService
     {
         return await _userRepository
             .Where(u => u.TenantID == tenantId && u.Status == true)
+            .AsNoTracking()
+            .ToListAsync();
+    }
+
+    public async Task<List<StaffListItemDto>> GetStaffListItemsByTenantAsync(int tenantId)
+    {
+        return await _userRepository
+            .Where(u => u.TenantID == tenantId && u.Status)
+            .AsNoTracking()
+            .Select(u => new StaffListItemDto
+            {
+                AppUserID = u.AppUserID,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                Email = u.Email,
+                PhoneNumber = u.PhoneNumber,
+                Specialization = u.Specialization,
+                GoogleCalendarId = u.GoogleCalendarId,
+                HasGoogleConnected = u.GoogleRefreshToken != null && u.GoogleRefreshToken != "",
+                Status = u.Status
+            })
             .ToListAsync();
     }
 }

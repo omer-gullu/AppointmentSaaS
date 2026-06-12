@@ -6,5 +6,5 @@ namespace Appointment_SaaS.Core.Utilities.Security.JWT;
 
 public interface ITokenHelper
 {
-   Task <AccessToken> CreateToken(AppUser user, List<OperationClaim> operationClaims);
+   Task<AccessToken> CreateToken(AppUser user, List<OperationClaim> operationClaims);
 }

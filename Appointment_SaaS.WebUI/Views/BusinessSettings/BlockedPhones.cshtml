@@ -1,0 +1,114 @@
+@model Appointment_SaaS.WebUI.Models.BlockedPhonesViewModel
+@using Appointment_SaaS.Core.Constants
+@{
+    ViewData["Title"] = "Kısıtlı hesap listesi";
+}
+<partial name="_PageStyles" />
+<style>
+    .restricted-hero {
+        background: linear-gradient(135deg, #fff7ed 0%, #fff 55%);
+        border: 1px solid #fed7aa;
+        border-radius: 14px;
+        padding: 18px 20px;
+    }
+    .restricted-hero .hero-icon {
+        width: 44px; height: 44px; border-radius: 12px;
+        background: linear-gradient(135deg, #fef3c7, #fde68a);
+        display: flex; align-items: center; justify-content: center;
+        color: #b45309; font-size: 1.25rem;
+    }
+</style>
+<div class="biz-page">
+    <div class="container-fluid" style="max-width:960px;">
+        <partial name="_BusinessSettingsNav" />
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success border-0 shadow-sm rounded-3 mb-4"><i class="bi bi-check-circle-fill me-2"></i>@TempData["Success"]</div>
+        }
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert alert-danger border-0 shadow-sm rounded-3 mb-4"><i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["Error"]</div>
+        }
+        <div class="restricted-hero mb-4 d-flex gap-3 align-items-start">
+            <div class="hero-icon flex-shrink-0"><i class="bi bi-person-lock-fill"></i></div>
+            <div>
+                <h5 class="fw-bold mb-1">Kısıtlı hesap listesi (WhatsApp gri liste)</h5>
+                <p class="mb-2 small text-muted" style="line-height:1.55;">
+                    Bu listedeki telefon numaraları işletmenizin WhatsApp asistanına <strong>ulaşamaz</strong>.
+                    Randevu botu bu numaralara yanıt vermez; mesajlar işlenmez.
+                </p>
+                <ul class="small text-muted mb-0 ps-3" style="line-height:1.5;">
+                    <li>Müşteri WhatsApp’tan <strong>“Asistanı kapat”</strong> yazdığında numara <strong>otomatik</strong> eklenir.</li>
+                    <li>Panelden manuel numara ekleyerek spam veya istenmeyen kişileri de engelleyebilirsiniz.</li>
+                    <li>Listeden kaldırırsanız asistan o numaraya tekrar hizmet verebilir.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="section-card mb-4">
+            <div class="card-header"><h6 class="fw-bold mb-0"><i class="bi bi-plus-circle me-2 text-primary"></i>Numara ekle</h6></div>
+            <div class="p-4">
+                <form asp-action="AddBlockedPhone" asp-controller="BusinessSettings" method="post" class="row g-3 align-items-end">
+                    @Html.AntiForgeryToken()
+                    <div class="col-md-5">
+                        <label class="form-label small fw-bold">Telefon</label>
+                        <input asp-for="NewPhone" class="form-control" placeholder="05XX XXX XX XX" required />
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label small fw-bold">Not (isteğe bağlı)</label>
+                        <input asp-for="NewNote" class="form-control" placeholder="Örn. Spam, istek üzerine" />
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill"><i class="bi bi-plus-lg me-1"></i>Ekle</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="section-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0"><i class="bi bi-person-lock me-2 text-warning"></i>Engelli numaralar</h6>
+                <span class="badge bg-danger bg-opacity-10 text-danger">@Model.Items.Count kayıt</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">TELEFON</th>
+                            <th>KAYNAK</th>
+                            <th>NOT</th>
+                            <th>TARİH</th>
+                            <th class="text-end pe-4">İŞLEM</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Items.Count > 0)
+                        {
+                            @foreach (var item in Model.Items)
+                            {
+                                var sourceLabel = item.Source == WhatsAppBlockedPhoneSources.SelfOptOut ? "WhatsApp (Asistanı kapat)" : item.Source == WhatsAppBlockedPhoneSources.Manual ? "Panel" : item.Source;
+                                var sourceClass = item.Source == WhatsAppBlockedPhoneSources.SelfOptOut ? "warning" : "secondary";
+                                <tr>
+                                    <td class="ps-4 fw-semibold">@item.Phone</td>
+                                    <td><span class="badge bg-@sourceClass bg-opacity-10 text-@sourceClass">@sourceLabel</span></td>
+                                    <td class="text-muted small">@(string.IsNullOrWhiteSpace(item.Note) ? "—" : item.Note)</td>
+                                    <td class="text-muted small">@item.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                                    <td class="text-end pe-4">
+                                        <form asp-action="DeleteBlockedPhone" asp-controller="BusinessSettings" method="post" class="d-inline"
+                                              onsubmit="return confirm('Bu numarayı listeden kaldırmak istediğinize emin misiniz?');">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@item.Id" />
+                                            <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3"><i class="bi bi-trash me-1"></i>Kaldır</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr><td colspan="5" class="text-center py-5 text-muted">Kısıtlı listede numara yok.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

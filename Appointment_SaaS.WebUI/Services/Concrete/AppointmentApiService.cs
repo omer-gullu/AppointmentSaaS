@@ -2,6 +2,7 @@ using Appointment_SaaS.WebUI.Services.Abstract;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -34,8 +35,24 @@ namespace Appointment_SaaS.WebUI.Services.Concrete
             return client;
         }
 
+        private static List<int> BuildOrderedServiceIds(int primaryServiceId, IReadOnlyList<int>? extraIds)
+        {
+            var list = new List<int>();
+            if (primaryServiceId > 0)
+                list.Add(primaryServiceId);
+            if (extraIds != null)
+            {
+                foreach (var id in extraIds)
+                {
+                    if (id > 0 && !list.Contains(id))
+                        list.Add(id);
+                }
+            }
+            return list;
+        }
+
         public async Task<(bool Success, string Message, int? AppointmentId, int? AppUserId)> CreateAppointmentAsync(
-            int tenantId, string customerName, string customerPhone, int serviceId, DateTime startDate, int? appUserId = null)
+            int tenantId, string customerName, string customerPhone, int serviceId, DateTime startDate, int? appUserId = null, IReadOnlyList<int>? serviceIds = null)
         {
             try
             {
@@ -49,11 +66,13 @@ namespace Appointment_SaaS.WebUI.Services.Concrete
                     businessPhoneOrInstance = tenantObj.TryGetProperty("instanceName", out var inst) ? inst.GetString() ?? string.Empty : string.Empty;
                 }
 
+                var ordered = BuildOrderedServiceIds(serviceId, serviceIds);
                 var payload = new
                 {
                     customerName,
                     customerPhone,
-                    serviceID = serviceId,
+                    serviceID = ordered.Count > 0 ? ordered[0] : serviceId,
+                    serviceIds = ordered.Count > 1 ? ordered : null,
                     startDate,
                     businessPhone = businessPhoneOrInstance,
                     appUserID = appUserId
@@ -81,7 +100,7 @@ namespace Appointment_SaaS.WebUI.Services.Concrete
         }
 
         public async Task<(bool Success, string Message)> UpdateAppointmentAsync(
-            int tenantId, int appointmentId, string customerName, string customerPhone, int serviceId, DateTime startDate, string? googleEventId, int? appUserId = null)
+            int tenantId, int appointmentId, string customerName, string customerPhone, int serviceId, DateTime startDate, string? googleEventId, int? appUserId = null, IReadOnlyList<int>? serviceIds = null)
         {
             try
             {
@@ -95,11 +114,13 @@ namespace Appointment_SaaS.WebUI.Services.Concrete
                     instanceName = tenantObj.TryGetProperty("instanceName", out var inst) ? inst.GetString() ?? string.Empty : string.Empty;
                 }
 
+                var ordered = BuildOrderedServiceIds(serviceId, serviceIds);
                 var payload = new
                 {
                     customerName,
                     customerPhone,
-                    serviceID = serviceId,
+                    serviceID = ordered.Count > 0 ? ordered[0] : serviceId,
+                    serviceIds = ordered.Count > 1 ? ordered : null,
                     startDate,
                     businessPhone = instanceName,
                     note = (string?)null,

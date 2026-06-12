@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+@{
+    var requireSweetAlert = ViewData["RequireSweetAlert"] as bool? ?? false;
+}
+<html lang="tr" class="lean-public">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="@(ViewData["Description"] ?? "Akıllı Randevu - İşletme yönetim paneli.")" />
+    <title>@ViewData["Title"] - Akıllı Randevu</title>
+
+    <link rel="preload" href="~/fonts/bootstrap-icons.woff2" as="font" type="font/woff2" crossorigin="anonymous" asp-append-version="true" />
+    <link rel="icon" type="image/png" sizes="32x32" href="~/images/favicon-32.png" asp-append-version="true" />
+    <style>
+        body.lean-dashboard{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f6f7fb;color:#0f172a;-webkit-font-smoothing:antialiased}
+        main.lean-dashboard-main{padding:0!important;flex:1}
+    </style>
+    <link rel="stylesheet" href="~/css/lean-bootstrap.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/layout-shell.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/ar-brand.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/dashboard-icons.css" asp-append-version="true" />
+</head>
+<body class="lean-dashboard lean-public">
+    <header>
+        <nav class="navbar premium-navbar">
+            <div class="container-fluid d-flex flex-wrap align-items-center justify-content-between gap-2 py-1" style="max-width:1400px;">
+                <a class="navbar-brand ar-brand-lockup text-decoration-none" asp-controller="Dashboard" asp-action="Index">
+                    @{ ViewData["ArLogoSize"] = 48; ViewData["ArLogoVariant"] = "brand"; }
+                    <partial name="_ArLogo" />
+                    <span class="ar-brand-lockup__text">Akıllı Randevu</span>
+                </a>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <a class="nav-link d-inline-block py-2" asp-controller="Pricing" asp-action="Index">Planlar</a>
+                    <a href="/Auth/Logout" class="btn btn-outline-secondary btn-sm rounded-pill px-3">Çıkış</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main role="main" class="lean-dashboard-main">
+        @RenderBody()
+    </main>
+
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js" defer></script>
+    <script src="~/js/csrf-fetch.js" asp-append-version="true" defer></script>
+    <script src="~/js/escape-html.js" asp-append-version="true" defer></script>
+    @if (requireSweetAlert)
+    {
+        <script src="~/js/lazy-sweetalert.js" asp-append-version="true" defer></script>
+    }
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

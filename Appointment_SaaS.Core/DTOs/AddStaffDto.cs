@@ -2,10 +2,10 @@
 {
     public class AddStaffDto
     {
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
-        public string Email { get; set; }
-        public string PhoneNumber { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
         public string? Specialization { get; set; }
 
         /// <summary>
@@ -18,10 +18,10 @@
 
     public class UpdateStaffDto
     {
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
-        public string Email { get; set; }
-        public string PhoneNumber { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
         public string? Specialization { get; set; }
         public string? GoogleCalendarId { get; set; }
         public bool Status { get; set; } = true;

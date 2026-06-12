@@ -1,0 +1,223 @@
+@model Appointment_SaaS.WebUI.Models.DashboardViewModel
+@{
+    ViewData["RequireBootstrapIcons"] = true;
+    ViewData["RequireSweetAlert"] = true;
+    ViewData["Title"] = "Personel Yönetimi";
+}
+<partial name="_PageStyles" />
+<div class="biz-page">
+    <div class="container-fluid" style="max-width:1100px;">
+        <partial name="_BusinessSettingsNav" />
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success border-0 shadow-sm rounded-3 mb-4"><i class="bi bi-check-circle-fill me-2"></i>@TempData["Success"]</div>
+        }
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert alert-danger border-0 shadow-sm rounded-3 mb-4"><i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["Error"]</div>
+        }
+        <div class="section-card">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <h6 class="fw-bold mb-0"><i class="bi bi-people-fill text-primary me-2"></i>Personel Yönetimi</h6>
+                    <div class="text-muted" style="font-size:0.75rem;">
+                        @(Math.Max(0, Model.CurrentStaffCount - 1)) / @(Model.StaffLimit == -1 ? "Sınırsız" : Model.StaffLimit.ToString()) personel hakkı kullanılıyor
+                    </div>
+                </div>
+                <div>
+                    @if (Model.PlanType == "Trial")
+                    {
+                        <a href="/Pricing/ChangePlan" class="btn btn-warning btn-sm rounded-pill px-3 fw-bold me-2">
+                            <i class="bi bi-lightning-fill me-1"></i> Plan Seç
+                        </a>
+                    }
+                    @if (Model.StaffLimit == -1 || Math.Max(0, Model.CurrentStaffCount - 1) < Model.StaffLimit || Model.CurrentStaffCount == 0)
+                    {
+                        <button class="btn btn-outline-primary btn-sm rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#addStaffModal">
+                            <i class="bi bi-person-plus me-1"></i> Personel Ekle
+                        </button>
+                    }
+                    else
+                    {
+                        <span class="badge py-2 px-3 fw-bold" style="background:#fee2e2;color:#dc2626;border-radius:20px;font-size:0.75rem;">
+                            <i class="bi bi-lock-fill me-1"></i> Limit Doldu
+                            @if (Model.PlanType == "Starter" || Model.PlanType == "Trial")
+                            {
+                                <a href="/Pricing/ChangePlan" class="ms-2" style="color:#dc2626;">Yükselt →</a>
+                            }
+                        </span>
+                    }
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">PERSONEL</th>
+                            <th>UZMANLIK</th>
+                            <th>TELEFON</th>
+                            <th class="text-center">GOOGLE TAKVİM</th>
+                            <th class="text-end pe-4">İŞLEM</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Staff != null && Model.Staff.Count > 0)
+                        {
+                            @foreach (var staff in Model.Staff)
+                            {
+                                var s = (System.Text.Json.JsonElement)staff;
+                                var fn = s.TryGetProperty("firstName", out var fnProp) ? fnProp.GetString() ?? "" : "";
+                                var ln = s.TryGetProperty("lastName", out var lnProp) ? lnProp.GetString() ?? "" : "";
+                                var ph = s.TryGetProperty("phoneNumber", out var phProp) ? phProp.GetString() ?? "—" : "—";
+                                var sp = s.TryGetProperty("specialization", out var spProp) && spProp.ValueKind != System.Text.Json.JsonValueKind.Null ? spProp.GetString() ?? "Genel" : "Genel";
+                                var uid = s.TryGetProperty("appUserID", out var uidProp) ? uidProp.GetInt32() : 0;
+                                var calId = s.TryGetProperty("googleCalendarId", out var calProp) && calProp.ValueKind != System.Text.Json.JsonValueKind.Null ? calProp.GetString() : null;
+                                var hasGoogle = s.TryGetProperty("hasGoogleConnected", out var hgProp) && hgProp.ValueKind == System.Text.Json.JsonValueKind.True;
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="avatar bg-primary bg-opacity-10 text-primary">@(fn.Length > 0 ? fn.Substring(0, 1).ToUpper() : "P")</div>
+                                            <div>
+                                                <div class="fw-bold text-capitalize">@fn @ln</div>
+                                                <div class="text-muted" style="font-size:0.75rem;">@calId</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td><span class="badge bg-info bg-opacity-10 text-info">@sp</span></td>
+                                    <td class="text-muted small">@ph</td>
+                                    <td class="text-center">
+                                        @if (!string.IsNullOrEmpty(calId) && hasGoogle)
+                                        {
+                                            <div class="d-flex flex-column align-items-center gap-1">
+                                                <span class="badge badge-google-connected rounded-pill px-3 py-2" style="font-size:0.75rem;">
+                                                    <i class="bi bi-check-circle-fill me-1"></i> @calId
+                                                </span>
+                                                <button type="button" class="btn btn-google-refresh btn-sm rounded-pill px-2 py-0" onclick="refreshStaffGoogle(@uid)">
+                                                    <i class="bi bi-arrow-clockwise"></i> Yenile
+                                                </button>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <a href="/Dashboard/ConnectStaffGoogle?staffId=@uid" class="btn-google-connect">
+                                                <svg class="google-g-logo" viewBox="0 0 48 48" aria-hidden="true">
+                                                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                                                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6.01c4.48-4.13 7.07-10.2 7.07-17.66z"/>
+                                                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C2.38 16.51 0 20.12 0 24c0 3.88.38 7.49 2.56 10.78l7.97-6.19z"/>
+                                                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6.01c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                                                </svg>
+                                                Google ile bağlan
+                                            </a>
+                                        }
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <button type="button" class="btn btn-icon-action btn-icon-action--danger" onclick="removeStaff(@uid)" aria-label="Personeli kaldır">
+                                            <i class="bi bi-trash" aria-hidden="true"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="5">
+                                    <div class="empty-state">
+                                        <i class="bi bi-@(Model.PlanType == "Trial" ? "lock" : "people")"></i>
+                                        @(Model.PlanType == "Trial" ? "Personel eklemek için bir plan seçmelisiniz." : "Henüz personel eklenmemiş.")
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addStaffModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius:20px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold"><i class="bi bi-person-plus-fill me-2 text-primary"></i>Personel Ekle</h5>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="form-label text-muted small fw-bold">AD SOYAD</label>
+                    <input type="text" id="staffFullName" class="form-control bg-light border-0 py-2" placeholder="Ad Soyad">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted small fw-bold">TELEFON</label>
+                    <input type="tel" id="staffPhone" class="form-control bg-light border-0 py-2" placeholder="05XX XXX XX XX">
+                </div>
+                <div class="mb-4">
+                    <label class="form-label text-muted small fw-bold">UZMANLIK (Opsiyonel)</label>
+                    <input type="text" id="staffSpec" class="form-control bg-light border-0 py-2" placeholder="Örn: Saç Kesimi">
+                </div>
+                <button type="button" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-sm" onclick="addStaff()">
+                    <i class="bi bi-person-plus-fill me-2"></i>Personeli Ekle
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function swToast(icon, title) {
+        Swal.fire({ toast: true, position: 'top-end', icon, title, showConfirmButton: false, timer: 3000, timerProgressBar: true });
+    }
+    async function addStaff() {
+        const nameParts = document.getElementById('staffFullName').value.trim().split(' ');
+        const firstName = nameParts.slice(0, -1).join(' ') || nameParts[0];
+        const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+        const payload = {
+            firstName, lastName,
+            email: ('staff_' + Date.now() + '@@personel.local'),
+            phoneNumber: document.getElementById('staffPhone').value.trim(),
+            specialization: document.getElementById('staffSpec').value.trim(),
+            googleCalendarId: null
+        };
+        try {
+            const res = await fetch('/Dashboard/AddStaff', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const data = await res.json();
+            if (res.ok) {
+                bootstrap.Modal.getInstance(document.getElementById('addStaffModal')).hide();
+                swToast('success', 'Personel başarıyla eklendi.');
+                setTimeout(() => location.reload(), 1200);
+            } else if (res.status === 403 && data.upgradeRequired) {
+                Swal.fire({ icon: 'warning', title: 'Plan Limiti', html: `${data.message || data.Message}<br><br><a href="/Pricing/ChangePlan" class="btn btn-primary rounded-pill px-4 mt-2">Planı Yükselt</a>`, confirmButtonText: 'Tamam', confirmButtonColor: '#6366f1' });
+            } else {
+                swToast('error', data.message || data.Message || 'Personel eklenemedi.');
+            }
+        } catch { swToast('error', 'Sistemle bağlantı kurulamadı.'); }
+    }
+    async function refreshStaffGoogle(staffId) {
+        try {
+            const res = await fetch(`/Dashboard/RefreshStaffGoogle?staffId=${staffId}`, { method: 'POST' });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data.success) { swToast('success', data.message || 'Google bağlantısı aktif.'); return; }
+            if (data.needsReconnect) {
+                const go = await Swal.fire({ title: 'Google bağlantısı yenilenemedi', text: data.message, icon: 'warning', showCancelButton: true, confirmButtonText: 'Google ile yetkilendir', cancelButtonText: 'Kapat' });
+                if (go.isConfirmed) window.location.href = `/Dashboard/ConnectStaffGoogle?staffId=${staffId}`;
+                return;
+            }
+            swToast('error', data.message || 'Google token yenilenemedi.');
+        } catch { swToast('error', 'Sistemle bağlantı kurulamadı.'); }
+    }
+    async function removeStaff(userId) {
+        const result = await Swal.fire({ title: 'Personeli Sil', text: 'Bu personeli silmek istediğinize emin misiniz?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#6b7280', confirmButtonText: 'Evet, Sil', cancelButtonText: 'İptal' });
+        if (!result.isConfirmed) return;
+        try {
+            const res = await fetch(`/Dashboard/RemoveStaff?userId=${userId}`, { method: 'DELETE' });
+            if (res.ok) { swToast('success', 'Personel silindi.'); setTimeout(() => location.reload(), 1200); }
+            else {
+                const err = await res.json().catch(() => ({}));
+                swToast('error', err.message || err.Message || 'Personel silinemedi.');
+            }
+        } catch { swToast('error', 'Sistemle bağlantı kurulamadı.'); }
+    }
+</script>
+}

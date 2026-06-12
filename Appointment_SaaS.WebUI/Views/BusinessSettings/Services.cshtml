@@ -1,0 +1,155 @@
+@model Appointment_SaaS.WebUI.Models.DashboardViewModel
+@{
+    ViewData["RequireBootstrapIcons"] = true;
+    ViewData["RequireSweetAlert"] = true;
+    ViewData["Title"] = "Hizmet Yönetimi";
+}
+<partial name="_PageStyles" />
+<div class="biz-page">
+    <div class="container-fluid" style="max-width:1100px;">
+        <partial name="_BusinessSettingsNav" />
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success border-0 shadow-sm rounded-3 mb-4"><i class="bi bi-check-circle-fill me-2"></i>@TempData["Success"]</div>
+        }
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert alert-danger border-0 shadow-sm rounded-3 mb-4"><i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["Error"]</div>
+        }
+        <div class="section-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0"><i class="bi bi-grid-fill text-success me-2"></i>Hizmet Yönetimi</h6>
+                <button class="btn btn-outline-success btn-sm rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#newServiceModal">
+                    <i class="bi bi-plus-lg me-1"></i> Hizmet Ekle
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">HİZMET ADI</th>
+                            <th>SÜRE</th>
+                            <th>FİYAT</th>
+                            <th class="text-end pe-4">İŞLEM</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Services != null && Model.Services.Count > 0)
+                        {
+                            @foreach (var item in Model.Services)
+                            {
+                                <tr>
+                                    <td class="ps-4 fw-bold">@item.GetProperty("name")</td>
+                                    <td><span class="badge bg-info bg-opacity-10 text-info">@item.GetProperty("durationInMinutes") dk</span></td>
+                                    <td class="fw-bold text-primary">@item.GetProperty("price") ₺</td>
+                                    <td class="text-end pe-4">
+                                        <button type="button" class="btn btn-icon-action"
+                                                onclick="openEditServiceModal('@item.GetProperty("serviceID").GetInt32()','@item.GetProperty("name").ToString()','@item.GetProperty("durationInMinutes").ToString()','@item.GetProperty("price").ToString()')">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <form class="d-inline delete-service-form" action="/Dashboard/DeleteService" method="post">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="serviceId" value="@item.GetProperty("serviceID").GetInt32()" />
+                                            <button type="submit" class="btn btn-icon-action btn-icon-action--danger" aria-label="Hizmeti sil"><i class="bi bi-trash" aria-hidden="true"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr><td colspan="4"><div class="empty-state"><i class="bi bi-scissors"></i>Henüz tanımlı bir hizmet yok.</div></td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editServiceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius:20px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold"><i class="bi bi-pencil-square me-2 text-success"></i>Hizmet Düzenle</h5>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form asp-action="UpdateService" asp-controller="Dashboard" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" id="editServiceIdInput" name="serviceId" />
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">HİZMET ADI</label>
+                        <input type="text" id="editServiceName" name="name" class="form-control bg-light border-0 py-2" required>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label text-muted small fw-bold">SÜRE (DAKİKA)</label>
+                            <input type="number" id="editDuration" name="durationMinutes" class="form-control bg-light border-0 py-2" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted small fw-bold">FİYAT (₺)</label>
+                            <input type="number" id="editPrice" name="price" step="0.01" class="form-control bg-light border-0 py-2" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100 py-3 rounded-pill fw-bold shadow-sm mt-4">Hizmeti Güncelle</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="newServiceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius:20px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold"><i class="bi bi-plus-circle me-2 text-success"></i>Yeni Hizmet Tanımla</h5>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form asp-action="CreateService" asp-controller="Dashboard" method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">HİZMET ADI</label>
+                        <input type="text" name="name" class="form-control bg-light border-0 py-2" placeholder="Örn: Saç Kesimi" required>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label text-muted small fw-bold">SÜRE (DAKİKA)</label>
+                            <input type="number" name="durationMinutes" class="form-control bg-light border-0 py-2" placeholder="30" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted small fw-bold">FİYAT (₺)</label>
+                            <input type="number" name="price" step="0.01" class="form-control bg-light border-0 py-2" placeholder="0.00" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100 py-3 rounded-pill fw-bold shadow-sm mt-4">Hizmeti Kaydet</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    const editServiceModal = new bootstrap.Modal(document.getElementById('editServiceModal'));
+    function openEditServiceModal(serviceId, name, duration, price) {
+        document.getElementById('editServiceIdInput').value = serviceId;
+        document.getElementById('editServiceName').value = name;
+        document.getElementById('editDuration').value = duration;
+        document.getElementById('editPrice').value = price.replace(',', '.');
+        editServiceModal.show();
+    }
+    document.querySelectorAll('.delete-service-form').forEach(form => {
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            Swal.fire({
+                title: 'Hizmeti Sil', text: 'Bu hizmeti silmek istediğinize emin misiniz?',
+                icon: 'warning', showCancelButton: true,
+                confirmButtonColor: '#ef4444', cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Evet, Sil', cancelButtonText: 'İptal'
+            }).then(r => { if (r.isConfirmed) this.submit(); });
+        });
+    });
+</script>
+}

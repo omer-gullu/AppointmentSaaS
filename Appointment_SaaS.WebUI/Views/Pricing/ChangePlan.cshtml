@@ -1,0 +1,315 @@
+@model Appointment_SaaS.WebUI.Models.ChangePlanViewModel
+@using Appointment_SaaS.Core.Constants
+@{
+    ViewData["RequireSweetAlert"] = true;
+    ViewData["Title"] = "Plan Değiştir";
+    ViewData["Description"] = "Aboneliğinizi güncelleyin veya yeni plan seçin.";
+    Layout = "_LayoutPricing";
+    var cycleLabel = Model.CurrentBillingCycle == BillingCycles.Yearly ? "Yıllık" : "Aylık";
+    var endDateText = Model.SubscriptionEndDate?.ToString("dd.MM.yyyy") ?? "dönem sonu";
+    var planButtonsEnabled = Model.CanSelectPlan;
+}
+
+<partial name="_PricingStyles" />
+<style>
+    .plans-grid {
+        grid-template-columns: repeat(auto-fit, minmax(320px, 480px));
+        justify-content: center;
+    }
+
+    .pcard.featured:hover {
+        transform: translateY(-11px);
+        box-shadow: 0 0 0 4px rgba(99,102,241,0.2), 0 24px 60px rgba(99,102,241,0.2);
+    }
+
+    .pcard-yearly-note {
+        font-size: 0.76rem;
+        color: #94a3b8;
+        margin-top: 4px;
+        min-height: 18px;
+    }
+
+    .pcard-yearly-note .save { color: #f59e0b; font-weight: 700; }
+
+    .pcard-desc {
+        font-size: 0.84rem;
+        color: #64748b;
+        line-height: 1.6;
+        margin-top: 12px;
+        padding-bottom: 18px;
+        border-bottom: 1px solid #f1f4f8;
+        margin-bottom: 18px;
+    }
+
+    .pcard-limits { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+    .pcard.featured .lchip { background: #eef2ff; border-color: #c7d2fe; }
+
+    .flist { list-style: none; padding: 0; margin: 0 0 26px; }
+    .flist li {
+        display: flex; align-items: flex-start; gap: 9px;
+        padding: 5px 0; color: #374151; font-size: 0.87rem; line-height: 1.4;
+    }
+    .flist li.off { color: #cbd5e1; text-decoration: line-through; }
+    .fcheck {
+        flex-shrink: 0; width: 18px; height: 18px; border-radius: 50%;
+        background: #eef2ff; color: #6366f1;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.62rem; margin-top: 1px;
+    }
+    .pcard.featured .fcheck { background: #6366f1; color: #fff; }
+    .flist li.off .fcheck { background: #f1f5f9; color: #cbd5e1; }
+
+    .cancel-step-card {
+        max-width: 720px;
+        margin: 0 auto 28px;
+        background: #fff;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 18px;
+        padding: 22px 26px;
+        box-shadow: 0 4px 20px rgba(15,23,42,0.05);
+    }
+
+    .cancel-step-card.done {
+        border-color: #a7f3d0;
+        background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+    }
+
+    .plan-select-btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    .current-plan .pcard-btn { opacity: 0.7; }
+</style>
+
+<div class="pricing-page">
+    <div class="container position-relative" style="z-index:1;">
+
+        <div class="text-center au">
+            <div class="pricing-kicker"><i class="bi bi-arrow-up-circle"></i> Abonelik</div>
+            <h1 class="pricing-h1">Planınızı <span class="grad">güncelleyin</span></h1>
+            <p class="pricing-sub">
+                Mevcut plan: <strong>@Model.CurrentPlanType</strong> / @cycleLabel
+                @if (Model.IsTrial) { <span class="badge rounded-pill" style="background:#fef9c3;color:#b45309;">Deneme</span> }
+            </p>
+        </div>
+
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <div class="pricing-alert error"><i class="bi bi-exclamation-circle me-2"></i>@Model.ErrorMessage</div>
+        }
+        @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+        {
+            <div class="pricing-alert success"><i class="bi bi-check-circle me-2"></i>@Model.SuccessMessage</div>
+        }
+        @if (!string.IsNullOrEmpty(Model.CancelSuccessMessage))
+        {
+            <div class="pricing-alert success"><i class="bi bi-check-circle me-2"></i>@Model.CancelSuccessMessage</div>
+        }
+
+        @if (!string.IsNullOrEmpty(Model.PendingPlanDisplayLabel) && string.IsNullOrEmpty(Model.CheckoutFormContent))
+        {
+            <div class="pricing-pending-banner mb-4" style="max-width:1000px;margin-left:auto;margin-right:auto;">
+                <div>
+                    <div class="pricing-pending-title">Ödeme bekleniyor</div>
+                    <div class="pricing-pending-sub">
+                        <strong>@Model.PendingPlanDisplayLabel</strong> planına geçiş için ödeme tamamlanmalı.
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(Model.CheckoutFormContent))
+        {
+            <div class="pricing-checkout-card au mb-4">
+                <div class="checkout-title"><i class="bi bi-shield-lock me-2"></i>Güvenli ödeme</div>
+                <div class="checkout-sub">
+                    İyzico ödeme penceresinden işlemi tamamlayın.
+                    @if (!Model.IsTrial)
+                    {
+                        <text> Mevcut erişiminiz dönem sonuna kadar devam eder; yeni plan bu tarihten sonra başlar.</text>
+                    }
+                </div>
+                <div id="iyzipay-checkout-form">@Html.Raw(Model.CheckoutFormContent)</div>
+            </div>
+        }
+
+        @if (Model.IsTrial)
+        {
+            <div class="cancel-step-card mb-4" style="max-width:720px;margin-left:auto;margin-right:auto;">
+                <div class="d-flex align-items-start gap-3">
+                    <i class="bi bi-gift text-success fs-4"></i>
+                    <div>
+                        <div class="fw-bold text-success mb-1">Deneme sürümündesiniz</div>
+                        <p class="mb-0 small text-muted">
+                            Deneme süresinde otomatik yenileme yoktur. Aşağıdan istediğiniz planı seçerek ödemeye geçebilirsiniz.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (Model.ShowCancelButton)
+        {
+            <div class="cancel-step-card mb-4" id="cancelStepCard">
+                <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+                    <div>
+                        <div class="fw-bold mb-1"><i class="bi bi-info-circle text-primary me-1"></i> Önce mevcut yenilemeyi durdurun</div>
+                        <p class="mb-0 small text-muted">
+                            Plan değiştirmek için önce İyzico’daki otomatik yenilemeyi iptal etmeniz yeterli.
+                            <strong>@endDateText</strong> tarihine kadar mevcut planınızı kullanmaya devam edersiniz;
+                            ardından yeni planı seçip ödeme yapabilirsiniz.
+                        </p>
+                    </div>
+                    <form asp-action="CancelSubscriptionForChangePlan" method="post" class="m-0 flex-shrink-0" id="cancelBeforePlanForm">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm" id="btnCancelRenewal">
+                            <i class="bi bi-x-circle me-1"></i> Aboneliği İptal Et
+                        </button>
+                    </form>
+                </div>
+            </div>
+        }
+        else if (Model.CancelAtPeriodEnd)
+        {
+            <div class="cancel-step-card done mb-4">
+                <div class="fw-bold text-success mb-1"><i class="bi bi-check-circle-fill me-1"></i> Yenileme iptal edildi</div>
+                <p class="mb-0 small text-muted">
+                    <strong>@endDateText</strong> tarihine kadar mevcut planınız aktif. Bu tarihten sonra aşağıdan yeni plan seçebilirsiniz.
+                </p>
+            </div>
+        }
+
+        <div class="text-center au mb-3">
+            <div class="toggle-wrap" id="billingWrap">
+                <button type="button" class="toggle-btn active" id="btnMonthly" onclick="setBilling('monthly')">Aylık</button>
+                <button type="button" class="toggle-btn" id="btnYearly" onclick="setBilling('yearly')">
+                    Yıllık <span class="save-label">%20 Tasarruf</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="plans-grid mt-2 mb-5" id="plansGrid">
+
+            <!-- STARTER -->
+            <div class="pcard au @(string.Equals(Model.CurrentPlanType, "Starter", StringComparison.OrdinalIgnoreCase) && !Model.IsTrial ? "current-plan" : "")" data-plan="starter">
+                <div class="pcard-name">Starter</div>
+                <div class="pcard-price" id="amt-starter">@PlanPricing.StarterMonthly.ToString("N0")<sub> ₺/ay</sub></div>
+                <div class="pcard-yearly-note" id="ynote-starter"></div>
+                <p class="pcard-desc">Küçük ölçekli veya tek kişilik işletmeler için ideal başlangıç paketi.</p>
+                <div class="pcard-limits">
+                    <span class="lchip"><i class="bi bi-geo-alt-fill"></i> 1 Lokasyon</span>
+                    <span class="lchip"><i class="bi bi-calendar-check"></i> 300 Randevu/Ay</span>
+                    <span class="lchip"><i class="bi bi-person"></i> 1 Kullanıcı</span>
+                </div>
+                <ul class="flist">
+                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> WhatsApp AI Randevu Botu</li>
+                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> Google Takvim Senkronizasyonu</li>
+                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> Müşteri tanıma ve yönetimi</li>
+                    <li class="off"><span class="fcheck"><i class="bi bi-x"></i></span> Çoklu personel hesabı</li>
+                </ul>
+                @{
+                    var starterMonthlyCurrent = !Model.IsTrial
+                        && string.Equals(Model.CurrentPlanType, "Starter", StringComparison.OrdinalIgnoreCase)
+                        && Model.CurrentBillingCycle == BillingCycles.Monthly;
+                    var starterYearlyCurrent = !Model.IsTrial
+                        && string.Equals(Model.CurrentPlanType, "Starter", StringComparison.OrdinalIgnoreCase)
+                        && Model.CurrentBillingCycle == BillingCycles.Yearly;
+                    var starterStaffLimit = PlanPricing.GetStaffLimit("Starter");
+                    var overStaffStarter = starterStaffLimit > 0 && Model.CurrentStaffCount > starterStaffLimit;
+                }
+                <form asp-action="ChangePlan" method="post" class="plan-change-form" data-cycle="monthly" data-plan-type="Starter">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="targetPlanType" value="Starter" />
+                    <input type="hidden" name="targetBillingCycle" value="@BillingCycles.Monthly" class="billing-cycle-input" />
+                    <button type="submit" class="pcard-btn plan-select-btn w-100" disabled="@(!planButtonsEnabled || starterMonthlyCurrent)">
+                        @(starterMonthlyCurrent ? "Mevcut Plan (Aylık)" : "Seç ve öde")
+                    </button>
+                </form>
+                @if (overStaffStarter)
+                {
+                    <p class="text-warning small mt-2 mb-0">@Model.CurrentStaffCount personel var; Starter planda @starterStaffLimit izinli.</p>
+                }
+            </div>
+
+            <!-- PRO -->
+            <div class="pcard featured au @(string.Equals(Model.CurrentPlanType, "Pro", StringComparison.OrdinalIgnoreCase) && !Model.IsTrial ? "current-plan" : "")" data-plan="pro">
+                <div class="pcard-badge">⭐ En Çok Tercih Edilen</div>
+                <div class="pcard-name">Pro</div>
+                <div class="pcard-price" id="amt-pro">@PlanPricing.ProMonthly.ToString("N0")<sub> ₺/ay</sub></div>
+                <div class="pcard-yearly-note" id="ynote-pro"></div>
+                <p class="pcard-desc">Büyüyen işletmeler için sınırsız randevu ve gelişmiş özellikler.</p>
+                <div class="pcard-limits">
+                    <span class="lchip"><i class="bi bi-geo-alt-fill"></i> 1 Lokasyon</span>
+                    <span class="lchip"><i class="bi bi-calendar-check"></i> Sınırsız</span>
+                    <span class="lchip"><i class="bi bi-people"></i> 3 Kullanıcı</span>
+                </div>
+                <ul class="flist">
+                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> Starter'daki her şey</li>
+                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> 3 personel hesabı</li>
+                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> Randevu hatırlatma mesajı</li>
+                </ul>
+                @{
+                    var proMonthlyCurrent = !Model.IsTrial
+                        && string.Equals(Model.CurrentPlanType, "Pro", StringComparison.OrdinalIgnoreCase)
+                        && Model.CurrentBillingCycle == BillingCycles.Monthly;
+                    var proYearlyCurrent = !Model.IsTrial
+                        && string.Equals(Model.CurrentPlanType, "Pro", StringComparison.OrdinalIgnoreCase)
+                        && Model.CurrentBillingCycle == BillingCycles.Yearly;
+                    var proStaffLimit = PlanPricing.GetStaffLimit("Pro");
+                    var overStaffPro = proStaffLimit > 0 && Model.CurrentStaffCount > proStaffLimit;
+                }
+                <form asp-action="ChangePlan" method="post" class="plan-change-form" data-cycle="monthly" data-plan-type="Pro">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="targetPlanType" value="Pro" />
+                    <input type="hidden" name="targetBillingCycle" value="@BillingCycles.Monthly" class="billing-cycle-input" />
+                    <button type="submit" class="pcard-btn featured-btn plan-select-btn w-100" disabled="@(!planButtonsEnabled || proMonthlyCurrent)">
+                        @(proMonthlyCurrent ? "Mevcut Plan (Aylık)" : "Seç ve öde")
+                    </button>
+                </form>
+                @if (overStaffPro)
+                {
+                    <p class="text-warning small mt-2 mb-0">@Model.CurrentStaffCount personel var; Pro planda @proStaffLimit izinli.</p>
+                }
+            </div>
+        </div>
+
+        <div class="text-center">
+            <a href="/Dashboard" class="pricing-back-link"><i class="bi bi-arrow-left me-1"></i>Panele dön</a>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+@{
+    var changePlanConfig = new {
+        canSelectPlan = planButtonsEnabled,
+        currentPlanType = Model.CurrentPlanType,
+        currentBillingCycle = Model.CurrentBillingCycle,
+        isTrial = Model.IsTrial,
+        endDateText = endDateText,
+        billingMonthly = BillingCycles.Monthly,
+        billingYearly = BillingCycles.Yearly,
+        priceData = new {
+            monthly = new {
+                starter = new { amt = PlanPricing.StarterMonthly.ToString("N0"), note = "" },
+                pro = new { amt = PlanPricing.ProMonthly.ToString("N0"), note = "" }
+            },
+            yearly = new {
+                starter = new {
+                    amt = PlanPricing.GetMonthlyEquivalentForYearly(PlanPricing.StarterYearly).ToString("N0"),
+                    note = $"Yıllık ödemede {PlanPricing.StarterYearly:N0}₺ · <span class=\"save\">%20 Tasarruf</span>",
+                    fullPrice = PlanPricing.StarterYearly.ToString("N0")
+                },
+                pro = new {
+                    amt = PlanPricing.GetMonthlyEquivalentForYearly(PlanPricing.ProYearly).ToString("N0"),
+                    note = $"Yıllık ödemede {PlanPricing.ProYearly:N0}₺ · <span class=\"save\">%20 Tasarruf</span>",
+                    fullPrice = PlanPricing.ProYearly.ToString("N0")
+                }
+            }
+        }
+    };
+}
+<script type="application/json" id="change-plan-config">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(changePlanConfig))</script>
+<script src="~/js/change-plan.js" asp-append-version="true" defer></script>
+}

@@ -1,0 +1,256 @@
+{
+  "name": "Greylist + Müşteri Sorgu (Fragment)",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-optout-1",
+              "leftValue": "={{ ($('Evolution Webhook').item.json.body.data.message.conversation || '').toString().trim().toLowerCase().replace(/\\s+/g, ' ') }}",
+              "rightValue": "asistanı kapat",
+              "operator": {
+                "type": "string",
+                "operation": "contains",
+                "name": "filter.operator.contains"
+              }
+            },
+            {
+              "id": "cond-optout-2",
+              "leftValue": "={{ ($('Evolution Webhook').item.json.body.data.message.conversation || '').toString().trim().toLowerCase().replace(/\\s+/g, ' ') }}",
+              "rightValue": "a sistanı kapat",
+              "operator": {
+                "type": "string",
+                "operation": "contains",
+                "name": "filter.operator.contains"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "if-opt-out",
+      "name": "Asistanı Kapat mı?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR-API-HOST/api/WhatsAppBlockedPhones/opt-out",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Auth-Token",
+              "value": "YOUR_TENANT_INTEGRATION_KEY"
+            },
+            {
+              "name": "X-Tenant-Id",
+              "value": "={{ $('Get Mega Context').item.json.tenantId || $('Get Mega Context').item.json.TenantID }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ phone: ($('Evolution Webhook').item.json.body.data.sender || $('Evolution Webhook').item.json.body.data.key?.remoteJid || ''), tenantId: ($('Get Mega Context').item.json.tenantId || $('Get Mega Context').item.json.TenantID || 0), instanceName: ($('Evolution Webhook').item.json.body.instance || ''), customerName: ($('Evolution Webhook').item.json.body.data.pushName || '') }) }}"
+        "options": {}
+      },
+      "id": "http-opt-out",
+      "name": "Gri Listeye Ekle",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 180]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://YOUR-API-HOST/api/WhatsAppBlockedPhones/check?phone={{ encodeURIComponent($('Evolution Webhook').item.json.body.data.sender || $('Evolution Webhook').item.json.body.data.key.remoteJid) }}&tenantId={{ $('Get Mega Context').item.json.tenantId || $('Get Mega Context').item.json.TenantID || 0 }}&instanceName={{ encodeURIComponent($('Evolution Webhook').item.json.body.instance || '') }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Auth-Token",
+              "value": "YOUR_TENANT_INTEGRATION_KEY"
+            },
+            {
+              "name": "X-Tenant-Id",
+              "value": "={{ $('Get Mega Context').item.json.tenantId || $('Get Mega Context').item.json.TenantID }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-blocked-check",
+      "name": "Gri Liste Kontrol",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 420]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-blocked",
+              "leftValue": "={{ $json.blocked }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-blocked",
+      "name": "Gri Listede mi?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1160, 420]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://YOUR-API-HOST/api/appointments/customer/{{ encodeURIComponent($('Evolution Webhook').item.json.body.data.sender || $('Evolution Webhook').item.json.body.data.key.remoteJid) }}?tenantId={{ $('Get Mega Context').item.json.tenantId || $('Get Mega Context').item.json.TenantID }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Auth-Token",
+              "value": "YOUR_N8N_AUTH_TOKEN"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-customer-check",
+      "name": "Müşteri Geçmişi Sorgula",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1420, 520]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-returning",
+              "leftValue": "={{ $json.isReturningCustomer }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-customer",
+      "name": "Kayıtlı Müşteri mi?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1680, 520]
+    },
+    {
+      "parameters": {
+        "content": "## Bağlantı sırası\n1. **Evolution Webhook** → **Asistanı Kapat mı?**\n2. **Get Context** node'unuz olmalı (TenantID için)\n3. True → Gri Listeye Ekle → **Stop** (AI yok)\n4. False → Gri Liste Kontrol → Gri Listede mi?\n5. True → **Stop**\n6. False → Müşteri Geçmişi → Kayıtlı Müşteri mi? → AI Agent\n\n**Değiştir:** YOUR-API-HOST, YOUR_N8N_AUTH_TOKEN\n\n**instance:** body.instance veya webhook kökünde instance — DB'deki InstanceName ile aynı olmalı.",
+        "height": 320,
+        "width": 420
+      },
+      "id": "sticky-note",
+      "name": "Not",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [200, 140]
+    }
+  ],
+  "connections": {
+    "Asistanı Kapat mı?": {
+      "main": [
+        [
+          {
+            "node": "Gri Listeye Ekle",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gri Liste Kontrol",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gri Liste Kontrol": {
+      "main": [
+        [
+          {
+            "node": "Gri Listede mi?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gri Listede mi?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Müşteri Geçmişi Sorgula",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Müşteri Geçmişi Sorgula": {
+      "main": [
+        [
+          {
+            "node": "Kayıtlı Müşteri mi?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

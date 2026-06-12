@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="BuildBundlerMinifier" Version="3.2.435" />
     <PackageReference Include="Microsoft.AspNetCore.Components.QuickGrid.EntityFrameworkAdapter" Version="8.0.23" />
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="8.0.23" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.23" />
@@ -21,5 +22,22 @@
   <ItemGroup>
     <Folder Include="Services\" />
   </ItemGroup>
+
+  <!-- Generated bundle: skip VS legacy CSS parser (false errors on modern selectors) -->
+  <ItemGroup>
+    <Content Remove="wwwroot\css\bundle.min.css" />
+    <None Include="wwwroot\css\bundle.min.css" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <BootstrapIconsFontUrl>https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/fonts/bootstrap-icons.woff2</BootstrapIconsFontUrl>
+    <BootstrapIconsFontPath>$(MSBuildProjectDirectory)\wwwroot\fonts\bootstrap-icons.woff2</BootstrapIconsFontPath>
+  </PropertyGroup>
+
+  <Target Name="EnsureBootstrapIconsFont" BeforeTargets="Build">
+    <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot\fonts" />
+    <Exec Condition="!Exists('$(BootstrapIconsFontPath)')"
+          Command="curl.exe -fsSL -o &quot;$(BootstrapIconsFontPath)&quot; &quot;$(BootstrapIconsFontUrl)&quot;" />
+  </Target>
 
 </Project>

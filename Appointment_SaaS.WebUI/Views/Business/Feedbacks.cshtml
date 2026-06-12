@@ -1,4 +1,5 @@
-﻿@model List<Appointment_SaaS.Core.Entities.Feedback>
+@Html.AntiForgeryToken()
+@model List<Appointment_SaaS.Core.Entities.Feedback>
 @{
     ViewData["Title"] = "Geri Bildirimler";
 }
@@ -102,7 +103,10 @@
                                     <td style="max-width:300px;">
                                         <span class="text-truncate d-inline-block" style="max-width:220px;">@item.Message</span>
                                         <a href="#" class="text-primary small ms-1"
-                                           onclick="showMessage('@Html.Raw(item.Message.Replace("'", "\\'").Replace("\n", "\\n"))', '@(item.Tenant?.Name ?? "-")', '@item.FeedbackType'); return false;">
+                                           data-message="@item.Message"
+                                           data-business="@(item.Tenant?.Name ?? "-")"
+                                           data-type="@item.FeedbackType"
+                                           onclick="showMessage(this.getAttribute('data-message'), this.getAttribute('data-business'), this.getAttribute('data-type')); return false;">
                                             devamı →
                                         </a>
                                     </td>
@@ -176,7 +180,8 @@
 
         async function markAsRead(id, btn) {
             try {
-                const res = await fetch(`/Business/MarkAsRead?id=${id}`, { method: 'POST' });
+                const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+                const res = await fetch(`/Business/MarkAsRead?id=${id}`, { method: 'POST', headers: { 'RequestVerificationToken': token } });
                 if (res.ok) {
                     const row = btn.closest('tr');
                     row.classList.remove('unread');

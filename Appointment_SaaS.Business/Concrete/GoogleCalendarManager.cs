@@ -133,7 +133,8 @@ public class GoogleCalendarManager : IGoogleCalendarService
 
             var content = new StringContent(JsonSerializer.Serialize(eventBody), Encoding.UTF8, "application/json");
             var calendarId = Uri.EscapeDataString(user.GoogleCalendarId);
-            var response = await httpClient.PutAsync($"https://www.googleapis.com/calendar/v3/calendars/{calendarId}/events/{googleEventId}", content);
+            var eventId = Uri.EscapeDataString(googleEventId);
+            var response = await httpClient.PutAsync($"https://www.googleapis.com/calendar/v3/calendars/{calendarId}/events/{eventId}", content);
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -165,7 +166,8 @@ public class GoogleCalendarManager : IGoogleCalendarService
             httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
             var calendarId = Uri.EscapeDataString(user.GoogleCalendarId);
-            await httpClient.DeleteAsync($"https://www.googleapis.com/calendar/v3/calendars/{calendarId}/events/{googleEventId}?sendUpdates=all");
+            var eventId = Uri.EscapeDataString(googleEventId);
+            await httpClient.DeleteAsync($"https://www.googleapis.com/calendar/v3/calendars/{calendarId}/events/{eventId}?sendUpdates=all");
         }
         catch (Exception ex)
         {

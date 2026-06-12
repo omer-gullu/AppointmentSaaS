@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+
+
+
+@{
+
+
+
+    var requireSweetAlert = ViewData["RequireSweetAlert"] as bool? ?? false;
+
+
+
+}
+
+
+
+<html lang="tr" class="lean-public">
+
+
+
+<head>
+
+
+
+    <meta charset="utf-8" />
+
+
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+
+
+    <meta name="description" content="@(ViewData["Description"] ?? "Akıllı Randevu - Planlar ve fiyatlar.")" />
+
+
+
+    <title>@ViewData["Title"] - Akıllı Randevu</title>
+
+    <link rel="preload" href="~/fonts/bootstrap-icons.woff2" as="font" type="font/woff2" crossorigin="anonymous" asp-append-version="true" />
+
+    <link rel="icon" type="image/png" sizes="32x32" href="~/images/favicon-32.png" asp-append-version="true" />
+
+
+
+    <link rel="stylesheet" href="~/css/bootstrap-icons.css" asp-append-version="true" />
+
+
+
+    <link rel="stylesheet" href="~/css/bundle.min.css" asp-append-version="true" />
+
+
+
+</head>
+
+
+
+<body class="lean-public">
+
+
+
+    @{ ViewData["NavbarLogoSize"] = 65; }
+
+
+
+    <partial name="_SiteNavbar" />
+
+
+
+
+
+
+
+    <main role="main">
+
+
+
+        @RenderBody()
+
+
+
+    </main>
+
+
+
+
+
+
+
+    <footer class="premium-footer text-center">
+
+
+
+        <div class="container">
+
+
+
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+
+
+
+                <span class="fw-medium text-dark">&copy; 2026 Akıllı Randevu</span>
+
+
+
+                <div class="d-flex gap-3">
+
+
+
+                    <a href="/Home/Privacy" class="text-secondary text-decoration-none" target="_blank">Gizlilik</a>
+
+
+
+                    <a href="/Home/Terms" class="text-secondary text-decoration-none" target="_blank">Şartlar</a>
+
+
+
+                </div>
+
+
+
+            </div>
+
+
+
+        </div>
+
+
+
+    </footer>
+
+
+
+
+
+
+
+    @if (requireSweetAlert)
+
+
+
+    {
+
+
+
+        <script src="~/js/lazy-sweetalert.js" asp-append-version="true" defer></script>
+
+
+
+    }
+
+
+
+    @await RenderSectionAsync("Scripts", required: false)
+
+
+
+</body>
+
+
+
+</html>
+

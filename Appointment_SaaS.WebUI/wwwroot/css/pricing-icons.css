@@ -1,0 +1,39 @@
+/* Bootstrap Icons yerine — harici font/CSS yok (TBT düşürür) */
+.pricing-page .bi {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    font-style: normal;
+    font-weight: 700;
+    line-height: 1;
+    vertical-align: -0.1em;
+    font-family: inherit;
+}
+
+.pricing-page .bi::before { content: ""; }
+
+.pricing-page .bi-stars::before { content: "✦"; color: #6366f1; }
+.pricing-page .bi-check2::before { content: "✓"; }
+.pricing-page .bi-x::before { content: "✕"; color: #cbd5e1; }
+.pricing-page .bi-arrow-right::before { content: "→"; }
+.pricing-page .bi-arrow-repeat::before { content: "↻"; font-weight: 400; }
+.pricing-page .bi-lightning-fill::before { content: "⚡"; }
+.pricing-page .bi-play-fill::before { content: "▶"; font-size: 0.75em; }
+.pricing-page .bi-geo-alt-fill::before { content: "⌖"; }
+.pricing-page .bi-calendar-check::before { content: "▦"; }
+.pricing-page .bi-person::before { content: "◉"; }
+.pricing-page .bi-people::before { content: "◎"; }
+.pricing-page .bi-shield-check-fill::before { content: "✓"; }
+.pricing-page .bi-credit-card-fill::before { content: "▭"; }
+.pricing-page .bi-lock-fill::before { content: "🔒"; font-weight: 400; }
+.pricing-page .bi-headset::before { content: "☎"; font-weight: 400; }
+.pricing-page .bi-arrow-counterclockwise::before { content: "↺"; font-weight: 400; }
+.pricing-page .bi-arrow-up-circle::before { content: "↑"; color: #6366f1; }
+.pricing-page .bi-exclamation-circle::before { content: "!"; color: #ef4444; }
+.pricing-page .bi-check-circle::before { content: "✓"; color: #16a34a; }
+.pricing-page .bi-check-circle-fill::before { content: "✓"; color: #16a34a; }
+.pricing-page .bi-shield-lock::before { content: "🔒"; font-weight: 400; }
+.pricing-page .bi-gift::before { content: "🎁"; font-weight: 400; }
+.pricing-page .bi-info-circle::before { content: "ℹ"; color: #6366f1; }
+.pricing-page .bi-x-circle::before { content: "✕"; color: #ef4444; }
+.pricing-page .bi-arrow-left::before { content: "←"; }

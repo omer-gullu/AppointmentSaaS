@@ -14,7 +14,8 @@ namespace Appointment_SaaS.Business.Abstract
         Task <bool> UserExists(string email); // Kullanıcı daha önce kayıt olmuş mu?
         
         // Yeni OTP ve Business Entegrasyon Metotları
-        Task<int> RegisterBusinessOwnerAsync(BusinessRegistrationDto dto);
+        Task<(int TenantId, string CheckoutFormScript)> RegisterBusinessOwnerAsync(BusinessRegistrationDto dto, string callbackUrl = "");
+        Task<bool> VerifyPaymentAsync(string token);
         Task<bool> GenerateOtpForLoginAsync(OtpLoginDto dto);
         Task<AccessToken> VerifyOtpAndLoginAsync(OtpVerifyDto dto);
         Task UpdateAsync(AppUser user);

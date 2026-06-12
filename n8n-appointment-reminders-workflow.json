@@ -1,0 +1,179 @@
+{
+  "name": "Yarın Randevu Hatırlatma (Pro/Business)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 18 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-daily",
+      "name": "Her gün 18:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300],
+      "notes": "Saat dilimi: n8n workflow settings → Europe/Istanbul önerilir."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR-API-HOST/api/appointments/reminders/run",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Auth-Token",
+              "value": "YOUR_SYSTEM_N8N_AUTH_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-run-reminders",
+      "name": "Hatırlatmaları Gönder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-failed",
+              "leftValue": "={{ $json.failed }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-has-errors",
+      "name": "Hata var mı?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [780, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR-API-HOST/api/auditlogs/workflow-error",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Auth-Token",
+              "value": "YOUR_SYSTEM_N8N_AUTH_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ workflowName: 'Yarın Randevu Hatırlatma', message: 'Bazı hatırlatmalar gönderilemedi: ' + JSON.stringify($json.errors || []), tenantId: 0 }) }}"
+      },
+      "id": "http-log-error",
+      "name": "Hata Logla (opsiyonel)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1040, 200]
+    },
+    {
+      "parameters": {
+        "content": "## Kurulum\n1. `YOUR-API-HOST` ve `YOUR_N8N_AUTH_TOKEN` değiştirin.\n2. Workflow timezone: **Europe/Istanbul** (18:00 = yarın randevusu için akşam hatırlatması).\n3. Sadece **Pro** ve **Business** plan işletmeleri; API `PlanPricing.CanUseReminders` ile filtreler.\n4. Aynı randevuya tekrar gönderilmez (`ReminderSentAt` işaretlenir).\n\n## Manuel test\n`GET /api/appointments/reminders/pending` — liste\n`POST /api/appointments/reminders/run` — gönder\n\n## Mesaj örneği\nMerhaba Ali, Salon X randevunuzu hatırlatmak isteriz: Yarın 19.05.2026 14:00 — Saç kesimi...",
+        "height": 340,
+        "width": 420
+      },
+      "id": "sticky-note",
+      "name": "Not",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [200, 80]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://YOUR-API-HOST/api/appointments/reminders/pending",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Auth-Token",
+              "value": "YOUR_N8N_AUTH_TOKEN"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-pending-debug",
+      "name": "Test: Bekleyen Liste (manuel)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 480],
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Her gün 18:00": {
+      "main": [
+        [
+          {
+            "node": "Hatırlatmaları Gönder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hatırlatmaları Gönder": {
+      "main": [
+        [
+          {
+            "node": "Hata var mı?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hata var mı?": {
+      "main": [
+        [
+          {
+            "node": "Hata Logla (opsiyonel)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

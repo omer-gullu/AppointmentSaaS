@@ -1,0 +1,19 @@
+/* Auth pages — no Bootstrap Icons CDN */
+.auth-page .bi,.reg-page .bi{display:inline-block;width:1em;height:1em;font-style:normal;font-weight:700;line-height:1;vertical-align:-.1em;font-family:inherit}
+.auth-page .bi::before,.reg-page .bi::before{content:""}
+.auth-page .bi-phone::before,.reg-page .bi-phone::before{content:"☎"}
+.auth-page .bi-clock-history::before{content:"◷"}
+.auth-page .bi-exclamation-octagon-fill::before{content:"⛔"}
+.auth-page .bi-exclamation-triangle-fill::before,.reg-page .bi-exclamation-triangle-fill::before{content:"⚠"}
+.auth-page .bi-arrow-clockwise::before{content:"↻"}
+.auth-page .bi-arrow-left::before,.reg-page .bi-arrow-left::before{content:"←"}
+.reg-page .bi-whatsapp::before{content:"W";color:#25d366;font-weight:800}
+.reg-page .bi-robot::before{content:"🤖";font-weight:400}
+.reg-page .bi-shield-lock::before{content:"🔒";font-weight:400}
+.reg-page .bi-google::before{content:"G";color:#4285f4;font-weight:800}
+.reg-page .bi-credit-card-2-front::before{content:"▭"}
+.reg-page .bi-info-circle-fill::before{content:"ℹ";color:#6366f1}
+.reg-page .bi-person-circle::before{content:"👤";font-weight:400}
+.reg-page .bi-building::before{content:"🏢";font-weight:400}
+.reg-page .bi-play-fill::before{content:"▶";font-size:.75em}
+.reg-page .bi-lock-fill::before{content:"🔒";font-weight:400}

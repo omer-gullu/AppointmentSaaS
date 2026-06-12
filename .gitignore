@@ -435,6 +435,9 @@ autom4te.cache/
 *.tar.gz
 tarballs/
 test-results/
+playwright-report/
+blob-report/
+.playwright/
 
 # Mac bundle stuff
 *.dmg

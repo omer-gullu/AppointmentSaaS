@@ -1,0 +1,7 @@
+node_modules/
+playwright-report/
+playwright/.auth/
+test-results/
+.env
+fixtures/load-tenants.json
+*.log

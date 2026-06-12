@@ -1,0 +1,49 @@
+# Evolution API v2 — Hetzner (tek sunucu)
+# Dokümantasyon: https://doc.evolution-api.com/v2/en/install/docker
+
+services:
+  evolution-api:
+    container_name: evolution_api
+    image: atendai/evolution-api:v2.2.3
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    ports:
+      # Üretimde 127.0.0.1:8080:8080 + Nginx/Traefik önerilir; test için 0.0.0.0
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - evolution_instances:/evolution/instances
+
+  postgres:
+    container_name: evolution_postgres
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-evolution}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      POSTGRES_DB: ${POSTGRES_DB:-evolution}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-evolution}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    container_name: evolution_redis
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
+volumes:
+  evolution_instances:
+  postgres_data:
+  redis_data:

@@ -12,6 +12,10 @@ namespace Appointment_SaaS.Core.DTOs
         public string BusinessPhone { get; set; } = string.Empty; // N8n'den işletme numarası gelir
         public int TenantID { get; set; } // Controller tarafından set edilecek
         public int ServiceID { get; set; }
+        /// <summary>
+        /// Aynı randevuda birden fazla hizmet (sıra korunur). Boş veya null ise yalnızca ServiceID kullanılır.
+        /// </summary>
+        public List<int>? ServiceIds { get; set; }
         public int? AppUserID { get; set; } // (Usta seçildiyse)
         public string CustomerName { get; set; } = string.Empty;
         public string CustomerPhone { get; set; } = string.Empty;

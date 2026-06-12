@@ -1,0 +1,109 @@
+name: Deploy Infrastructure (Hetzner)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Infrastructure target'
+        required: true
+        default: both
+        type: choice
+        options:
+          - n8n
+          - evolution
+          - both
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      n8n: ${{ steps.result.outputs.n8n }}
+      evolution: ${{ steps.result.outputs.evolution }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: result
+        run: |
+          TARGET="${{ github.event.inputs.target }}"
+          if [ "$TARGET" = "n8n" ] || [ "$TARGET" = "both" ]; then
+            echo "n8n=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "n8n=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "$TARGET" = "evolution" ] || [ "$TARGET" = "both" ]; then
+            echo "evolution=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "evolution=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy-n8n:
+    needs: changes
+    if: needs.changes.outputs.n8n == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: hetzner
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.HETZNER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Sync n8n compose files
+        env:
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER }}
+        run: |
+          USER="${DEPLOY_USER:-root}"
+          rsync -avz -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes" \
+            deploy/n8n/ "${USER}@${DEPLOY_HOST}:/opt/n8n/" \
+            --exclude '.env'
+
+      - name: Docker compose up (n8n)
+        env:
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER }}
+        run: |
+          USER="${DEPLOY_USER:-root}"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "${USER}@${DEPLOY_HOST}" \
+            "cd /opt/n8n && docker compose up -d && docker compose ps"
+
+  deploy-evolution:
+    needs: changes
+    if: needs.changes.outputs.evolution == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: hetzner
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.HETZNER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Sync Evolution compose files
+        env:
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER }}
+        run: |
+          USER="${DEPLOY_USER:-root}"
+          rsync -avz -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes" \
+            deploy/evolution/ "${USER}@${DEPLOY_HOST}:/opt/evolution/" \
+            --exclude '.env'
+
+      - name: Docker compose up (Evolution)
+        env:
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER }}
+        run: |
+          USER="${DEPLOY_USER:-root}"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "${USER}@${DEPLOY_HOST}" \
+            "cd /opt/evolution && docker compose up -d && docker compose ps"

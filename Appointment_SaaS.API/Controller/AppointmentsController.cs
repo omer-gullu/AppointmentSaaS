@@ -1,5 +1,7 @@
+using Appointment_SaaS.API.Authorization;
 using Appointment_SaaS.Business.Abstract;
 using Appointment_SaaS.Core.DTOs;
+using Appointment_SaaS.Core.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -43,6 +45,14 @@ public class AppointmentsController : ControllerBase
             if (tenant == null)
                 return BadRequest(new { Message = "Geçersiz işletme. Bu numaraya veya instance adına kayıtlı bir işletme bulunamadı." });
 
+            var access = await _tenantService.EvaluateOperationalAccessAsync(tenant.TenantID);
+            if (!access.IsAllowed)
+                return StatusCode(access.SuggestedStatusCode, new { Message = access.Message });
+
+            var scopeDenied = ControllerTenantAccess.DenyUnlessCanAccessTenant(this, tenant.TenantID);
+            if (scopeDenied != null)
+                return scopeDenied;
+
             dto.TenantID = tenant.TenantID;
 
             if (!dto.AppUserID.HasValue || dto.AppUserID.Value <= 0)
@@ -53,21 +63,49 @@ public class AppointmentsController : ControllerBase
                 dto.AppUserID = smartStaffId.Value;
             }
 
-            var service = await _serviceService.GetByIdAsync(dto.ServiceID);
-            if (service == null)
-                return BadRequest(new { Message = "Seçilen hizmet bulunamadı." });
+            var orderedServiceIds = new List<int>();
+            if (dto.ServiceIds != null && dto.ServiceIds.Count > 0)
+            {
+                foreach (var id in dto.ServiceIds)
+                {
+                    if (id > 0 && !orderedServiceIds.Contains(id))
+                        orderedServiceIds.Add(id);
+                }
+            }
+            if (orderedServiceIds.Count == 0 && dto.ServiceID > 0)
+                orderedServiceIds.Add(dto.ServiceID);
 
-            dto.EndDate = dto.StartDate.AddMinutes(service.DurationInMinutes);
+            if (orderedServiceIds.Count == 0)
+                return BadRequest(new { Message = "En az bir hizmet seçilmelidir (serviceID veya serviceIds)." });
+
+            var totalMinutes = 0;
+            var serviceNames = new List<string>();
+            foreach (var sid in orderedServiceIds)
+            {
+                var svc = await _serviceService.GetByIdAsync(sid);
+                if (svc == null || svc.TenantID != tenant.TenantID)
+                    return BadRequest(new { Message = $"Hizmet bulunamadı veya bu işletmeye ait değil (ServiceID={sid})." });
+                totalMinutes += svc.DurationInMinutes;
+                serviceNames.Add(svc.Name);
+            }
+
+            dto.ServiceID = orderedServiceIds[0];
+            dto.ServiceIds = orderedServiceIds;
+            dto.EndDate = dto.StartDate.AddMinutes(totalMinutes);
+            var combinedServiceName = string.Join(", ", serviceNames);
 
             var appointmentId = await _appointmentService.AddAppointmentAsync(dto);
+            var created = await _appointmentService.GetByIdAsync(appointmentId);
 
             return Ok(new
             {
                 Message = "Randevu başarıyla onaylandı.",
                 ID = appointmentId,
+                GoogleEventId = created?.GoogleEventID,
                 CustomerName = dto.CustomerName,
                 CustomerPhone = dto.CustomerPhone,
-                ServiceName = service.Name,
+                ServiceName = combinedServiceName,
+                ServiceIds = orderedServiceIds,
                 StartDate = dto.StartDate,
                 EndDate = dto.EndDate,
                 AppUserID = dto.AppUserID
@@ -99,6 +137,10 @@ public class AppointmentsController : ControllerBase
         {
             if (dto.TenantId <= 0 || dto.StartDate == default)
                 return BadRequest(new { Message = "TenantId ve StartDate gereklidir." });
+
+            var scopeDenied = ControllerTenantAccess.DenyUnlessCanAccessTenant(this, dto.TenantId);
+            if (scopeDenied != null)
+                return scopeDenied;
 
             var acquired = _appointmentService.TryAcquireSlotLock(dto.TenantId, dto.StartDate, out string lockKey);
 
@@ -135,8 +177,27 @@ public class AppointmentsController : ControllerBase
             if (string.IsNullOrWhiteSpace(dto.LockKey))
                 return BadRequest(new { Message = "LockKey gereklidir." });
 
-            _appointmentService.ReleaseSlotLock(dto.LockKey);
+            int? scopeTenant = ControllerTenantAccess.GetWebhookScopedTenantId(HttpContext);
+            if (!scopeTenant.HasValue && ControllerTenantAccess.TryGetClaimTenantId(User, out var claimTenant))
+                scopeTenant = claimTenant;
+
+            if (scopeTenant.HasValue)
+                _appointmentService.ReleaseSlotLock(dto.LockKey, scopeTenant);
+            else if (SlotLockKeyParser.TryGetTenantId(dto.LockKey, out var lockTenant))
+            {
+                var denied = ControllerTenantAccess.DenyUnlessCanAccessTenant(this, lockTenant);
+                if (denied != null)
+                    return denied;
+                _appointmentService.ReleaseSlotLock(dto.LockKey, lockTenant);
+            }
+            else
+                return BadRequest(new { Message = "Geçersiz kilit anahtarı." });
+
             return Ok(new { Message = "Kilit bırakıldı." });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { Message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -151,7 +212,12 @@ public class AppointmentsController : ControllerBase
     {
         try
         {
-            var appointments = await _appointmentService.GetAllByTenantIdAsync(tenantId);
+            // JWT ile giriş yapan kullanıcı sadece kendi tenant'ını görebilir
+            var denied = ControllerTenantAccess.DenyUnlessCanAccessTenant(this, tenantId);
+            if (denied != null)
+                return denied;
+
+            var appointments = await _appointmentService.GetListItemsByTenantIdAsync(tenantId);
             if (appointments == null || !appointments.Any())
                 return NotFound(new { Message = "Bu dükkan için henüz bir randevu kaydı bulunamadı." });
             return Ok(appointments);
@@ -164,6 +230,7 @@ public class AppointmentsController : ControllerBase
     }
 
     // ─── Randevu güncelle ─────────────────────────────────────────────────────
+    [Authorize(AuthenticationSchemes = "Bearer,WebhookScheme")]
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] AppointmentCreateDto dto)
     {
@@ -173,31 +240,63 @@ public class AppointmentsController : ControllerBase
             if (appointment == null)
                 return NotFound(new { Message = "Randevu bulunamadı." });
 
-            var service = await _serviceService.GetByIdAsync(dto.ServiceID);
-            if (service == null)
-                return BadRequest(new { Message = "Seçilen hizmet bulunamadı." });
+            var denied = ControllerTenantAccess.DenyUnlessCanAccessTenant(this, appointment.TenantID);
+            if (denied != null)
+                return denied;
 
-            var previousAppUserID = appointment.AppUserID; // Personel değişimi takibi
+            var tenant = await _tenantService.GetByIdAsync(appointment.TenantID);
+            if (tenant == null)
+                return BadRequest(new { Message = "İşletme bulunamadı." });
+
+            var orderedServiceIds = new List<int>();
+            if (dto.ServiceIds != null && dto.ServiceIds.Count > 0)
+            {
+                foreach (var sid in dto.ServiceIds)
+                {
+                    if (sid > 0 && !orderedServiceIds.Contains(sid))
+                        orderedServiceIds.Add(sid);
+                }
+            }
+            if (orderedServiceIds.Count == 0 && dto.ServiceID > 0)
+                orderedServiceIds.Add(dto.ServiceID);
+
+            if (orderedServiceIds.Count == 0)
+                return BadRequest(new { Message = "En az bir hizmet seçilmelidir (serviceID veya serviceIds)." });
+
+            var totalMinutes = 0;
+            foreach (var sid in orderedServiceIds)
+            {
+                var svc = await _serviceService.GetByIdAsync(sid);
+                if (svc == null || svc.TenantID != tenant.TenantID)
+                    return BadRequest(new { Message = $"Hizmet bulunamadı veya bu işletmeye ait değil (ServiceID={sid})." });
+                totalMinutes += svc.DurationInMinutes;
+            }
+
+            var previousAppUserID = appointment.AppUserID;
 
             appointment.CustomerName = dto.CustomerName;
             appointment.CustomerPhone = dto.CustomerPhone;
-            appointment.ServiceID = dto.ServiceID;
+            appointment.ServiceID = orderedServiceIds[0];
             appointment.StartDate = dto.StartDate;
-            appointment.EndDate = dto.StartDate.AddMinutes(service.DurationInMinutes);
+            appointment.EndDate = dto.StartDate.AddMinutes(totalMinutes);
             appointment.Note = dto.Note ?? appointment.Note;
-            
+
             if (dto.AppUserID.HasValue && dto.AppUserID.Value > 0)
-            {
                 appointment.AppUserID = dto.AppUserID.Value;
-            }
 
-            // GoogleEventID: sadece gerçekten dolu bir değer gelirse güncelle,
-            // boş string veya null gelirse DB'deki mevcut değeri koru
-            if (!string.IsNullOrWhiteSpace(dto.GoogleEventID))
-                appointment.GoogleEventID = dto.GoogleEventID;
-
-            await _appointmentService.UpdateAsync(appointment, previousAppUserID);
-            return Ok(new { Message = "Randevu başarıyla güncellendi." });
+            await _appointmentService.UpdateAsync(appointment, previousAppUserID, orderedServiceIds);
+            return Ok(new
+            {
+                Message = "Randevu başarıyla güncellendi.",
+                AppointmentID = appointment.AppointmentID,
+                StartDate = appointment.StartDate,
+                EndDate = appointment.EndDate,
+                AppUserID = appointment.AppUserID
+            });
+        }
+        catch (BadHttpRequestException ex)
+        {
+            return Conflict(new { Message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -216,6 +315,10 @@ public class AppointmentsController : ControllerBase
             var appointment = await _appointmentService.GetByIdAsync(id);
             if (appointment == null)
                 return NotFound(new { Message = "Randevu bulunamadı." });
+
+            var denied = ControllerTenantAccess.DenyUnlessCanAccessTenant(this, appointment.TenantID);
+            if (denied != null)
+                return denied;
 
             await _appointmentService.DeleteAsync(appointment);
             return Ok(new { Message = "Randevu başarıyla silindi." });
@@ -236,6 +339,14 @@ public class AppointmentsController : ControllerBase
         {
             if (string.IsNullOrWhiteSpace(dto.GoogleEventId))
                 return BadRequest(new { Message = "GoogleEventId boş olamaz." });
+
+            var appointment = await _appointmentService.GetByIdAsync(id);
+            if (appointment == null)
+                return NotFound(new { Message = "Randevu bulunamadı." });
+
+            var scopeDenied = ControllerTenantAccess.DenyUnlessCanAccessTenant(this, appointment.TenantID);
+            if (scopeDenied != null)
+                return scopeDenied;
 
             var updated = await _appointmentService.UpdateGoogleEventIdAsync(id, dto.GoogleEventId);
             if (!updated)
@@ -259,6 +370,10 @@ public class AppointmentsController : ControllerBase
         {
             if (string.IsNullOrWhiteSpace(phone) || tenantId <= 0)
                 return BadRequest(new { Message = "Telefon ve tenantId gereklidir." });
+
+            var scopeDenied = ControllerTenantAccess.DenyUnlessCanAccessTenant(this, tenantId);
+            if (scopeDenied != null)
+                return scopeDenied;
 
             var history = await _appointmentService.GetCustomerHistoryAsync(phone, tenantId);
 
@@ -284,6 +399,48 @@ public class AppointmentsController : ControllerBase
         }
     }
 
+    // ─── Yarın Hatırlatma (Pro / Business) ───────────────────────────────────
+    /// <summary>n8n cron: gönderilecek hatırlatmaları listeler (Pro/Business, yarın, henüz gönderilmemiş).</summary>
+    [AllowAnonymous]
+    [HttpGet("reminders/pending")]
+    public async Task<IActionResult> GetPendingReminders()
+    {
+        try
+        {
+            var pending = await _appointmentService.GetPendingRemindersAsync();
+            return Ok(pending);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Bekleyen hatırlatmalar alınırken hata.");
+            return StatusCode(500, new { Message = "Sistemsel bir hata oluştu." });
+        }
+    }
+
+    /// <summary>n8n cron: tüm bekleyen yarın hatırlatmalarını WhatsApp ile gönderir.</summary>
+    [AllowAnonymous]
+    [HttpPost("reminders/run")]
+    public async Task<IActionResult> RunReminders()
+    {
+        try
+        {
+            var result = await _appointmentService.SendPendingRemindersAsync();
+            return Ok(new
+            {
+                result.Total,
+                result.Sent,
+                result.Failed,
+                result.Errors,
+                Message = $"{result.Sent}/{result.Total} hatırlatma gönderildi."
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Hatırlatma gönderimi sırasında hata.");
+            return StatusCode(500, new { Message = "Sistemsel bir hata oluştu." });
+        }
+    }
+
     // ─── Yarınki Randevular (Hatırlatma) ─────────────────────────────────────
     [AllowAnonymous]
     [HttpGet("tomorrow")]
@@ -293,6 +450,10 @@ public class AppointmentsController : ControllerBase
         {
             if (tenantId <= 0)
                 return BadRequest(new { Message = "Geçerli bir tenantId gereklidir." });
+
+            var scopeDenied = ControllerTenantAccess.DenyUnlessCanAccessTenant(this, tenantId);
+            if (scopeDenied != null)
+                return scopeDenied;
 
             var appointments = await _appointmentService.GetTomorrowAppointmentsAsync(tenantId);
 
@@ -313,14 +474,15 @@ public class AppointmentsController : ControllerBase
             return StatusCode(500, new { Message = "Sistemsel bir hata oluştu." });
         }
     }
+    /// <summary>n8n: müsait slotlar. X-Auth-Token veya JWT (WebhookAuthMiddleware).</summary>
     [AllowAnonymous]
     [HttpGet("available-slots")]
     public async Task<IActionResult> GetAvailableSlots(
-     [FromQuery] string instanceName,
-     [FromQuery] int staffId,
-     [FromQuery] string date,
-     [FromQuery] int durationMinutes = 30,
-     [FromQuery] string? requestedTime = null)
+      [FromQuery] string instanceName,
+      [FromQuery] int staffId,
+      [FromQuery] string date,
+      [FromQuery] int durationMinutes = 30,
+      [FromQuery] string? requestedTime = null)
     {
         try
         {
@@ -331,17 +493,32 @@ public class AppointmentsController : ControllerBase
             if (tenant == null)
                 return NotFound(new { Message = "İşletme bulunamadı." });
 
+            var scopeDenied = ControllerTenantAccess.DenyUnlessCanAccessTenant(this, tenant.TenantID);
+            if (scopeDenied != null)
+                return scopeDenied;
+
             if (!DateTime.TryParse(date, out var targetDate))
                 return BadRequest(new { Message = "Geçersiz tarih formatı. YYYY-MM-DD kullanın." });
 
+            // 🔴 TATİL KONTROLÜ
+            var dateOnly = DateOnly.FromDateTime(targetDate);
+            var holiday = tenant.Holidays.FirstOrDefault(h => h.Date == dateOnly);
+            if (holiday != null)
+                return Ok(new
+                {
+                    Date = targetDate.ToString("dd.MM.yyyy"),
+                    IsHoliday = true,
+                    Message = $"Bu gün {holiday.Name} nedeniyle kapalıdır.",
+                    AvailableSlots = Array.Empty<object>()
+                });
+
+            // geri kalan kod aynı kalıyor
             if (staffId > 0)
             {
                 var slots = await _appointmentService.GetAvailableSlotsByStaffAsync(
                     tenant.TenantID, staffId, targetDate, durationMinutes, count: 100, requestedTime: requestedTime);
-
                 if (!string.IsNullOrEmpty(requestedTime))
                 {
-                    // Belirli saat kontrolü
                     bool isAvailable = slots.Any();
                     return Ok(new
                     {
@@ -354,7 +531,6 @@ public class AppointmentsController : ControllerBase
                             tenant.TenantID, staffId, targetDate, durationMinutes, count: 3)
                     });
                 }
-
                 return Ok(new { Date = targetDate.ToString("dd.MM.yyyy"), StaffId = staffId, AvailableSlots = slots, TotalSlots = slots.Count });
             }
             else
@@ -367,6 +543,55 @@ public class AppointmentsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Müsait slotlar alınırken hata. Instance={Instance}", instanceName);
+            return StatusCode(500, new { Message = "Sistemsel bir hata oluştu." });
+        }
+    }
+
+    // ─── Müşterinin Aktif Randevuları (WhatsApp / n8n) ───────────────────────
+    /// <summary>
+    /// n8n: WhatsApp'tan mesaj atan müşterinin tarihi geçmemiş ve iptal edilmemiş
+    /// randevularını döndürür. Arama remoteJid veya telefon üzerinden, varyasyon
+    /// duyarsız (+90 / 90 / 0 / ham çekirdek / @s.whatsapp.net) yapılır.
+    /// GET /api/Appointments/my-active-appointments?instanceName=...&amp;remoteJid=...|&amp;phone=...
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("my-active-appointments")]
+    public async Task<IActionResult> GetMyActiveAppointments(
+        [FromQuery] string instanceName,
+        [FromQuery] string? remoteJid = null,
+        [FromQuery] string? phone = null)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(instanceName))
+                return BadRequest(new { Message = "instanceName gereklidir." });
+
+            if (string.IsNullOrWhiteSpace(remoteJid) && string.IsNullOrWhiteSpace(phone))
+                return BadRequest(new { Message = "remoteJid veya phone değerlerinden en az biri gereklidir." });
+
+            var tenant = await _tenantService.GetContextByInstanceAsync(instanceName);
+            if (tenant == null)
+                return NotFound(new { Message = "İşletme bulunamadı." });
+
+            var scopeDenied = ControllerTenantAccess.DenyUnlessCanAccessTenant(this, tenant.TenantID);
+            if (scopeDenied != null)
+                return scopeDenied;
+
+            var lookup = !string.IsNullOrWhiteSpace(remoteJid) ? remoteJid! : phone!;
+
+            var items = await _appointmentService.GetActiveAppointmentsForCustomerAsync(tenant.TenantID, lookup);
+
+            return Ok(new
+            {
+                hasActiveAppointment = items.Count > 0,
+                totalCount = items.Count,
+                message = items.Count > 0 ? "Aktif randevu bulundu." : "Aktif randevu bulunamadı.",
+                appointments = items
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "my-active-appointments hatası. Instance={Instance}", instanceName);
             return StatusCode(500, new { Message = "Sistemsel bir hata oluştu." });
         }
     }

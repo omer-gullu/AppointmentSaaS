@@ -1,0 +1,24 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "evolution-webhook",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [-2400, -208],
+      "id": "4b01b787-45bc-44c2-a7c6-48560200a0c4",
+      "name": "Evolution Webhook",
+      "webhookId": "4b164901-1564-48c7-9cce-7bdb9eb74b1d"
+    }
+  ],
+  "connections": {},
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "41687ea65c8ae561f37f8982c90e2949fd10f8a4973bc5f5c43ce6559cefdb58"
+  }
+}

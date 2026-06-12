@@ -13,7 +13,8 @@ namespace Appointment_SaaS.Business.Validation
         public ServiceValidator()
         {
             RuleFor(x => x.Name)
-                .NotEmpty().WithMessage("Hizmet adı (Örn: Saç Kesimi) boş olamaz.");
+                .NotEmpty().WithMessage("Hizmet adı (Örn: Saç Kesimi) boş olamaz.")
+                .MustBeSafeName(minLength: 2, maxLength: 120);
 
             RuleFor(x => x.Price)
                 .GreaterThan(0).WithMessage("Hizmet bedeli 0'dan büyük olmalıdır.");

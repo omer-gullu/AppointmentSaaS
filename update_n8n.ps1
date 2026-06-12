@@ -10,7 +10,8 @@ foreach ($node in $jsonText.nodes) {
 
 SİSTEM TEYİT KURALLARI (KRİTİK):
 1. 'kendi_sistemine_kaydet' aracı için StartDate ve EndDate tarihlerini MUTLAKA 'YYYY-MM-DDTHH:mm:ss' formatında (örn: 2026-03-24T14:30:00) gönder!
-2. 'kendi_sistemine_kaydet' aracı başarısız olur ve 'SuggestedSlots' listesi dönerse, müşteriye 'Maalesef o saat dolu ama şu saatler boş: ... Hangisi uyar?' şeklinde otomatik öneride bulun."
+2. Birden fazla hizmet aynı randevuda ise TEK çağrıda gönder: serviceIds alanına seçilen hizmetlerin ID'lerini sırayla dizi olarak yaz (örn. [1,3,5]). serviceID ilk hizmetin ID'si olmalı. Aynı müşteri için ayrı ayrı birden fazla POST atma — tek randevu tek kayıt olmalı.
+3. 'kendi_sistemine_kaydet' aracı başarısız olur ve 'SuggestedSlots' listesi dönerse, müşteriye 'Maalesef o saat dolu ama şu saatler boş: ... Hangisi uyar?' şeklinde otomatik öneride bulun."
         $node.parameters.options.systemMessage = $sysMsg + $newRules
     }
 
@@ -22,10 +23,11 @@ SİSTEM TEYİT KURALLARI (KRİTİK):
             @{ name = "CustomerName"; value = "={{ /*n8n-auto-generated-fromAI-override*/ `$fromAI('CustomerName', ``Müşterinin Adı``, 'string') }}" },
             @{ name = "CustomerPhone"; value = "={{ /*n8n-auto-generated-fromAI-override*/ `$fromAI('CustomerPhone', ``Müşterinin telefon numarası (örn: 5078283441)``, 'string') }}" },
             @{ name = "BusinessPhone"; value = "5078283441" },
-            @{ name = "ServiceID"; value = "1" },
+            @{ name = "ServiceID"; value = "={{ /*n8n-auto-generated-fromAI-override*/ `$fromAI('ServiceID', ``İlk hizmetin ID (tek hizmette yeterli)``, 'number') }}" },
+            @{ name = "ServiceIds"; value = "={{ /*n8n-auto-generated-fromAI-override*/ `$fromAI('ServiceIds', ``Çoklu hizmet: [1,2] gibi JSON dizi veya tek hizmette boş bırak``, 'json') }}" },
             @{ name = "AppUserID"; value = "" },
             @{ name = "StartDate"; value = "={{ /*n8n-auto-generated-fromAI-override*/ `$fromAI('StartDate', ``Başlangıç Tarihi YYYY-MM-DDTHH:mm:ss``, 'string') }}" },
-            @{ name = "EndDate"; value = "={{ /*n8n-auto-generated-fromAI-override*/ `$fromAI('EndDate', ``Bitiş Tarihi YYYY-MM-DDTHH:mm:ss``, 'string') }}" }
+            @{ name = "EndDate"; value = "={{ /*n8n-auto-generated-fromAI-override*/ `$fromAI('EndDate', ``Bitiş (API toplam süreyi hesaplar; yine de doldur) YYYY-MM-DDTHH:mm:ss``, 'string') }}" }
         )
         
         $node.parameters.bodyParameters.parameters = $newParams

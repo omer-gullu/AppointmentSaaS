@@ -1,10 +1,14 @@
 {
-  "_AÇIKLAMA": "Bu dosyayı 'appsettings.Development.json' olarak kopyalayın ve gerçek değerleri girin. Bu dosya .gitignore'dadır, Git'e PUSH edilmez.",
+  "_AÇIKLAMA": "Bu dosyayı 'appsettings.Development.json' olarak kopyalayın. İyzico: Enabled=true, sandbox ApiKey/SecretKey, BaseUrl=sandbox-api.iyzipay.com. Trial kayıt plan kodu istemez; Starter/Business/Pro için paneldeki Ödeme Planı referenceCode değerlerini ilgili *PlanCode alanlarına yapıştırın. Abonelik özelliği sandbox'ta kapalıysa entegrasyon@iyzico.com'a yazın.",
+  "_IyzicoSandbox": "Panel: https://sandbox-merchant.iyzipay.com → Ayarlar → API Anahtarları. Abonelik: Ürün → Ödeme Planı oluştur → referenceCode kopyala. Dokümantasyon: https://docs.iyzico.com/on-hazirliklar/sandbox",
   
   "ConnectionStrings": {
     "DefaultConnection": "Server=SUNUCU\\SQLEXPRESS;Database=AppointmentSaaSDB;Trusted_Connection=True;TrustServerCertificate=True;"
   },
   "TokenOptions": {
+    "Audience": "www.appointment-saas.com",
+    "Issuer": "www.appointment-saas.com",
+    "AccessTokenExpiration": 480,
     "SecurityKey": "EN_AZ_32_KARAKTER_UZUNLUGUNDA_GUCLU_BIR_ANAHTAR_GIRIN"
   },
   "EvolutionApi": {
@@ -18,17 +22,25 @@
     "ClientSecret": "GOCSPX-YOUR_GOOGLE_CLIENT_SECRET"
   },
   "WebhookSecurity": {
-    "N8nAuthToken": "RASTGELE_UZUN_BIR_TOKEN_OLUSTURUN"
+    "N8nAuthToken": "RASTGELE_UZUN_SISTEM_TOKEN_CRON_HATIRLATMA_ICIN"
   },
+  "_WebhookNotu": "Tenant webhook: X-Auth-Token = Tenant.ApiKey (panel GET /api/Tenants/integration-key). X-Tenant-Id = TenantID. Cron hatırlatma: yalnızca N8nAuthToken.",
   "EncryptionSettings": {
     "AesKey": "32_KARAKTER_UZUNLUGUNDA_AES_SIFRELEME_ANAHTARI!"
   },
   "IyzicoSettings": {
-    "Enabled": false,
+    "Enabled": true,
     "ApiKey": "IYZICO_SANDBOX_API_KEY",
     "SecretKey": "IYZICO_SANDBOX_SECRET_KEY",
     "BaseUrl": "https://sandbox-api.iyzipay.com",
-    "PricingPlanReferenceCode": "IYZICO_PRICING_PLAN_REFERENCE_CODE",
-    "WebhookSecret": "OPSİYONEL_WEBHOOK_SECRET"
+    "StarterMonthlyPlanCode": "SANDBOX_STARTER_AYLIK_REFERENCE_CODE",
+    "StarterYearlyPlanCode": "SANDBOX_STARTER_YILLIK_REFERENCE_CODE",
+    "BusinessMonthlyPlanCode": "SANDBOX_BUSINESS_AYLIK_REFERENCE_CODE",
+    "BusinessYearlyPlanCode": "SANDBOX_BUSINESS_YILLIK_REFERENCE_CODE",
+    "ProMonthlyPlanCode": "SANDBOX_PRO_AYLIK_REFERENCE_CODE",
+    "ProYearlyPlanCode": "SANDBOX_PRO_YILLIK_REFERENCE_CODE",
+    "WebhookSecret": "OPSİYONEL_WEBHOOK_SECRET",
+    "TrialCardValidationAmountTry": 1.0,
+    "RefundCallerIp": "127.0.0.1"
   }
 }

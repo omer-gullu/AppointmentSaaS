@@ -40,15 +40,19 @@ namespace Appointment_SaaS.Data.Context
         public DbSet<Service> Services { get; set; }
         public DbSet<AppUser> AppUsers { get; set; }
         public DbSet<Appointment> Appointments { get; set; }
+        public DbSet<AppointmentServiceLink> AppointmentServiceLinks { get; set; }
         public DbSet<OperationClaim> OperationClaims { get; set; }
         public DbSet<UserOperationClaim> UserOperationClaims { get; set; }
         public DbSet<BusinessHour> BusinessHours { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; } // YENİ: Audit log tablosu
         public DbSet<TransactionLog> TransactionLogs { get; set; } // YENİ: Finansal kanıt tablosu
-        public DbSet<Feedback> feedbacks { get; set; }
+        public DbSet<Feedback> Feedbacks { get; set; }
+        public DbSet<Holiday> Holidays { get; set; }
+        public DbSet<TenantBlockedPhone> TenantBlockedPhones { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+
             // 1. Senin Stilinde Primary Key Tanımlama (EntityIsmiID)
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
@@ -93,6 +97,18 @@ namespace Appointment_SaaS.Data.Context
                 .Property(t => t.IsBlacklisted)
                 .HasDefaultValue(false);
 
+            modelBuilder.Entity<Tenant>()
+                .Property(t => t.BreakTimeEnabled)
+                .HasDefaultValue(true);
+
+            modelBuilder.Entity<Tenant>()
+                .Property(t => t.BreakStartTime)
+                .HasDefaultValue(new TimeSpan(12, 0, 0));
+
+            modelBuilder.Entity<Tenant>()
+                .Property(t => t.BreakEndTime)
+                .HasDefaultValue(new TimeSpan(13, 0, 0));
+
             // Idempotency: Aynı Iyzico paymentId'si ile duplicate işlem engellenir
             modelBuilder.Entity<TransactionLog>()
                 .HasIndex(t => t.PaymentId)
@@ -115,6 +131,36 @@ namespace Appointment_SaaS.Data.Context
                 .WithMany(u => u.Appointments)
                 .HasForeignKey(a => a.AppUserID)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<AppointmentServiceLink>()
+                .HasOne(l => l.Appointment)
+                .WithMany(a => a.AppointmentServiceLinks)
+                .HasForeignKey(l => l.AppointmentID)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<AppointmentServiceLink>()
+                .HasOne(l => l.Service)
+                .WithMany()
+                .HasForeignKey(l => l.ServiceID)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<TenantBlockedPhone>()
+                .HasOne(x => x.Tenant)
+                .WithMany()
+                .HasForeignKey(x => x.TenantID)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<TenantBlockedPhone>()
+                .HasIndex(x => new { x.TenantID, x.PhoneCore })
+                .IsUnique();
+
+            modelBuilder.Entity<TenantBlockedPhone>()
+                .Property(x => x.PhoneCore)
+                .HasMaxLength(10);
+
+            modelBuilder.Entity<TenantBlockedPhone>()
+                .Property(x => x.Source)
+                .HasMaxLength(32);
 
             // Race Condition Önleme: Aynı personel, aynı tenant'ta aynı zaman dilimine iki randevu alamaz.
             // Farklı personellere (koltuk/usta) aynı saatte randevu verilebilir.
@@ -230,6 +276,48 @@ namespace Appointment_SaaS.Data.Context
                 }
             );
 
+            // F. Resmi Tatiller (2026)
+            var holidays2026 = new List<Holiday>();
+            int holidayId = 1;
+            var tenantIds = new[] { 1, 2, 3 };
+
+            var holidayDefs = new[]
+            {
+    (new DateOnly(2026, 1, 1),   "Yılbaşı"),
+    (new DateOnly(2026, 3, 20),  "Ramazan Bayramı 1. Gün"),
+    (new DateOnly(2026, 3, 21),  "Ramazan Bayramı 2. Gün"),
+    (new DateOnly(2026, 3, 22),  "Ramazan Bayramı 3. Gün"),
+    (new DateOnly(2026, 4, 23),  "Ulusal Egemenlik ve Çocuk Bayramı"),
+    (new DateOnly(2026, 5, 1),   "Emek ve Dayanışma Günü"),
+    (new DateOnly(2026, 5, 19),  "Atatürk'ü Anma, Gençlik ve Spor Bayramı"),
+    (new DateOnly(2026, 5, 26),  "Kurban Bayramı Arifesi"),
+    (new DateOnly(2026, 5, 27),  "Kurban Bayramı 1. Gün"),
+    (new DateOnly(2026, 5, 28),  "Kurban Bayramı 2. Gün"),
+    (new DateOnly(2026, 5, 29),  "Kurban Bayramı 3. Gün"),
+    (new DateOnly(2026, 5, 30),  "Kurban Bayramı 4. Gün"),
+    (new DateOnly(2026, 7, 15),  "Demokrasi ve Millî Birlik Günü"),
+    (new DateOnly(2026, 8, 30),  "Zafer Bayramı"),
+    (new DateOnly(2026, 10, 29), "Cumhuriyet Bayramı"),
+    (new DateOnly(2026, 11, 10),  "Atatürkü Anma Günü"),
+};
+
+            foreach (var tenantId in tenantIds)
+            {
+                foreach (var (date, name) in holidayDefs)
+                {
+                    holidays2026.Add(new Holiday
+                    {
+                        Id = holidayId++,
+                        TenantId = tenantId,
+                        Date = date,
+                        Name = name,
+                        IsDefault = true
+                    });
+                }
+            }
+
+            modelBuilder.Entity<Holiday>().HasData(holidays2026);
+
             base.OnModelCreating(modelBuilder);
         }
 
@@ -308,7 +396,7 @@ namespace Appointment_SaaS.Data.Context
                 {
                     // Kullanıcı bilgisini JWT'den çek
                     int? userId = GetCurrentUserId();
-                    
+
                     // TenantID belirleme: ITenantEntity ise kendi TenantID'si, Tenant ise kendi ID'si
                     int? tenantId = null;
                     if (entry.Entity is ITenantEntity te) tenantId = _tenantProvider?.GetTenantId() ?? te.TenantID;

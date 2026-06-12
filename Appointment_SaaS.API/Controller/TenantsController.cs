@@ -1,7 +1,11 @@
+using Appointment_SaaS.API.Authorization;
 using Appointment_SaaS.Business.Abstract;
 using Appointment_SaaS.Core.DTOs;
 using Appointment_SaaS.Core.Entities;
+using Appointment_SaaS.Core.Utilities;
+using Iyzipay.Model;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using System.Text.Json;
@@ -18,19 +22,22 @@ public class TenantsController : ControllerBase
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IIyzicoPaymentService _iyzicoPaymentService;
     private readonly IAppUserService _appUserService;
+    private readonly ITenantPlanService _tenantPlanService;
 
     public TenantsController(
         ITenantService tenantService,
         IConfiguration configuration,
         IHttpClientFactory httpClientFactory,
         IIyzicoPaymentService iyzicoPaymentService,
-        IAppUserService appUserService)
+        IAppUserService appUserService,
+        ITenantPlanService tenantPlanService)
     {
         _tenantService = tenantService;
         _configuration = configuration;
         _httpClientFactory = httpClientFactory;
         _iyzicoPaymentService = iyzicoPaymentService;
         _appUserService = appUserService;
+        _tenantPlanService = tenantPlanService;
     }
 
     // ─── Yardımcı: JWT'den aktif kullanıcının TenantId'sini okur ────────────
@@ -45,16 +52,25 @@ public class TenantsController : ControllerBase
     // ─── Listeleme ────────────────────────────────────────────────────────────
 
     [HttpGet]
-    [AllowAnonymous]
-    public async Task<IActionResult> GetAll() => Ok(await _tenantService.GetAllAsync());
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetAll()
+    {
+        var tenants = await _tenantService.GetAllAsync();
+        return Ok(tenants.Select(TenantAdminResponseDto.FromEntity));
+    }
 
     [HttpGet("{id}")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetById(int id)
     {
-        var tenant = await _tenantService.GetByIdAsync(id);
+        if (!IsAdmin() && GetCurrentTenantId() != id)
+            return StatusCode(403, new { Message = "Bu işletmeyi görüntüleme yetkiniz yok." });
+
+        var tenant = await _tenantService.GetByIdWithBusinessHoursAsync(id);
         if (tenant == null) return NotFound();
-        return Ok(tenant);
+
+        return Ok(IsAdmin()
+            ? TenantAdminResponseDto.FromEntity(tenant)
+            : TenantResponseDto.FromEntity(tenant));
     }
 
     // ─── Oluşturma (Sadece Admin) ─────────────────────────────────────────────
@@ -90,11 +106,11 @@ public class TenantsController : ControllerBase
         tenant.PhoneNumber = dto.PhoneNumber ?? tenant.PhoneNumber;
         tenant.Address = dto.Address ?? tenant.Address;
         tenant.InstanceName = dto.InstanceName ?? tenant.InstanceName;
-        tenant.IsActive = dto.IsActive;
 
-        // IsTrial ve SubscriptionEndDate yalnızca Admin tarafından değiştirilebilir
+        // IsActive, IsTrial ve SubscriptionEndDate yalnızca Admin tarafından değiştirilebilir
         if (IsAdmin())
         {
+            tenant.IsActive = dto.IsActive;
             tenant.IsTrial = dto.IsTrial;
             tenant.SubscriptionEndDate = dto.SubscriptionEndDate;
         }
@@ -137,20 +153,119 @@ public class TenantsController : ControllerBase
         }
     }
 
-    [HttpPost("upgrade-plan")]
-    [Authorize(Roles = "Manager,Admin")]
-    public async Task<IActionResult> UpgradePlan([FromQuery] string planType)
+    [HttpPost("update-break-time")]
+    public async Task<IActionResult> UpdateBreakTime([FromBody] BreakTimeSettingsDto settings)
     {
         var tenantId = GetCurrentTenantId();
-        if (tenantId == null) return Unauthorized(new { Message = "Yetkisiz erişim." });
+        if (tenantId == null) return Unauthorized(new { Message = "Geçersiz oturum." });
+
+        try
+        {
+            await _tenantService.UpdateBreakTimeSettingsAsync(tenantId.Value, settings);
+            return Ok(new { Message = "Mola saatleri başarıyla güncellendi." });
+        }
+        catch (BadHttpRequestException ex)
+        {
+            return BadRequest(new { Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { Message = "Güncelleme sırasında hata oluştu: " + ex.Message });
+        }
+    }
+
+    /// <summary>n8n entegrasyon anahtarı (Tenant.ApiKey). Yalnızca kendi işletmesi veya Admin.</summary>
+    [HttpGet("integration-key")]
+    [Authorize(Roles = "Manager,Admin")]
+    public async Task<IActionResult> GetIntegrationKey()
+    {
+        var tenantId = GetCurrentTenantId();
+        if (tenantId == null)
+            return Unauthorized(new { Message = "Geçersiz oturum." });
 
         var tenant = await _tenantService.GetByIdAsync(tenantId.Value);
-        if (tenant == null) return NotFound(new { Message = "İşletme bulunamadı." });
+        if (tenant == null)
+            return NotFound(new { Message = "İşletme bulunamadı." });
 
-        tenant.PlanType = planType;
+        return Ok(new
+        {
+            TenantId = tenant.TenantID,
+            IntegrationKey = tenant.ApiKey,
+            Message = "n8n HTTP isteklerinde X-Auth-Token olarak IntegrationKey, X-Tenant-Id olarak TenantId gönderin. Hatırlatma cron'u için ayrıca sistem N8nAuthToken kullanılır."
+        });
+    }
+
+    /// <summary>Mevcut entegrasyon anahtarını yeniler (canlıya geçişte zayıf anahtarları döndürmek için).</summary>
+    [HttpPost("integration-key/rotate")]
+    [Authorize(Roles = "Manager,Admin")]
+    public async Task<IActionResult> RotateIntegrationKey()
+    {
+        var tenantId = GetCurrentTenantId();
+        if (tenantId == null)
+            return Unauthorized(new { Message = "Geçersiz oturum." });
+
+        var tenant = await _tenantService.GetByIdAsync(tenantId.Value);
+        if (tenant == null)
+            return NotFound(new { Message = "İşletme bulunamadı." });
+
+        tenant.ApiKey = TenantIntegrationKeyGenerator.Create();
         await _tenantService.UpdateAsync(tenant);
 
-        return Ok(new { success = true, Message = "Plan başarıyla güncellendi." });
+        return Ok(new
+        {
+            TenantId = tenant.TenantID,
+            IntegrationKey = tenant.ApiKey,
+            Message = "Entegrasyon anahtarı yenilendi. n8n credential ve X-Auth-Token değerlerini güncelleyin."
+        });
+    }
+
+    /// <summary>Ödeme sonrası plan değişimi — Trial veya ücretli tenant.</summary>
+    [HttpPost("change-plan/init")]
+    [Authorize(Roles = "Manager,Admin")]
+    public async Task<IActionResult> InitializePlanChange([FromBody] ChangePlanInitRequestDto request)
+    {
+        var tenantId = GetCurrentTenantId();
+        if (tenantId == null)
+            return Unauthorized(new { Message = "Geçersiz oturum." });
+
+        var tenant = await _tenantService.GetByIdAsync(tenantId.Value);
+        if (tenant == null)
+            return NotFound(new { Message = "İşletme bulunamadı." });
+
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdClaim, out var userId))
+            return Unauthorized(new { Message = "Kullanıcı kimliği bulunamadı." });
+
+        var owner = await _appUserService.GetByIdAsync(userId);
+        if (owner == null || owner.TenantID != tenant.TenantID)
+            return StatusCode(403, new { Message = "Plan değişikliği yalnızca işletme sahibi tarafından yapılabilir." });
+
+        var callbackUrl = request.PaymentCallbackUrl?.Trim()
+            ?? _configuration["WebUI:PaymentCallbackUrl"]
+            ?? $"{Request.Scheme}://{Request.Host}/Auth/PaymentCallback";
+
+        try
+        {
+            var result = await _tenantPlanService.InitializePlanChangeAsync(
+                tenant, owner, request, callbackUrl);
+            return Ok(result);
+        }
+        catch (BadHttpRequestException ex)
+        {
+            return BadRequest(new { Message = ex.Message });
+        }
+    }
+
+    [HttpPost("upgrade-plan")]
+    [Authorize(Roles = "Admin")]
+    [Obsolete("Ödeme sync'siz plan ataması kaldırıldı. POST change-plan/init kullanın.")]
+    public IActionResult UpgradePlan([FromQuery] string planType, [FromQuery] int? tenantId = null)
+    {
+        return StatusCode(410, new
+        {
+            Message = "Bu endpoint devre dışı. Plan değişikliği yalnızca İyzico ödeme akışı (POST /api/Tenants/change-plan/init) ile yapılabilir.",
+            Replacement = "/api/Tenants/change-plan/init"
+        });
     }
 
     // ─── n8n Mega Context — GoogleToken DÖNMEZ ───────────────────────────────
@@ -170,6 +285,14 @@ public class TenantsController : ControllerBase
             return StatusCode(403, new { Message = "Bu işletme şu an hizmet veremiyor." });
         if (tenant.IsBlacklisted)
             return StatusCode(403, new { Message = "Bu hesaba erişim engellendi." });
+
+        var access = await _tenantService.EvaluateOperationalAccessAsync(tenant.TenantID);
+        if (!access.IsAllowed)
+            return StatusCode(access.SuggestedStatusCode, new { Message = access.Message });
+
+        var scopeDenied = ControllerTenantAccess.DenyUnlessCanAccessTenant(this, tenant.TenantID);
+        if (scopeDenied != null)
+            return scopeDenied;
 
         var today = DateTime.Today;
         var tomorrow = today.AddDays(1);
@@ -196,7 +319,7 @@ public class TenantsController : ControllerBase
             Phone = tenant.PhoneNumber,
             GoogleEmail = tenant.GoogleEmail,
             TenantID = tenant.TenantID,
-            // GoogleToken burada YOK — /GetGoogleAccessToken endpoint'i kullanılmalı
+            IntegrationKey = tenant.ApiKey,
             Services = tenant.Services?.Select(s => new
             {
                 Id = s.ServiceID,
@@ -212,13 +335,28 @@ public class TenantsController : ControllerBase
                 Close = b.CloseTime.ToString(@"hh\:mm"),
                 Closed = b.IsClosed
             }),
-            Staffs = tenant.AppUsers?.Select(u => new
+            BreakTime = new
+            {
+                Enabled = tenant.BreakTimeEnabled,
+                Start = tenant.BreakStartTime.ToString(@"hh\:mm"),
+                End = tenant.BreakEndTime.ToString(@"hh\:mm")
+            },
+            Staffs = tenant.AppUsers?.Where(u => u.Status == true).Select(u => new
             {
                 Id = u.AppUserID,
                 FullName = $"{u.FirstName} {u.LastName}",
-                Specialization = u.Specialization
+                Specialization = u.Specialization,
             }),
-            TodaySchedule = todayAppointments
+            TodaySchedule = todayAppointments,
+
+            // 🔴 YENİ
+            UpcomingHolidays = tenant.Holidays?
+            .OrderBy(h => h.Date)
+            .Select(h => new
+            {
+                Date = h.Date.ToString("yyyy-MM-dd"),
+                Name = h.Name
+            })
         };
 
         return Ok(megaContext);
@@ -284,11 +422,16 @@ public class TenantsController : ControllerBase
 
         await _iyzicoPaymentService.CancelSubscriptionAsync(tenant.SubscriptionReferenceCode);
 
-        tenant.IsActive = false;
-        tenant.IsSubscriptionActive = false;
+        tenant.CancelAtPeriodEnd = true;
+        tenant.AutoRenew = false;
         await _tenantService.UpdateAsync(tenant);
 
-        return Ok(new { status = "cancelled" });
+        return Ok(new
+        {
+            status = "cancel_at_period_end",
+            subscriptionEndDate = tenant.SubscriptionEndDate,
+            message = $"Abonelik yenilemesi iptal edildi. {tenant.SubscriptionEndDate:dd.MM.yyyy} tarihine kadar kullanmaya devam edebilirsiniz."
+        });
     }
 
     // ─── Google Access Token yenileme (n8n için) ─────────────────────────────
@@ -309,15 +452,18 @@ public class TenantsController : ControllerBase
         if (!tenant.IsActive || !tenant.IsSubscriptionActive)
             return StatusCode(403, new { error = "Pasif işletme için token üretilemiyor." });
 
+        var scopeDenied = ControllerTenantAccess.DenyUnlessCanAccessTenant(this, tenant.TenantID);
+        if (scopeDenied != null)
+            return scopeDenied;
+
         string? refreshToken = tenant.GoogleAccessToken;
         string? email = tenant.GoogleEmail;
 
         if (staffId.HasValue && staffId.Value > 0)
         {
-            var staff = await _appUserService.GetAllUsersAsync();
-            var user = staff.FirstOrDefault(u => u.AppUserID == staffId.Value && u.TenantID == tenant.TenantID);
-            
-            if (user == null) return NotFound(new { error = "Personel bulunamadı." });
+            var user = await _appUserService.GetByIdAsync(staffId.Value);
+            if (user == null || user.TenantID != tenant.TenantID)
+                return NotFound(new { error = "Personel bulunamadı." });
             
             if (string.IsNullOrEmpty(user.GoogleRefreshToken))
                 return BadRequest(new { error = "Bu personelin Google hesabı bağlı değil." });
@@ -369,5 +515,32 @@ public class TenantsController : ControllerBase
         {
             return StatusCode(500, new { error = "Token yenileme hatası.", detail = ex.Message });
         }
+    }
+
+    [HttpGet("holidays")]
+    public async Task<IActionResult> GetHolidays()
+    {
+        var tenantId = GetCurrentTenantId();
+        if (tenantId == null) return Unauthorized();
+        var holidays = await _tenantService.GetHolidaysAsync(tenantId.Value);
+        return Ok(holidays);
+    }
+
+    [HttpPost("holidays")]
+    public async Task<IActionResult> AddHoliday([FromBody] HolidayCreateDto dto)
+    {
+        var tenantId = GetCurrentTenantId();
+        if (tenantId == null) return Unauthorized();
+        var holiday = await _tenantService.AddHolidayAsync(tenantId.Value, dto.Date, dto.Name);
+        return Ok(new { Message = "Tatil eklendi.", holiday.Id });
+    }
+
+    [HttpDelete("holidays/{id}")]
+    public async Task<IActionResult> DeleteHoliday(int id)
+    {
+        var tenantId = GetCurrentTenantId();
+        if (tenantId == null) return Unauthorized();
+        await _tenantService.DeleteHolidayAsync(tenantId.Value, id);
+        return Ok(new { Message = "Tatil silindi." });
     }
 }

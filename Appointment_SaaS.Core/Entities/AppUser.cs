@@ -15,10 +15,15 @@ namespace Appointment_SaaS.Core.Entities
         public string FirstName { get; set; }
         public string LastName { get; set; }
         public string Email { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
         public string? OtpCode { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
         public DateTime? OtpExpiry { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
         public DateTime? LastOtpRequestDate { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
         public int AccessFailedCount { get; set; } = 0;
+        [System.Text.Json.Serialization.JsonIgnore]
         public DateTime? LockoutEnd { get; set; }
         public string PhoneNumber { get; set; }
         public string? SecurityStamp { get; set; } = Guid.NewGuid().ToString();
@@ -38,6 +43,7 @@ namespace Appointment_SaaS.Core.Entities
         /// Bu token ile her seferinde taze access_token alınır.
         /// OAuth callback'te kaydedilir.
         /// </summary>
+        [System.Text.Json.Serialization.JsonIgnore]
         public string? GoogleRefreshToken { get; set; }
 
         public bool Status { get; set; } = true;

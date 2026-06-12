@@ -1,0 +1,372 @@
+/* Above-the-fold only — blocking; full pricing.css loads async */
+body.lean-public {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: #f6f7fb;
+    color: #0f172a;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: clip;
+    max-width: 100%;
+}
+
+.premium-navbar {
+    background: rgba(255, 255, 255, 0.95);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    padding: 0.8rem 0;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.ar-brand-lockup {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    text-decoration: none;
+    color: inherit;
+}
+
+.ar-brand-lockup__text {
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    color: #4f46e5;
+}
+
+.ar-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: var(--ar-logo-size, 65px);
+    height: var(--ar-logo-size, 65px);
+    border-radius: 50%;
+    overflow: hidden;
+    background: transparent;
+}
+
+.ar-logo__img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    background: transparent !important;
+    clip-path: circle(50% at 50% 50%);
+}
+
+.premium-footer {
+    background: #fff;
+    border-top: 1px solid #e2e8f0;
+    padding: 1.5rem 0;
+    margin-top: auto;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+main {
+    flex: 1;
+}
+
+.pricing-page {
+    background: #f6f7fb;
+    min-height: 100vh;
+    padding: 64px 0 100px;
+    position: relative;
+}
+
+.pricing-page::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 340px;
+    background: linear-gradient(180deg, rgba(99, 102, 241, 0.08) 0%, transparent 100%);
+    pointer-events: none;
+}
+
+.pricing-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: 50px;
+    padding: 5px 14px;
+    font-size: 0.73rem;
+    font-weight: 700;
+    color: #6366f1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+}
+
+.pricing-h1 {
+    font-size: clamp(1.9rem, 5vw, 3rem);
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    margin: 0 0 14px;
+}
+
+.pricing-h1 .grad {
+    background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 60%, #d946ef 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.pricing-sub {
+    color: #64748b;
+    font-size: 1rem;
+    max-width: 520px;
+    margin: 0 auto 32px;
+    line-height: 1.65;
+}
+
+.toggle-wrap {
+    display: inline-flex;
+    align-items: stretch;
+    background: #fff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 50px;
+    padding: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    margin-bottom: 36px;
+}
+
+.toggle-btn {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 8px 22px;
+    border-radius: 50px;
+    cursor: pointer;
+}
+
+.toggle-btn.active {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+}
+
+.toggle-btn .save-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #f59e0b;
+    text-transform: uppercase;
+    display: block;
+    margin-top: 1px;
+}
+
+.toggle-btn.active .save-label {
+    color: #fde68a;
+}
+
+.pricing-page .bi {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    font-style: normal;
+    font-weight: 700;
+    line-height: 1;
+    vertical-align: -0.1em;
+}
+
+.pricing-page .bi-stars::before {
+    content: "✦";
+    color: #6366f1;
+}
+
+.au {
+    animation: none;
+    opacity: 1;
+    transform: none;
+}
+
+/* Plan kartları — async CSS gelmeden önce düzgün görünsün */
+.plans-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 480px));
+    justify-content: center;
+    gap: 24px;
+    max-width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
+    align-items: stretch;
+}
+
+@media (max-width: 860px) {
+    .plans-grid {
+        grid-template-columns: 1fr;
+        max-width: 460px;
+    }
+}
+
+.pcard {
+    background: #fff;
+    border: 1.5px solid #e8eaf0;
+    border-radius: 20px;
+    padding: 30px 26px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+}
+
+.pcard.featured {
+    border-color: #6366f1;
+    padding-top: 50px;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12), 0 16px 48px rgba(99, 102, 241, 0.15);
+}
+
+.pcard-badge {
+    position: absolute;
+    top: -12px;
+    right: 20px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 50px;
+    white-space: nowrap;
+}
+
+.pcard-name {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-bottom: 12px;
+}
+
+.pcard.featured .pcard-name {
+    color: #6366f1;
+}
+
+.pcard-price {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.04em;
+    line-height: 1;
+}
+
+.pcard-price sub {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.pcard-desc {
+    font-size: 0.84rem;
+    color: #64748b;
+    line-height: 1.6;
+    margin-top: 12px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid #f1f4f8;
+    margin-bottom: 18px;
+}
+
+.pcard-limits {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 18px;
+}
+
+.lchip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #f8faff;
+    border: 1px solid #e0e7ff;
+    border-radius: 7px;
+    padding: 4px 10px;
+    font-size: 0.71rem;
+    font-weight: 600;
+    color: #4f46e5;
+}
+
+.lchip .bi {
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+.flist {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 20px;
+    flex: 1 1 auto;
+}
+
+.flist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 5px 0;
+    color: #374151;
+    font-size: 0.87rem;
+    line-height: 1.4;
+}
+
+.flist li.off {
+    color: #cbd5e1;
+    text-decoration: line-through;
+}
+
+.fcheck {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #eef2ff;
+    color: #6366f1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.62rem;
+    margin-top: 1px;
+}
+
+.pcard.featured .fcheck {
+    background: #6366f1;
+    color: #fff;
+}
+
+.pcard-btn {
+    display: block;
+    width: 100%;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-align: center;
+    text-decoration: none;
+    border: 1.5px solid #e2e8f0;
+    background: #fff;
+    color: #374151;
+    margin-top: auto;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+.pcard-btn.featured-btn {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    border: none;
+    color: #fff;
+    box-shadow: 0 6px 22px rgba(99, 102, 241, 0.38);
+}

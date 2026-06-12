@@ -6,11 +6,12 @@ namespace Appointment_SaaS.Business.Abstract;
 public interface IAppointmentService
 {
     Task<List<Appointment>> GetAllByTenantIdAsync(int tenantId);
+    Task<List<AppointmentListItemDto>> GetListItemsByTenantIdAsync(int tenantId);
     Task<Appointment?> GetByIdAsync(int id);
     Task<int> AddAppointmentAsync(AppointmentCreateDto dto);
     Task<bool> IsSlotAvailableAsync(int tenantId, int staffId, DateTime startDate, DateTime endDate);
     Task<List<string>> GetAvailableSlotsAsync(int tenantId, DateTime targetDate, int durationMinutes, int count = 3);
-    Task UpdateAsync(Appointment appointment, int? previousAppUserID = null);
+    Task UpdateAsync(Appointment appointment, int? previousAppUserID = null, IReadOnlyList<int>? orderedServiceIds = null);
     Task DeleteAsync(Appointment appointment);
 
     /// <summary>Google Takvim event kaydedildikten sonra n8n'den gelen ID'yi DB'ye işle.</summary>
@@ -24,7 +25,19 @@ public interface IAppointmentService
 
     /// <summary>Yarınki randevuları döndürür. Hatırlatma workflow'u için.</summary>
     Task<List<Appointment>> GetTomorrowAppointmentsAsync(int tenantId);
+
+    /// <summary>Pro/Business plan: yarınki randevular için henüz hatırlatma gönderilmemiş kayıtlar.</summary>
+    Task<List<AppointmentReminderPendingDto>> GetPendingRemindersAsync();
+
+    /// <summary>Pro/Business plan: bekleyen yarın hatırlatmalarını WhatsApp ile gönderir.</summary>
+    Task<AppointmentReminderRunResultDto> SendPendingRemindersAsync();
     Task<List<object>> GetActiveAppointmentsByPhoneAsync(string phone, int tenantId);
+
+    /// <summary>
+    /// WhatsApp / n8n: müşterinin remoteJid veya telefon varyasyonundan, tenant kapsamlı,
+    /// henüz bitmemiş ve iptal edilmemiş randevularını DTO olarak döndürür.
+    /// </summary>
+    Task<List<CustomerAppointmentDto>> GetActiveAppointmentsForCustomerAsync(int tenantId, string phoneOrJid);
 
     /// <summary>
     /// Slot için distributed lock alır.
@@ -34,7 +47,7 @@ public interface IAppointmentService
     bool TryAcquireSlotLock(int tenantId, DateTime startDate, out string lockKey);
 
     /// <summary>Alınan slot kilidini serbest bırakır.</summary>
-    void ReleaseSlotLock(string lockKey);
+    void ReleaseSlotLock(string lockKey, int? expectedTenantId = null);
     Task<List<string>> GetAvailableSlotsByStaffAsync(int tenantId, int staffId, DateTime targetDate, int durationMinutes, int count = 100, string? requestedTime = null);
     Task<List<object>> GetAvailableSlotsForAllStaffAsync(int tenantId, DateTime targetDate, int durationMinutes, int count = 100);
 }

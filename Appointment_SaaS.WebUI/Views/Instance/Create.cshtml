@@ -171,9 +171,12 @@
                 <div class="info-panel">
                     <div>
                         <div class="mb-5">
-                            <i class="bi bi-calendar-check" style="font-size: 2.5rem; color: #a5b4fc;"></i>
-                            <h2 class="fw-bold mt-3 mb-1" style="letter-spacing: -1px;">Akıllı Randevu</h2>
-                            <p class="opacity-75">İşletmenizi bir adım ileriye taşıyın.</p>
+                            <div class="ar-brand-lockup align-items-center">
+                                @{ ViewData["ArLogoSize"] = 72; ViewData["ArLogoVariant"] = "light"; }
+                                <partial name="_ArLogo" />
+                                <span class="ar-brand-lockup__text fw-bold" style="font-size:1.35rem;letter-spacing:-0.03em;">Akıllı Randevu</span>
+                            </div>
+                            <p class="opacity-75 mt-3 mb-0">İşletmenizi bir adım ileriye taşıyın.</p>
                         </div>
 
                         <ul class="feature-list">
@@ -217,7 +220,7 @@
                 </div>
 
                 <form asp-action="Create" method="post" id="createForm">
-                    @Html.AntiForgeryToken()
+                   @Html.AntiForgeryToken()
 
                     <!-- KULLANICI BİLGİLERİ -->
                     <div class="form-section-title">

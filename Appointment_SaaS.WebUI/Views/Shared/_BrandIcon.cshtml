@@ -1,0 +1,13 @@
+@{
+    var icon = (ViewData["BrandIconName"] as string ?? "").ToLowerInvariant();
+    var size = ViewData["BrandIconSize"] as int? ?? 24;
+    var cssClass = ViewData["BrandIconClass"] as string ?? "brand-icon";
+}
+@if (icon == "whatsapp")
+{
+    <img src="~/images/icons/whatsapp.svg" class="@cssClass" width="@size" height="@size" alt="" asp-append-version="true" />
+}
+else if (icon == "google")
+{
+    <img src="~/images/icons/google.svg" class="@cssClass" width="@size" height="@size" alt="" asp-append-version="true" />
+}

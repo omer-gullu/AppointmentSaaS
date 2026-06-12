@@ -10,6 +10,7 @@ using AutoMapper;
 using Moq;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Appointment_SaaS.Test
@@ -55,7 +56,22 @@ namespace Appointment_SaaS.Test
 
             // Act: Update Tenant status via Manager
             var tenantRepo = new EfTenantRepository(db);
-            var tenantService = new TenantManager(tenantRepo, _mockMapper.Object, _mockEvolutionApiService.Object, db);
+            var mockEnvironment = new Mock<Microsoft.Extensions.Hosting.IHostEnvironment>();
+            var mockLogger = new Mock<Microsoft.Extensions.Logging.ILogger<TenantManager>>();
+            var scopeFactory = new Mock<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>();
+            var scope = new Mock<Microsoft.Extensions.DependencyInjection.IServiceScope>();
+            scope.Setup(s => s.ServiceProvider).Returns(new Microsoft.Extensions.DependencyInjection.ServiceCollection().BuildServiceProvider());
+            scopeFactory.Setup(f => f.CreateScope()).Returns(scope.Object);
+
+            var tenantService = new TenantManager(
+                tenantRepo,
+                _mockMapper.Object,
+                _mockEvolutionApiService.Object,
+                db,
+                mockEnvironment.Object,
+                mockLogger.Object,
+                new TenantAccessEvaluator(),
+                scopeFactory.Object);
 
             var tenantToUpdate = await tenantService.GetByIdAsync(tenant.TenantID);
             tenantToUpdate!.IsActive = false;

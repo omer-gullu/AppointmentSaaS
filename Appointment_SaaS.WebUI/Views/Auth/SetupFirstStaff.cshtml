@@ -1,0 +1,37 @@
+@model Appointment_SaaS.WebUI.Models.SetupFirstStaffViewModel
+@{
+    ViewData["Title"] = "İlk Personel";
+    Layout = "_LayoutAuth";
+}
+<div class="auth-card mx-auto" style="max-width:480px;">
+    <h4 class="fw-bold mb-2">İlk personeli ekleyin</h4>
+    <p class="text-muted small mb-4">
+        İşletme kaydı tamamlandı; personel listesi boş. Giriş ve randevu için ilk personeli siz ekleyin (kayıt formundan otomatik oluşturulmaz).
+        Sonrasında panelde <strong>Personel → Google ile bağlan</strong>.
+    </p>
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger border-0 rounded-3">@Model.ErrorMessage</div>
+    }
+    <form method="post" asp-action="SetupFirstStaff">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="TenantId" value="@Model.TenantId" />
+        <div class="mb-3">
+            <label class="form-label small fw-bold text-muted">AD SOYAD</label>
+            <input type="text" name="UserFullName" class="form-control" value="@Model.UserFullName" required />
+        </div>
+        <div class="mb-3">
+            <label class="form-label small fw-bold text-muted">E-POSTA</label>
+            <input type="email" name="UserEmail" class="form-control" value="@Model.UserEmail" required />
+        </div>
+        <div class="mb-3">
+            <label class="form-label small fw-bold text-muted">TELEFON (işletme kaydı ile aynı)</label>
+            <input type="tel" name="PhoneNumber" class="form-control" value="@Model.PhoneNumber" required readonly />
+        </div>
+        <div class="mb-4">
+            <label class="form-label small fw-bold text-muted">UZMANLIK (opsiyonel)</label>
+            <input type="text" name="Specialization" class="form-control" value="@Model.Specialization" />
+        </div>
+        <button type="submit" class="btn btn-primary w-100 py-3 rounded-pill fw-bold">Personeli Kaydet ve Girişe Geç</button>
+    </form>
+</div>

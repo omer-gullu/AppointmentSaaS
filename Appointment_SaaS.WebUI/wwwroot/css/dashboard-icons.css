@@ -1,0 +1,48 @@
+/* Dashboard — no Bootstrap Icons CDN */
+.dashboard-page .bi {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    font-style: normal;
+    font-weight: 700;
+    line-height: 1;
+    vertical-align: -0.1em;
+    font-family: inherit;
+}
+
+.dashboard-page .bi::before { content: ""; }
+
+.dashboard-page .bi-check-circle-fill::before { content: "✓"; color: #16a34a; }
+.dashboard-page .bi-exclamation-triangle-fill::before { content: "⚠"; color: #f59e0b; }
+.dashboard-page .bi-calendar-day::before { content: "▣"; }
+.dashboard-page .bi-calendar-check::before { content: "▦"; }
+.dashboard-page .bi-scissors::before { content: "✂"; font-weight: 400; }
+.dashboard-page .bi-people::before { content: "◎"; }
+.dashboard-page .bi-credit-card-2-front::before { content: "▭"; }
+.dashboard-page .bi-credit-card::before { content: "▭"; }
+.dashboard-page .bi-calendar3::before { content: "▦"; }
+.dashboard-page .bi-hourglass-split::before { content: "⧗"; font-weight: 400; }
+.dashboard-page .bi-plug-fill::before { content: "⎓"; }
+.dashboard-page .bi-whatsapp::before { content: "W"; color: #25d366; font-weight: 800; }
+.dashboard-page .bi-qr-code-scan::before { content: "⌗"; font-weight: 400; }
+.dashboard-page .bi-info-circle-fill::before { content: "ℹ"; color: #6366f1; }
+.dashboard-page .bi-robot::before { content: "🤖"; font-weight: 400; }
+.dashboard-page .bi-clock-history::before { content: "◷"; }
+.dashboard-page .bi-pencil-square::before { content: "✎"; }
+.dashboard-page .bi-gear::before { content: "⚙"; font-weight: 400; }
+.dashboard-page .bi-calendar-x::before { content: "✕"; color: #94a3b8; }
+.dashboard-page .bi-slash-circle::before { content: "⊘"; color: #64748b; }
+.dashboard-page .bi-plus-lg::before { content: "+"; }
+.dashboard-page .bi-pencil::before { content: "✎"; color: inherit; font-weight: 700; }
+.dashboard-page .btn-icon-action .bi-pencil::before,
+.dashboard-page .btn-edit-appointment .bi-pencil::before { font-size: 1.05em; }
+.dashboard-page .bi-trash::before { content: "🗑"; font-weight: 400; }
+.dashboard-page .bi-chat-dots::before,
+.dashboard-page .bi-chat-dots-fill::before { content: "…"; letter-spacing: -0.15em; }
+.dashboard-page .bi-x-circle::before { content: "✕"; color: #ef4444; }
+.dashboard-page .bi-calendar-plus::before { content: "+"; color: #4f46e5; }
+.dashboard-page .bi-arrow-repeat::before { content: "↻"; font-weight: 400; }
+.dashboard-page .bi-send::before { content: "➤"; }
+.dashboard-page .bi-lightning-fill::before { content: "⚡"; }
+.dashboard-page .bi-patch-check-fill::before { content: "✓"; color: #16a34a; }
+.dashboard-page .bi-arrow-up-circle::before { content: "↑"; color: #6366f1; }

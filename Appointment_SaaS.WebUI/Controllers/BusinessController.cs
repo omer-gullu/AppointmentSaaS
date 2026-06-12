@@ -113,6 +113,7 @@ namespace Appointment_SaaS.WebUI.Controllers
         }
 
         [HttpPost]
+[ValidateAntiForgeryToken]
         public async Task<IActionResult> MarkAsRead(int id)
         {
             await _feedbackService.MarkAsReadAsync(id);

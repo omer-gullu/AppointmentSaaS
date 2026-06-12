@@ -49,51 +49,30 @@ namespace Appointment_SaaS.WebUI.Services.Concrete
             try
             {
                 var httpClient = await CreateAuthenticatedApiClientAsync();
+                var bundleResponse = await httpClient.GetAsync($"api/Dashboard/tenant/{tenantId}");
+                if (!bundleResponse.IsSuccessStatusCode)
+                    return viewModel;
 
-                var appResponse = await httpClient.GetAsync($"api/Appointments/tenant/{tenantId}");
-                if (appResponse.IsSuccessStatusCode)
+                var bundleJson = await bundleResponse.Content.ReadAsStringAsync();
+                var bundle = JsonSerializer.Deserialize<JsonElement>(bundleJson, _jsonOptions);
+
+                if (bundle.TryGetProperty("tenant", out var tenantObj))
+                    MapTenant(viewModel, tenantObj);
+
+                if (bundle.TryGetProperty("appointments", out var appointments) && appointments.ValueKind == JsonValueKind.Array)
+                    viewModel.Appointments = JsonSerializer.Deserialize<List<dynamic>>(appointments.GetRawText(), _jsonOptions);
+
+                if (bundle.TryGetProperty("services", out var services) && services.ValueKind == JsonValueKind.Array)
+                    viewModel.Services = JsonSerializer.Deserialize<List<dynamic>>(services.GetRawText(), _jsonOptions);
+
+                if (bundle.TryGetProperty("staff", out var staff) && staff.ValueKind == JsonValueKind.Array)
                 {
-                    var appJson = await appResponse.Content.ReadAsStringAsync();
-                    viewModel.Appointments = JsonSerializer.Deserialize<List<dynamic>>(appJson, _jsonOptions);
-                }
-
-                var tenantResponse = await httpClient.GetAsync($"api/Tenants/{tenantId}");
-                if (tenantResponse.IsSuccessStatusCode)
-                {
-                    var tenantJson = await tenantResponse.Content.ReadAsStringAsync();
-                    var tenantObj = JsonSerializer.Deserialize<JsonElement>(tenantJson);
-
-                    viewModel.ShopName = tenantObj.TryGetProperty("name", out var name) ? name.GetString() : null;
-                    viewModel.InstanceName = tenantObj.TryGetProperty("instanceName", out var inst) ? inst.GetString() : null;
-                    viewModel.GoogleEmail = tenantObj.TryGetProperty("googleEmail", out var email) ? email.GetString() : null;
-                    viewModel.IsBotActive = tenantObj.TryGetProperty("isBotActive", out var botActive) ? botActive.GetBoolean() : true;
-                    viewModel.PlanType = tenantObj.TryGetProperty("planType", out var plan) ? plan.GetString() ?? "Trial" : "Trial";
-                    viewModel.SubscriptionEndDate = tenantObj.TryGetProperty("subscriptionEndDate", out var subEnd) ? subEnd.GetDateTime() : DateTime.Now;
-
-                    if (tenantObj.TryGetProperty("businessHours", out var bh) && bh.ValueKind == JsonValueKind.Array)
-                    {
-                        var bhList = JsonSerializer.Deserialize<List<dynamic>>(bh.GetRawText(), _jsonOptions);
-                        viewModel.BusinessHours = bhList;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(viewModel.InstanceName))
-                        viewModel.IsWhatsAppConnected = await _evolutionApiService.IsInstanceConnectedAsync(viewModel.InstanceName);
-                }
-
-                var servicesResponse = await httpClient.GetAsync($"api/Services/tenant/{tenantId}");
-                if (servicesResponse.IsSuccessStatusCode)
-                {
-                    var servicesJson = await servicesResponse.Content.ReadAsStringAsync();
-                    viewModel.Services = JsonSerializer.Deserialize<List<dynamic>>(servicesJson, _jsonOptions);
-                }
-
-                var staffResponse = await httpClient.GetAsync($"api/AppUsers/staff/{tenantId}");
-                if (staffResponse.IsSuccessStatusCode)
-                {
-                    var staffJson = await staffResponse.Content.ReadAsStringAsync();
-                    viewModel.Staff = JsonSerializer.Deserialize<List<dynamic>>(staffJson, _jsonOptions);
+                    viewModel.Staff = JsonSerializer.Deserialize<List<dynamic>>(staff.GetRawText(), _jsonOptions);
                     viewModel.CurrentStaffCount = viewModel.Staff?.Count ?? 0;
                 }
+
+                if (!string.IsNullOrWhiteSpace(viewModel.InstanceName))
+                    viewModel.IsWhatsAppConnected = await _evolutionApiService.IsInstanceConnectedAsync(viewModel.InstanceName);
 
                 viewModel.TotalAppointmentCount = viewModel.Appointments?.Count ?? 0;
                 viewModel.TodayAppointmentCount = viewModel.Appointments?
@@ -110,6 +89,64 @@ namespace Appointment_SaaS.WebUI.Services.Concrete
             }
 
             return viewModel;
+        }
+
+        private static void MapTenant(DashboardViewModel viewModel, JsonElement tenantObj)
+        {
+            viewModel.ShopName = tenantObj.TryGetProperty("name", out var name) ? name.GetString() : null;
+            viewModel.InstanceName = tenantObj.TryGetProperty("instanceName", out var inst) ? inst.GetString() : null;
+            viewModel.GoogleEmail = tenantObj.TryGetProperty("googleEmail", out var email) ? email.GetString() : null;
+            viewModel.IsBotActive = tenantObj.TryGetProperty("isBotActive", out var botActive) ? botActive.GetBoolean() : true;
+            viewModel.PlanType = tenantObj.TryGetProperty("planType", out var plan) ? plan.GetString() ?? "Trial" : "Trial";
+            viewModel.BillingCycle = tenantObj.TryGetProperty("billingCycle", out var cycle) ? cycle.GetString() ?? "Monthly" : "Monthly";
+            viewModel.IsTrial = tenantObj.TryGetProperty("isTrial", out var trial) && trial.GetBoolean();
+            viewModel.SubscriptionEndDate = tenantObj.TryGetProperty("subscriptionEndDate", out var subEnd) ? subEnd.GetDateTime() : DateTime.Now;
+            viewModel.SubscriptionStatusLabel = tenantObj.TryGetProperty("subscriptionStatusLabel", out var statusLbl) ? statusLbl.GetString() ?? "" : "";
+            viewModel.HasPendingPlanChange = tenantObj.TryGetProperty("hasPendingPlanChange", out var pending) && pending.GetBoolean();
+            viewModel.HasPendingCheckout = tenantObj.TryGetProperty("hasPendingCheckout", out var pendingCheckout) && pendingCheckout.GetBoolean();
+            viewModel.HasScheduledPlanActivation = tenantObj.TryGetProperty("hasScheduledPlanActivation", out var scheduled) && scheduled.GetBoolean();
+            viewModel.PendingPlanDisplayLabel = tenantObj.TryGetProperty("pendingPlanDisplayLabel", out var pendingLbl)
+                ? pendingLbl.GetString()
+                : null;
+            if (tenantObj.TryGetProperty("pendingPlanEffectiveDate", out var effectiveDate)
+                && effectiveDate.ValueKind != JsonValueKind.Null)
+            {
+                viewModel.PendingPlanEffectiveDate = effectiveDate.GetDateTime();
+            }
+            viewModel.CancelAtPeriodEnd = tenantObj.TryGetProperty("cancelAtPeriodEnd", out var cancelEnd) && cancelEnd.GetBoolean();
+            viewModel.DaysRemaining = tenantObj.TryGetProperty("daysRemaining", out var daysRem) ? daysRem.GetInt32() : 0;
+            viewModel.DaysRemainingLabel = tenantObj.TryGetProperty("daysRemainingLabel", out var daysLbl)
+                ? daysLbl.GetString() ?? ""
+                : $"{viewModel.DaysRemaining} gün kaldı";
+            if (tenantObj.TryGetProperty("scheduledNewPlanDays", out var newDays)
+                && newDays.ValueKind != JsonValueKind.Null)
+            {
+                viewModel.ScheduledNewPlanDays = newDays.GetInt32();
+            }
+            viewModel.TotalAccessDays = tenantObj.TryGetProperty("totalAccessDays", out var totalDays)
+                ? totalDays.GetInt32()
+                : viewModel.DaysRemaining;
+
+            if (tenantObj.TryGetProperty("businessHours", out var bh) && bh.ValueKind == JsonValueKind.Array)
+            {
+                viewModel.BusinessHours = JsonSerializer.Deserialize<List<dynamic>>(
+                    bh.GetRawText(),
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
+
+            viewModel.BreakTimeEnabled = tenantObj.TryGetProperty("breakTimeEnabled", out var bte) && bte.GetBoolean();
+            if (tenantObj.TryGetProperty("breakStartTime", out var bst))
+            {
+                var s = bst.GetString();
+                if (!string.IsNullOrWhiteSpace(s) && s.Length >= 5)
+                    viewModel.BreakStartTime = s.Length > 5 ? s.Substring(0, 5) : s;
+            }
+            if (tenantObj.TryGetProperty("breakEndTime", out var bet))
+            {
+                var e = bet.GetString();
+                if (!string.IsNullOrWhiteSpace(e) && e.Length >= 5)
+                    viewModel.BreakEndTime = e.Length > 5 ? e.Substring(0, 5) : e;
+            }
         }
 
         public async Task<bool> ToggleAssistantAsync(int tenantId, bool isActive)
@@ -163,8 +200,22 @@ namespace Appointment_SaaS.WebUI.Services.Concrete
         {
             var httpClient = await CreateAuthenticatedApiClientAsync();
             var response = await httpClient.PostAsync($"api/Tenants/{tenantId}/cancel-subscription", null);
-            if (response.IsSuccessStatusCode) return (true, "Aboneliğiniz iptal talebi alındı.");
-            return (false, await response.Content.ReadAsStringAsync());
+            var body = await response.Content.ReadAsStringAsync();
+            if (response.IsSuccessStatusCode)
+            {
+                try
+                {
+                    var doc = JsonSerializer.Deserialize<JsonElement>(body);
+                    if (doc.TryGetProperty("message", out var msg))
+                        return (true, msg.GetString() ?? "Abonelik yenilemesi iptal edildi.");
+                }
+                catch
+                {
+                    // ignore parse errors
+                }
+                return (true, "Abonelik yenilemesi iptal edildi. Ödenmiş dönem sonuna kadar kullanmaya devam edebilirsiniz.");
+            }
+            return (false, body);
         }
     }
 }

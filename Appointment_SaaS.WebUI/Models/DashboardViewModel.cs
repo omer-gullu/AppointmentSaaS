@@ -1,5 +1,4 @@
 ﻿using Appointment_SaaS.Core.Constants;
-using System.Collections.Generic;
 
 namespace Appointment_SaaS.WebUI.Models
 {
@@ -10,6 +9,10 @@ namespace Appointment_SaaS.WebUI.Models
         public List<dynamic> Staff { get; set; } = new List<dynamic>();
         public List<dynamic>? BusinessHours { get; set; }
 
+        public bool BreakTimeEnabled { get; set; } = true;
+        public string BreakStartTime { get; set; } = "12:00";
+        public string BreakEndTime { get; set; } = "13:00";
+
         public string ShopName { get; set; }
         public string GoogleEmail { get; set; }
         public bool IsGoogleConnected => !string.IsNullOrEmpty(GoogleEmail);
@@ -17,53 +20,52 @@ namespace Appointment_SaaS.WebUI.Models
         public bool IsBotActive { get; set; } = true;
         public bool IsWhatsAppConnected { get; set; } = false;
 
-        // ?? Plan Bilgileri ????????????????????????????????????????????????????
         public string PlanType { get; set; } = "Trial";
+        public string BillingCycle { get; set; } = BillingCycles.Monthly;
         public DateTime SubscriptionEndDate { get; set; }
+        public bool IsTrial { get; set; }
+        public string SubscriptionStatusLabel { get; set; } = string.Empty;
+        public bool HasPendingPlanChange { get; set; }
+        public bool HasPendingCheckout { get; set; }
+        public bool HasScheduledPlanActivation { get; set; }
+        public string? PendingPlanDisplayLabel { get; set; }
+        public DateTime? PendingPlanEffectiveDate { get; set; }
+        public bool CancelAtPeriodEnd { get; set; }
 
-        // ?? �statistikler ?????????????????????????????????????????????????????
+        public int DaysRemaining { get; set; }
+        public string DaysRemainingLabel { get; set; } = string.Empty;
+        public int? ScheduledNewPlanDays { get; set; }
+        public int TotalAccessDays { get; set; }
+
+        public string BillingCycleLabel =>
+            BillingCycle == BillingCycles.Yearly ? "Yıllık" : "Aylık";
+
+        public string PlanDisplayLabel =>
+            IsTrial ? "Deneme" : $"{PlanType} / {BillingCycleLabel}";
+
         public int TodayAppointmentCount { get; set; }
         public int TotalAppointmentCount { get; set; }
         public int TotalServiceCount { get; set; }
         public int CurrentStaffCount { get; set; } = 0;
 
-        // ?? Plan Limitleri (Computed) ?????????????????????????????????????????
-
-        /// <summary>
-        /// Maksimum personel say�s�. -1 = s�n�rs�z, 0 = ekleyemez.
-        /// PlanPricing.GetStaffLimit'ten beslenir.
-        /// </summary>
         public int StaffLimit => PlanPricing.GetStaffLimit(PlanType);
 
-        /// <summary>
-        /// Personel ekleme �zelli�i bu planda a��k m�?
-        /// Trial ? false, Starter/Business/Pro ? true
-        /// </summary>
         public bool CanAddStaff => PlanPricing.CanUseStaff(PlanType);
 
-        /// <summary>
-        /// Hat�rlatma mesaj� �zelli�i bu planda a��k m�?
-        /// Trial/Starter ? false, Business/Pro ? true
-        /// </summary>
         public bool CanUseReminders => PlanPricing.CanUseReminders(PlanType);
 
-        /// <summary>
-        /// Personel limiti doldu mu?
-        /// StaffLimit = -1 (s�n�rs�z) ise hi�bir zaman dolmaz.
-        /// </summary>
         public bool IsStaffLimitReached =>
             StaffLimit != -1 && CurrentStaffCount >= StaffLimit;
 
-        /// <summary>
-        /// Dashboard'da g�sterilecek plan rozeti metni.
-        /// </summary>
+        public bool HasStaffOverLimit =>
+            StaffLimit > 0 && CurrentStaffCount > StaffLimit;
+
         public string PlanBadge => PlanType?.ToLower() switch
         {
-            "business" => "?? Business",
-            "pro" => "? Pro",
-            "starter" => "?? Starter",
-            _ => "?? Deneme"
+            "business" => "Business",
+            "pro" => "Pro",
+            "starter" => "Starter",
+            _ => "Deneme"
         };
     }
 }
-

@@ -1,0 +1,72 @@
+{
+  "name": "AI Failover - Error Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "notes": "Bu workflow, ana WhatsApp workflow'unda yakalanmayan hatalarda otomatik tetiklenir. Ana workflow > Settings > Error Workflow alanına bu workflow seçilmelidir."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR-API-HOST/api/AuditLogs/workflow-error",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Auth-Token",
+              "value": "YOUR_SYSTEM_N8N_AUTH_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ nodeName: ($json.execution && $json.execution.lastNodeExecuted) || 'unknown', workflowId: ($json.workflow && $json.workflow.id) || '0', errorMessage: 'AI Failover devre dışı kaldı: ' + (($json.execution && $json.execution.error && $json.execution.error.message) || 'bilinmeyen hata'), inputData: ($json.execution && $json.execution.url) || '', tenantId: 0 }) }}",
+        "options": {}
+      },
+      "id": "http-audit-log",
+      "name": "AuditLog: workflow-error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 300],
+      "notes": "ApiKey değil, SYSTEM N8nAuthToken kullanır. AuditLogsController.ReportWorkflowError endpoint'ine düşer."
+    },
+    {
+      "parameters": {
+        "content": "## AI Failover - Error Workflow\n\nBu workflow YALNIZCA ana workflow'ta yakalanmayan bir exception çıktığında tetiklenir (n8n'in Error Trigger mekanizması).\n\n### Tetikleme\n1. Ana WhatsApp workflow > Settings > **Error Workflow** > bu workflow'u seç.\n2. Ana workflow patlarsa n8n otomatik bu workflow'u çağırır.\n\n### Ne yapar?\n- `AuditLogs/workflow-error` uç noktasına execution detayını yazar.\n- Manager paneli AuditLog ekranında **\"WorkflowError\"** kaydı olarak görünür.\n\n### Müşteriye özür mesajı?\nMüşteri özür mesajı **bu workflow'ta YOK** çünkü Error Trigger'a customer phone otomatik gelmiyor.\nÖzür mesajı ana workflow'un **\"Fallback AI Agent da hata verdi\"** dalına eklenmelidir; orada CustomerPhone hâlâ Map Variables'tan erişilebilir.\n\n### Kurulum\n1. `YOUR-API-HOST` ve `YOUR_SYSTEM_N8N_AUTH_TOKEN` değerlerini değiştirin.\n2. Workflow'u kaydet > Active.\n3. Ana workflow Settings > Error Workflow > bunu seç.",
+        "height": 400,
+        "width": 480
+      },
+      "id": "sticky-note",
+      "name": "Not",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [200, 60]
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "AuditLog: workflow-error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

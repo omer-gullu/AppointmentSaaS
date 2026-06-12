@@ -17,10 +17,10 @@ public class JwtHelper : ITokenHelper
     public JwtHelper(IConfiguration configuration)
     {
         _configuration = configuration;
-        _tokenOptions = _configuration.GetSection("TokenOptions").Get<TokenOptions>();
+        _tokenOptions = _configuration.GetSection("TokenOptions").Get<TokenOptions>() ?? new TokenOptions();
     }
 
-    public async Task <AccessToken> CreateToken(AppUser user, List<OperationClaim> operationClaims)
+    public Task<AccessToken> CreateToken(AppUser user, List<OperationClaim> operationClaims)
     {
         var securityKey = SecurityKeyHelper.CreateSecurityKey(_tokenOptions.SecurityKey);
         var signingCredentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
@@ -47,11 +47,11 @@ public class JwtHelper : ITokenHelper
             signingCredentials: signingCredentials
         );
 
-        return new AccessToken
+        return Task.FromResult(new AccessToken
         {
             Token = new JwtSecurityTokenHandler().WriteToken(jwt),
             Expiration = jwt.ValidTo
-        };
+        });
     }
 
   

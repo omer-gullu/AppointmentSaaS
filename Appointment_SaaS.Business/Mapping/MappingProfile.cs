@@ -12,7 +12,12 @@ public class MappingProfile : Profile
         CreateMap<Appointment, AppointmentCreateDto>();
 
         // AppointmentCreateDto -> Appointment (Tersi için)
-        CreateMap<AppointmentCreateDto, Appointment>();
+        CreateMap<AppointmentCreateDto, Appointment>()
+            .ForMember(dest => dest.AppointmentServiceLinks, opt => opt.Ignore())
+            .ForMember(dest => dest.Service, opt => opt.Ignore())
+            .ForMember(dest => dest.Tenant, opt => opt.Ignore())
+            .ForMember(dest => dest.AppUser, opt => opt.Ignore())
+            .ForMember(dest => dest.AppointmentID, opt => opt.Ignore());
 
         CreateMap<TenantCreateDto, Tenant>()
     .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => DateTime.Now))
