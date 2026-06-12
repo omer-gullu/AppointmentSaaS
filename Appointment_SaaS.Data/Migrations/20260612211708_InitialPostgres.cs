@@ -561,7 +561,7 @@ namespace Appointment_SaaS.Data.Migrations
                 table: "TransactionLogs",
                 column: "PaymentId",
                 unique: true,
-                filter: "[PaymentId] IS NOT NULL");
+                filter: "\"PaymentId\" IS NOT NULL");
         }
 
         /// <inheritdoc />

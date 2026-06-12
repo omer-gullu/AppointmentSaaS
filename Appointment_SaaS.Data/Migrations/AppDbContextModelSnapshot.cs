@@ -1272,7 +1272,7 @@ namespace Appointment_SaaS.Data.Migrations
 
                     b.HasIndex("PaymentId")
                         .IsUnique()
-                        .HasFilter("[PaymentId] IS NOT NULL");
+                        .HasFilter("\"PaymentId\" IS NOT NULL");
 
                     b.ToTable("TransactionLogs");
                 });

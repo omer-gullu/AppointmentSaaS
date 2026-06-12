@@ -113,7 +113,7 @@ namespace Appointment_SaaS.Data.Context
             modelBuilder.Entity<TransactionLog>()
                 .HasIndex(t => t.PaymentId)
                 .IsUnique()
-                .HasFilter("[PaymentId] IS NOT NULL"); // NULL değerleri indekse dahil etme
+                .HasFilter("\"PaymentId\" IS NOT NULL"); // NULL değerleri indekse dahil etme (PostgreSQL)
 
             modelBuilder.Entity<Service>()
                 .HasOne(s => s.Tenant)
