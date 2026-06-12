@@ -384,9 +384,9 @@ namespace Appointment_SaaS.Data.Migrations
                 columns: new[] { "SectorID", "CreatedAt", "DefaultPrompt", "Name" },
                 values: new object[,]
                 {
-                    { 1, new DateTime(2026, 6, 12, 23, 34, 33, 616, DateTimeKind.Local).AddTicks(2812), "Sen profesyonel bir erkek kuaförü asistanısın. Maskülen, net ve çözüm odaklı konuş.", "Erkek Kuaförü" },
-                    { 2, new DateTime(2026, 6, 12, 23, 34, 33, 616, DateTimeKind.Local).AddTicks(2845), "Sen nazik ve detaycı bir kadın kuaförü asistanısın. Estetik ve bakım konularına hakim konuş.", "Kadın Kuaförü" },
-                    { 3, new DateTime(2026, 6, 12, 23, 34, 33, 616, DateTimeKind.Local).AddTicks(2855), "Sen modern ve kapsayıcı bir kuaför asistanısın. Her türlü bakım hizmetine uygun profesyonel bir dille konuş.", "Unisex Kuaför" }
+                    { 1, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Sen profesyonel bir erkek kuaförü asistanısın. Maskülen, net ve çözüm odaklı konuş.", "Erkek Kuaförü" },
+                    { 2, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Sen nazik ve detaycı bir kadın kuaförü asistanısın. Estetik ve bakım konularına hakim konuş.", "Kadın Kuaförü" },
+                    { 3, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), "Sen modern ve kapsayıcı bir kuaför asistanısın. Her türlü bakım hizmetine uygun profesyonel bir dille konuş.", "Unisex Kuaför" }
                 });
 
             migrationBuilder.InsertData(
@@ -399,15 +399,15 @@ namespace Appointment_SaaS.Data.Migrations
                 columns: new[] { "TenantID", "Address", "ApiKey", "AutoRenew", "BillingCycle", "BreakEndTime", "BreakStartTime", "BreakTimeEnabled", "CancelAtPeriodEnd", "CreatedAt", "GoogleAccessToken", "GoogleEmail", "InstanceName", "IsActive", "IsBotActive", "IsSubscriptionActive", "IsTrial", "IyzicoCardToken", "IyzicoUserKey", "MessageCount", "Name", "PendingBillingCycle", "PendingCheckoutToken", "PendingPlanEffectiveDate", "PendingPlanType", "PhoneNumber", "PlanType", "PreviousSubscriptionReferenceCode", "SectorID", "StripeCustomerId", "SubscriptionEndDate", "SubscriptionReferenceCode", "TrialFingerprint" },
                 values: new object[,]
                 {
-                    { 1, "İstanbul, Şişli No:10", "JNT-123-ABC", true, "Monthly", new TimeSpan(0, 13, 0, 0, 0), new TimeSpan(0, 12, 0, 0, 0), true, false, new DateTime(2026, 6, 12, 23, 34, 33, 616, DateTimeKind.Local).AddTicks(3031), null, null, null, true, true, true, false, null, null, 0, "Janti Erkek Kuaförü", null, null, null, null, "5551112233", "Trial", null, 1, null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, "" },
-                    { 2, "Ankara, Çankaya No:25", "ISL-456-DEF", true, "Monthly", new TimeSpan(0, 13, 0, 0, 0), new TimeSpan(0, 12, 0, 0, 0), true, false, new DateTime(2026, 6, 12, 23, 34, 33, 616, DateTimeKind.Local).AddTicks(3046), null, null, null, true, true, true, false, null, null, 0, "Işıltı Bayan Salonu", null, null, null, null, "5552223344", "Trial", null, 2, null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, "" },
-                    { 3, "İzmir, Alsancak No:5", "MOD-789-GHI", true, "Monthly", new TimeSpan(0, 13, 0, 0, 0), new TimeSpan(0, 12, 0, 0, 0), true, false, new DateTime(2026, 6, 12, 23, 34, 33, 616, DateTimeKind.Local).AddTicks(3056), null, null, null, true, true, true, false, null, null, 0, "Modern Tarz Unisex", null, null, null, null, "5553334455", "Trial", null, 3, null, new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), null, "" }
+                    { 1, "İstanbul, Şişli No:10", "JNT-123-ABC", true, "Monthly", new TimeSpan(0, 13, 0, 0, 0), new TimeSpan(0, 12, 0, 0, 0), true, false, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, null, null, true, true, true, false, null, null, 0, "Janti Erkek Kuaförü", null, null, null, null, "5551112233", "Trial", null, 1, null, new DateTime(2026, 12, 31, 23, 59, 59, 0, DateTimeKind.Utc), null, "" },
+                    { 2, "Ankara, Çankaya No:25", "ISL-456-DEF", true, "Monthly", new TimeSpan(0, 13, 0, 0, 0), new TimeSpan(0, 12, 0, 0, 0), true, false, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, null, null, true, true, true, false, null, null, 0, "Işıltı Bayan Salonu", null, null, null, null, "5552223344", "Trial", null, 2, null, new DateTime(2026, 12, 31, 23, 59, 59, 0, DateTimeKind.Utc), null, "" },
+                    { 3, "İzmir, Alsancak No:5", "MOD-789-GHI", true, "Monthly", new TimeSpan(0, 13, 0, 0, 0), new TimeSpan(0, 12, 0, 0, 0), true, false, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), null, null, null, true, true, true, false, null, null, 0, "Modern Tarz Unisex", null, null, null, null, "5553334455", "Trial", null, 3, null, new DateTime(2026, 12, 31, 23, 59, 59, 0, DateTimeKind.Utc), null, "" }
                 });
 
             migrationBuilder.InsertData(
                 table: "AppUsers",
                 columns: new[] { "AppUserID", "AccessFailedCount", "Email", "FirstName", "GoogleCalendarId", "GoogleRefreshToken", "LastName", "LastOtpRequestDate", "LockoutEnd", "OtpCode", "OtpExpiry", "PhoneNumber", "SecurityStamp", "Specialization", "Status", "TenantID", "TrialEndDate", "TrialStartDate" },
-                values: new object[] { -1, 0, "admin@appointmentsaas.com", "Kurucu", null, null, "Admin", null, null, null, null, "05078283441", "0357787b-1614-43e9-8ee4-650c1e76e4af", null, true, 1, null, null });
+                values: new object[] { -1, 0, "admin@appointmentsaas.com", "Kurucu", null, null, "Admin", null, null, null, null, "05078283441", "e75bba40-b367-47f2-a7fe-91a8e552f47d", null, true, 1, null, null });
 
             migrationBuilder.InsertData(
                 table: "BusinessHours",

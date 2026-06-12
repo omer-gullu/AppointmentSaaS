@@ -100,7 +100,7 @@ namespace Appointment_SaaS.Data.Migrations
                             FirstName = "Kurucu",
                             LastName = "Admin",
                             PhoneNumber = "05078283441",
-                            SecurityStamp = "0357787b-1614-43e9-8ee4-650c1e76e4af",
+                            SecurityStamp = "e75bba40-b367-47f2-a7fe-91a8e552f47d",
                             Status = true,
                             TenantID = 1
                         });
@@ -845,21 +845,21 @@ namespace Appointment_SaaS.Data.Migrations
                         new
                         {
                             SectorID = 1,
-                            CreatedAt = new DateTime(2026, 6, 12, 23, 34, 33, 616, DateTimeKind.Local).AddTicks(2812),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             DefaultPrompt = "Sen profesyonel bir erkek kuaförü asistanısın. Maskülen, net ve çözüm odaklı konuş.",
                             Name = "Erkek Kuaförü"
                         },
                         new
                         {
                             SectorID = 2,
-                            CreatedAt = new DateTime(2026, 6, 12, 23, 34, 33, 616, DateTimeKind.Local).AddTicks(2845),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             DefaultPrompt = "Sen nazik ve detaycı bir kadın kuaförü asistanısın. Estetik ve bakım konularına hakim konuş.",
                             Name = "Kadın Kuaförü"
                         },
                         new
                         {
                             SectorID = 3,
-                            CreatedAt = new DateTime(2026, 6, 12, 23, 34, 33, 616, DateTimeKind.Local).AddTicks(2855),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             DefaultPrompt = "Sen modern ve kapsayıcı bir kuaför asistanısın. Her türlü bakım hizmetine uygun profesyonel bir dille konuş.",
                             Name = "Unisex Kuaför"
                         });
@@ -1114,7 +1114,7 @@ namespace Appointment_SaaS.Data.Migrations
                             BreakStartTime = new TimeSpan(0, 12, 0, 0, 0),
                             BreakTimeEnabled = true,
                             CancelAtPeriodEnd = false,
-                            CreatedAt = new DateTime(2026, 6, 12, 23, 34, 33, 616, DateTimeKind.Local).AddTicks(3031),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             IsActive = true,
                             IsBlacklisted = false,
                             IsBotActive = true,
@@ -1125,7 +1125,7 @@ namespace Appointment_SaaS.Data.Migrations
                             PhoneNumber = "5551112233",
                             PlanType = "Trial",
                             SectorID = 1,
-                            SubscriptionEndDate = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            SubscriptionEndDate = new DateTime(2026, 12, 31, 23, 59, 59, 0, DateTimeKind.Utc),
                             TrialFingerprint = "",
                             TrialUsed = false
                         },
@@ -1140,7 +1140,7 @@ namespace Appointment_SaaS.Data.Migrations
                             BreakStartTime = new TimeSpan(0, 12, 0, 0, 0),
                             BreakTimeEnabled = true,
                             CancelAtPeriodEnd = false,
-                            CreatedAt = new DateTime(2026, 6, 12, 23, 34, 33, 616, DateTimeKind.Local).AddTicks(3046),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             IsActive = true,
                             IsBlacklisted = false,
                             IsBotActive = true,
@@ -1151,7 +1151,7 @@ namespace Appointment_SaaS.Data.Migrations
                             PhoneNumber = "5552223344",
                             PlanType = "Trial",
                             SectorID = 2,
-                            SubscriptionEndDate = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            SubscriptionEndDate = new DateTime(2026, 12, 31, 23, 59, 59, 0, DateTimeKind.Utc),
                             TrialFingerprint = "",
                             TrialUsed = false
                         },
@@ -1166,7 +1166,7 @@ namespace Appointment_SaaS.Data.Migrations
                             BreakStartTime = new TimeSpan(0, 12, 0, 0, 0),
                             BreakTimeEnabled = true,
                             CancelAtPeriodEnd = false,
-                            CreatedAt = new DateTime(2026, 6, 12, 23, 34, 33, 616, DateTimeKind.Local).AddTicks(3056),
+                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             IsActive = true,
                             IsBlacklisted = false,
                             IsBotActive = true,
@@ -1177,7 +1177,7 @@ namespace Appointment_SaaS.Data.Migrations
                             PhoneNumber = "5553334455",
                             PlanType = "Trial",
                             SectorID = 3,
-                            SubscriptionEndDate = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            SubscriptionEndDate = new DateTime(2026, 12, 31, 23, 59, 59, 0, DateTimeKind.Utc),
                             TrialFingerprint = "",
                             TrialUsed = false
                         });

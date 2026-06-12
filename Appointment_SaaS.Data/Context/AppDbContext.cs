@@ -178,6 +178,9 @@ namespace Appointment_SaaS.Data.Context
                 .HasColumnType("decimal(18,2)");
 
             // 4. SEED DATA (Başlangıç Verileri)
+            // Npgsql timestamptz seed için UTC zorunlu (Local/Unspecified migration'da patlar).
+            var seedCreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            var seedSubscriptionEndUtc = new DateTime(2026, 12, 31, 23, 59, 59, DateTimeKind.Utc);
 
             // A. Roller (OperationClaims)
             modelBuilder.Entity<OperationClaim>().HasData(
@@ -188,9 +191,9 @@ namespace Appointment_SaaS.Data.Context
 
             // B. Sektörler
             modelBuilder.Entity<Sector>().HasData(
-                new Sector { SectorID = 1, Name = "Erkek Kuaförü", DefaultPrompt = "Sen profesyonel bir erkek kuaförü asistanısın. Maskülen, net ve çözüm odaklı konuş." },
-                new Sector { SectorID = 2, Name = "Kadın Kuaförü", DefaultPrompt = "Sen nazik ve detaycı bir kadın kuaförü asistanısın. Estetik ve bakım konularına hakim konuş." },
-                new Sector { SectorID = 3, Name = "Unisex Kuaför", DefaultPrompt = "Sen modern ve kapsayıcı bir kuaför asistanısın. Her türlü bakım hizmetine uygun profesyonel bir dille konuş." }
+                new Sector { SectorID = 1, Name = "Erkek Kuaförü", DefaultPrompt = "Sen profesyonel bir erkek kuaförü asistanısın. Maskülen, net ve çözüm odaklı konuş.", CreatedAt = seedCreatedAtUtc },
+                new Sector { SectorID = 2, Name = "Kadın Kuaförü", DefaultPrompt = "Sen nazik ve detaycı bir kadın kuaförü asistanısın. Estetik ve bakım konularına hakim konuş.", CreatedAt = seedCreatedAtUtc },
+                new Sector { SectorID = 3, Name = "Unisex Kuaför", DefaultPrompt = "Sen modern ve kapsayıcı bir kuaför asistanısın. Her türlü bakım hizmetine uygun profesyonel bir dille konuş.", CreatedAt = seedCreatedAtUtc }
             );
 
             modelBuilder.Entity<Tenant>().HasData(
@@ -202,7 +205,8 @@ namespace Appointment_SaaS.Data.Context
                     ApiKey = "JNT-123-ABC",
                     PhoneNumber = "5551112233",
                     SectorID = 1,
-                    CreatedAt = DateTime.Now,
+                    CreatedAt = seedCreatedAtUtc,
+                    SubscriptionEndDate = seedSubscriptionEndUtc,
                     IsActive = true
                 },
                 new Tenant
@@ -213,7 +217,8 @@ namespace Appointment_SaaS.Data.Context
                     ApiKey = "ISL-456-DEF",
                     PhoneNumber = "5552223344",
                     SectorID = 2,
-                    CreatedAt = DateTime.Now,
+                    CreatedAt = seedCreatedAtUtc,
+                    SubscriptionEndDate = seedSubscriptionEndUtc,
                     IsActive = true
                 },
                 new Tenant
@@ -224,7 +229,8 @@ namespace Appointment_SaaS.Data.Context
                     ApiKey = "MOD-789-GHI",
                     PhoneNumber = "5553334455",
                     SectorID = 3,
-                    CreatedAt = DateTime.Now,
+                    CreatedAt = seedCreatedAtUtc,
+                    SubscriptionEndDate = seedSubscriptionEndUtc,
                     IsActive = true
                 }
             );
