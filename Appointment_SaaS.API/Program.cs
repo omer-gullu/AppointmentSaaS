@@ -5,6 +5,7 @@ using Appointment_SaaS.Business.Validation;
 using Appointment_SaaS.Data.Abstract;
 using Appointment_SaaS.Data.Concrete;
 using Appointment_SaaS.Data.Context;
+using Appointment_SaaS.Data.Extensions;
 using Appointment_SaaS.DataAccess.Abstract;
 using FluentValidation.AspNetCore;
 using FluentValidation;
@@ -62,8 +63,7 @@ builder.Services.AddCors(options =>
 // --- VERITABANI BAGLANTISI ---
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(connectionString, sql =>
-        sql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
+    options.UseAppointmentPostgreSql(connectionString));
 
 // --- JWT AUTHENTICATION AYARLARI ---
 var tokenOptions = builder.Configuration.GetSection("TokenOptions").Get<TokenOptions>();

@@ -51,6 +51,7 @@
 /opt/appointmentsaas/webui.env
 /opt/n8n/
 /opt/evolution/
+/opt/postgres/          # deploy/postgres/docker-compose.yml
 ```
 
 Infra deploy **`.env` dosyalarını üzerine yazmaz**.
@@ -69,11 +70,25 @@ Infra deploy **`.env` dosyalarını üzerine yazmaz**.
 ## İlk kurulum (sunucu, bir kez)
 
 1. .NET 8 runtime
-2. SQL Server (Docker)
-3. `api.env` / `webui.env` — şablonlar: `deploy/api/`, `deploy/webui/`
-4. Nginx + certbot: `api.`, `app.`, `n8n.` subdomain (api/app sonra da eklenebilir)
-5. GitHub secrets
-6. Actions → Deploy to Hetzner → Run workflow
+2. **PostgreSQL** (Docker, yalnızca localhost):
+   ```bash
+   mkdir -p /opt/postgres && cd /opt/postgres
+   # deploy/postgres/docker-compose.yml ve .env (sunucuda oluşturun, repoya commit etmeyin)
+   docker compose up -d
+   ```
+3. `api.env` / `webui.env` — şablonlar: `deploy/api/`, `deploy/webui/` (Postgres connection string)
+4. Veritabanı şeması (ilk deploy sonrası veya deploy öncesi):
+   ```bash
+   cd /opt/appointmentsaas/api
+   dotnet Appointment_SaaS.API.dll ef database update
+   # veya geliştirme makinesinden:
+   dotnet ef database update --project Appointment_SaaS.Data --startup-project Appointment_SaaS.API
+   ```
+5. Nginx + certbot: `api.`, `akillirandevu.net` (WebUI), `n8n.`, `evolution.`
+6. GitHub secrets
+7. Actions → Deploy to Hetzner → Run workflow
+
+> **Not:** n8n kendi Postgres instance'ını kullanır (`deploy/n8n`). Uygulama DB'si ayrıdır (`deploy/postgres`). Port 5432 dışarıya açılmamalı (`127.0.0.1:5432` bind).
 
 ---
 

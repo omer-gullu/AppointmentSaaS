@@ -7,6 +7,7 @@ using Appointment_SaaS.Core.Utilities;
 using Appointment_SaaS.Data.Abstract;
 using Appointment_SaaS.Data.Concrete;
 using Appointment_SaaS.Data.Context;
+using Appointment_SaaS.Data.Extensions;
 using Appointment_SaaS.DataAccess.Abstract;
 using AutoMapper;
 using Appointment_SaaS.WebUI.Middleware;
@@ -55,9 +56,7 @@ builder.Services.Configure<GzipCompressionProviderOptions>(options =>
 
 // DbContext (pool reduces per-request context allocation — helps TTFB under load)
 builder.Services.AddDbContextPool<AppDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        sql => sql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
+    options.UseAppointmentPostgreSql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // AutoMapper
 var mapperConfig = new MapperConfiguration(mc =>

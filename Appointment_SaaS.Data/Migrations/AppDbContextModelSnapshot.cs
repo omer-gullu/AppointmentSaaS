@@ -3,8 +3,8 @@ using System;
 using Appointment_SaaS.Data.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
@@ -18,72 +18,72 @@ namespace Appointment_SaaS.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "8.0.23")
-                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+                .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("Appointment_SaaS.Core.Entities.AppUser", b =>
                 {
                     b.Property<int>("AppUserID")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AppUserID"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("AppUserID"));
 
                     b.Property<int>("AccessFailedCount")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("GoogleCalendarId")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("GoogleRefreshToken")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("LastName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("LastOtpRequestDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("LockoutEnd")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("OtpCode")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("OtpExpiry")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("SecurityStamp")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Specialization")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<bool>("Status")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<int>("TenantID")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<DateTime?>("TrialEndDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("TrialStartDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("AppUserID");
 
@@ -100,7 +100,7 @@ namespace Appointment_SaaS.Data.Migrations
                             FirstName = "Kurucu",
                             LastName = "Admin",
                             PhoneNumber = "05078283441",
-                            SecurityStamp = "b276aa7e-f7b7-4194-a9b0-22a14f140df1",
+                            SecurityStamp = "0357787b-1614-43e9-8ee4-650c1e76e4af",
                             Status = true,
                             TenantID = 1
                         });
@@ -110,49 +110,49 @@ namespace Appointment_SaaS.Data.Migrations
                 {
                     b.Property<int>("AppointmentID")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AppointmentID"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("AppointmentID"));
 
                     b.Property<int>("AppUserID")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<string>("CustomerName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("CustomerPhone")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("EndDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("GoogleEventID")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<bool>("IsConfirmed")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Note")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("ReminderSentAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("ServiceID")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("StartDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<int>("TenantID")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.HasKey("AppointmentID");
 
@@ -171,18 +171,18 @@ namespace Appointment_SaaS.Data.Migrations
                 {
                     b.Property<int>("AppointmentServiceLinkID")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AppointmentServiceLinkID"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("AppointmentServiceLinkID"));
 
                     b.Property<int>("AppointmentID")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<int>("ServiceID")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<int>("SortOrder")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.HasKey("AppointmentServiceLinkID");
 
@@ -197,47 +197,47 @@ namespace Appointment_SaaS.Data.Migrations
                 {
                     b.Property<int>("AuditLogID")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AuditLogID"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("AuditLogID"));
 
                     b.Property<string>("Action")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("EntityId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("EntityName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("IpAddress")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("LogLevel")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("NewValues")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("OldValues")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Source")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<int?>("TenantId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("Timestamp")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("UserId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.HasKey("AuditLogID");
 
@@ -248,24 +248,24 @@ namespace Appointment_SaaS.Data.Migrations
                 {
                     b.Property<int>("BusinessHourID")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("BusinessHourID"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("BusinessHourID"));
 
                     b.Property<TimeSpan>("CloseTime")
-                        .HasColumnType("time");
+                        .HasColumnType("interval");
 
                     b.Property<int>("DayOfWeek")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<bool>("IsClosed")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<TimeSpan>("OpenTime")
-                        .HasColumnType("time");
+                        .HasColumnType("interval");
 
                     b.Property<int>("TenantID")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.HasKey("BusinessHourID");
 
@@ -343,26 +343,26 @@ namespace Appointment_SaaS.Data.Migrations
                 {
                     b.Property<int>("FeedbackID")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("FeedbackID"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("FeedbackID"));
 
                     b.Property<string>("FeedbackType")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<bool>("IsRead")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Message")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("SentAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("TenantID")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.HasKey("FeedbackID");
 
@@ -375,22 +375,22 @@ namespace Appointment_SaaS.Data.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateOnly>("Date")
                         .HasColumnType("date");
 
                     b.Property<bool>("IsDefault")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<int>("TenantId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
@@ -789,13 +789,13 @@ namespace Appointment_SaaS.Data.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -823,19 +823,19 @@ namespace Appointment_SaaS.Data.Migrations
                 {
                     b.Property<int>("SectorID")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SectorID"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("SectorID"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("DefaultPrompt")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.HasKey("SectorID");
 
@@ -845,21 +845,21 @@ namespace Appointment_SaaS.Data.Migrations
                         new
                         {
                             SectorID = 1,
-                            CreatedAt = new DateTime(2026, 5, 21, 1, 18, 3, 113, DateTimeKind.Local).AddTicks(2583),
+                            CreatedAt = new DateTime(2026, 6, 12, 23, 34, 33, 616, DateTimeKind.Local).AddTicks(2812),
                             DefaultPrompt = "Sen profesyonel bir erkek kuaförü asistanısın. Maskülen, net ve çözüm odaklı konuş.",
                             Name = "Erkek Kuaförü"
                         },
                         new
                         {
                             SectorID = 2,
-                            CreatedAt = new DateTime(2026, 5, 21, 1, 18, 3, 113, DateTimeKind.Local).AddTicks(2637),
+                            CreatedAt = new DateTime(2026, 6, 12, 23, 34, 33, 616, DateTimeKind.Local).AddTicks(2845),
                             DefaultPrompt = "Sen nazik ve detaycı bir kadın kuaförü asistanısın. Estetik ve bakım konularına hakim konuş.",
                             Name = "Kadın Kuaförü"
                         },
                         new
                         {
                             SectorID = 3,
-                            CreatedAt = new DateTime(2026, 5, 21, 1, 18, 3, 113, DateTimeKind.Local).AddTicks(2640),
+                            CreatedAt = new DateTime(2026, 6, 12, 23, 34, 33, 616, DateTimeKind.Local).AddTicks(2855),
                             DefaultPrompt = "Sen modern ve kapsayıcı bir kuaför asistanısın. Her türlü bakım hizmetine uygun profesyonel bir dille konuş.",
                             Name = "Unisex Kuaför"
                         });
@@ -869,22 +869,22 @@ namespace Appointment_SaaS.Data.Migrations
                 {
                     b.Property<int>("ServiceID")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ServiceID"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ServiceID"));
 
                     b.Property<int>("DurationInMinutes")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("TenantID")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.HasKey("ServiceID");
 
@@ -971,114 +971,129 @@ namespace Appointment_SaaS.Data.Migrations
                 {
                     b.Property<int>("TenantID")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TenantID"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("TenantID"));
 
                     b.Property<string>("Address")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("ApiKey")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("CancelAtPeriodEnd")
-                        .HasColumnType("bit");
+                        .HasColumnType("text");
 
                     b.Property<bool>("AutoRenew")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<string>("BillingCycle")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
+
+                    b.Property<TimeSpan>("BreakEndTime")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("interval")
+                        .HasDefaultValue(new TimeSpan(0, 13, 0, 0, 0));
+
+                    b.Property<TimeSpan>("BreakStartTime")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("interval")
+                        .HasDefaultValue(new TimeSpan(0, 12, 0, 0, 0));
+
+                    b.Property<bool>("BreakTimeEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("CancelAtPeriodEnd")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("GoogleAccessToken")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("GoogleEmail")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("InstanceName")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsBlacklisted")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
                     b.Property<bool>("IsBotActive")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsSubscriptionActive")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsTrial")
-                        .HasColumnType("bit");
+                        .HasColumnType("boolean");
 
                     b.Property<string>("IyzicoCardToken")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("IyzicoUserKey")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<int>("MessageCount")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("PendingBillingCycle")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("PendingCheckoutToken")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("PendingPlanEffectiveDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("PendingPlanType")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("PlanType")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("PreviousSubscriptionReferenceCode")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<int>("SectorID")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<string>("StripeCustomerId")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("SubscriptionEndDate")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("SubscriptionReferenceCode")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("TrialFingerprint")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasDefaultValue("");
 
                     b.Property<bool>("TrialUsed")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
+                        .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
                     b.HasKey("TenantID");
@@ -1095,7 +1110,11 @@ namespace Appointment_SaaS.Data.Migrations
                             ApiKey = "JNT-123-ABC",
                             AutoRenew = true,
                             BillingCycle = "Monthly",
-                            CreatedAt = new DateTime(2026, 5, 21, 1, 18, 3, 113, DateTimeKind.Local).AddTicks(2780),
+                            BreakEndTime = new TimeSpan(0, 13, 0, 0, 0),
+                            BreakStartTime = new TimeSpan(0, 12, 0, 0, 0),
+                            BreakTimeEnabled = true,
+                            CancelAtPeriodEnd = false,
+                            CreatedAt = new DateTime(2026, 6, 12, 23, 34, 33, 616, DateTimeKind.Local).AddTicks(3031),
                             IsActive = true,
                             IsBlacklisted = false,
                             IsBotActive = true,
@@ -1117,7 +1136,11 @@ namespace Appointment_SaaS.Data.Migrations
                             ApiKey = "ISL-456-DEF",
                             AutoRenew = true,
                             BillingCycle = "Monthly",
-                            CreatedAt = new DateTime(2026, 5, 21, 1, 18, 3, 113, DateTimeKind.Local).AddTicks(2791),
+                            BreakEndTime = new TimeSpan(0, 13, 0, 0, 0),
+                            BreakStartTime = new TimeSpan(0, 12, 0, 0, 0),
+                            BreakTimeEnabled = true,
+                            CancelAtPeriodEnd = false,
+                            CreatedAt = new DateTime(2026, 6, 12, 23, 34, 33, 616, DateTimeKind.Local).AddTicks(3046),
                             IsActive = true,
                             IsBlacklisted = false,
                             IsBotActive = true,
@@ -1139,7 +1162,11 @@ namespace Appointment_SaaS.Data.Migrations
                             ApiKey = "MOD-789-GHI",
                             AutoRenew = true,
                             BillingCycle = "Monthly",
-                            CreatedAt = new DateTime(2026, 5, 21, 1, 18, 3, 113, DateTimeKind.Local).AddTicks(2800),
+                            BreakEndTime = new TimeSpan(0, 13, 0, 0, 0),
+                            BreakStartTime = new TimeSpan(0, 12, 0, 0, 0),
+                            BreakTimeEnabled = true,
+                            CancelAtPeriodEnd = false,
+                            CreatedAt = new DateTime(2026, 6, 12, 23, 34, 33, 616, DateTimeKind.Local).AddTicks(3056),
                             IsActive = true,
                             IsBlacklisted = false,
                             IsBotActive = true,
@@ -1160,28 +1187,28 @@ namespace Appointment_SaaS.Data.Migrations
                 {
                     b.Property<int>("TenantBlockedPhoneID")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TenantBlockedPhoneID"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("TenantBlockedPhoneID"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Note")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("PhoneCore")
                         .IsRequired()
                         .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                        .HasColumnType("character varying(10)");
 
                     b.Property<string>("Source")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
+                        .HasColumnType("character varying(32)");
 
                     b.Property<int>("TenantID")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.HasKey("TenantBlockedPhoneID");
 
@@ -1195,51 +1222,51 @@ namespace Appointment_SaaS.Data.Migrations
                 {
                     b.Property<int>("TransactionLogID")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TransactionLogID"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("TransactionLogID"));
 
                     b.Property<string>("AgreementVersion")
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
+                        .HasColumnType("character varying(32)");
 
                     b.Property<decimal?>("Amount")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Currency")
                         .HasMaxLength(8)
-                        .HasColumnType("nvarchar(8)");
+                        .HasColumnType("character varying(8)");
 
                     b.Property<string>("IpAddress")
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
+                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("PaymentId")
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
+                        .HasColumnType("character varying(256)");
 
                     b.Property<string>("RawPayload")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
+                        .HasColumnType("character varying(32)");
 
                     b.Property<string>("SubscriptionReferenceCode")
                         .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
+                        .HasColumnType("character varying(256)");
 
                     b.Property<int>("TenantId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<string>("TransactionType")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
+                        .HasColumnType("character varying(64)");
 
                     b.HasKey("TransactionLogID");
 
@@ -1254,15 +1281,15 @@ namespace Appointment_SaaS.Data.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int>("OperationClaimId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<int>("UserId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 

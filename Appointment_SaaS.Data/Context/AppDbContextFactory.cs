@@ -1,3 +1,4 @@
+using Appointment_SaaS.Data.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
@@ -20,8 +21,12 @@ namespace Appointment_SaaS.Data.Context
 
             var builder = new DbContextOptionsBuilder<AppDbContext>();
             var connectionString = configuration.GetConnectionString("DefaultConnection");
+            if (string.IsNullOrWhiteSpace(connectionString) || connectionString.Contains("__CONNECTION_STRING"))
+            {
+                connectionString = "Host=127.0.0.1;Port=5432;Database=appointmentsaas;Username=appointmentsaas;Password=devpassword";
+            }
 
-            builder.UseSqlServer(connectionString);
+            builder.UseAppointmentPostgreSql(connectionString);
 
             // Sadece IDesignTimeDbContextFactory'den çağrıldığında bu constructor tetiklenir
             return new AppDbContext(builder.Options, null, null);

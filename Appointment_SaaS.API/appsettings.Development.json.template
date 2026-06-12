@@ -3,7 +3,7 @@
   "_IyzicoSandbox": "Panel: https://sandbox-merchant.iyzipay.com → Ayarlar → API Anahtarları. Abonelik: Ürün → Ödeme Planı oluştur → referenceCode kopyala. Dokümantasyon: https://docs.iyzico.com/on-hazirliklar/sandbox",
   
   "ConnectionStrings": {
-    "DefaultConnection": "Server=SUNUCU\\SQLEXPRESS;Database=AppointmentSaaSDB;Trusted_Connection=True;TrustServerCertificate=True;"
+    "DefaultConnection": "Host=127.0.0.1;Port=5432;Database=appointmentsaas;Username=appointmentsaas;Password=CHANGE_ME;"
   },
   "TokenOptions": {
     "Audience": "www.appointment-saas.com",
