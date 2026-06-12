@@ -31,6 +31,7 @@ env:
 
 jobs:
   e2e:
+    if: ${{ secrets.E2E_DATABASE_URL != '' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -68,7 +69,7 @@ jobs:
 
       - name: Restore & build API
         run: |
-          dotnet restore Appointment_SaaS.sln
+          dotnet restore Appointment_SaaS.API/Appointment_SaaS.API.csproj
           dotnet build Appointment_SaaS.API/Appointment_SaaS.API.csproj -c Release --no-restore
 
       - name: Restore & build WebUI

@@ -138,8 +138,10 @@ ipch/
 *.vspx
 *.sap
 
-# Visual Studio Trace Files
+# Visual Studio Trace Files (Appointment_SaaS.E2E test projesini etkilemesin)
 *.e2e
+!Appointment_SaaS.E2E/
+!Appointment_SaaS.E2E/**
 
 # TFS 2012 Local Workspace
 $tf/
