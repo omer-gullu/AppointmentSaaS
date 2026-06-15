@@ -275,7 +275,7 @@ public class TenantPlanManager : ITenantPlanService
 
     public async Task<int> ApplyDueScheduledPlanChangesAsync(CancellationToken cancellationToken = default)
     {
-        var now = DateTime.Now;
+        var now = DateTime.UtcNow;
         var dueTenants = await _db.Tenants
             .Where(t => !t.IsTrial
                         && t.PendingPlanType != null

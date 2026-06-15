@@ -23,6 +23,8 @@ using Appointment_SaaS.API.Services;
 using AspNetCoreRateLimit;
 using System.Security.Claims;
 
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // --- CONTROLLER AYARLARI ---

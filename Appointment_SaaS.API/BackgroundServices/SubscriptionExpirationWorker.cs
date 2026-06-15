@@ -52,7 +52,7 @@ public class SubscriptionExpirationWorker : BackgroundService
         if (scheduledApplied > 0)
             _logger.LogInformation("{Count} planlanmış plan geçişi uygulandı.", scheduledApplied);
 
-        var now = DateTime.Now;
+        var now = DateTime.UtcNow;
         var suspensionCutoff = now.AddHours(-SubscriptionAccessPolicy.RenewalGraceHours);
 
         var expiredTenants = await dbContext.Tenants
