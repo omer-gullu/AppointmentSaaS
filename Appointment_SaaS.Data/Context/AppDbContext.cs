@@ -191,9 +191,10 @@ namespace Appointment_SaaS.Data.Context
 
             // B. Sektörler
             modelBuilder.Entity<Sector>().HasData(
-                new Sector { SectorID = 1, Name = "Erkek Kuaförü", DefaultPrompt = "Sen profesyonel bir erkek kuaförü asistanısın. Maskülen, net ve çözüm odaklı konuş.", CreatedAt = seedCreatedAtUtc },
-                new Sector { SectorID = 2, Name = "Kadın Kuaförü", DefaultPrompt = "Sen nazik ve detaycı bir kadın kuaförü asistanısın. Estetik ve bakım konularına hakim konuş.", CreatedAt = seedCreatedAtUtc },
-                new Sector { SectorID = 3, Name = "Unisex Kuaför", DefaultPrompt = "Sen modern ve kapsayıcı bir kuaför asistanısın. Her türlü bakım hizmetine uygun profesyonel bir dille konuş.", CreatedAt = seedCreatedAtUtc }
+                new Sector { SectorID = 1, Name = "Kuaför", DefaultPrompt = "Sen profesyonel bir kuaför randevu asistanısın. Saç kesimi, boya, bakım ve randevu konularında net, nazik ve çözüm odaklı konuş.", CreatedAt = seedCreatedAtUtc },
+                new Sector { SectorID = 2, Name = "Güzellik Salonu", DefaultPrompt = "Sen güzellik salonu randevu asistanısın. Cilt bakımı, manikür, epilasyon ve bakım hizmetlerinde detaycı, nazik ve profesyonel konuş.", CreatedAt = seedCreatedAtUtc },
+                new Sector { SectorID = 3, Name = "Diş Kliniği", DefaultPrompt = "Sen diş kliniği randevu asistanısın. Muayene, tedavi ve kontrol randevularında güven veren, açık ve profesyonel bir dille konuş.", CreatedAt = seedCreatedAtUtc },
+                new Sector { SectorID = 4, Name = "Psikolog", DefaultPrompt = "Sen psikolog randevu asistanısın. Görüşme randevularında empatik, saygılı, gizliliğe özen gösteren ve sakin bir dille konuş.", CreatedAt = seedCreatedAtUtc }
             );
 
             modelBuilder.Entity<Tenant>().HasData(
@@ -228,7 +229,7 @@ namespace Appointment_SaaS.Data.Context
                     Address = "İzmir, Alsancak No:5",
                     ApiKey = "MOD-789-GHI",
                     PhoneNumber = "5553334455",
-                    SectorID = 3,
+                    SectorID = 1,
                     CreatedAt = seedCreatedAtUtc,
                     SubscriptionEndDate = seedSubscriptionEndUtc,
                     IsActive = true

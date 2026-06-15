@@ -8,7 +8,7 @@ namespace Appointment_SaaS.Business.Validation
     /// BusinessRegistrationDto için FluentValidation kuralları.
     /// Register formundaki tüm alanları kapsayan katmanlı doğrulama.
     /// Data Annotations üzerine güvenlik ağı görevi görür.
-    /// NOT: TC Kimlik doğrulaması (MERNİS/NVİ) AuthManager.RegisterBusinessOwnerAsync içinde yapılır.
+    /// NOT: TC Kimlik doğrulaması yalnızca algoritma (kontrol basamağı) ile yapılır; NVİ/MERNİS kullanılmaz.
     /// </summary>
     public class BusinessRegistrationValidator : AbstractValidator<BusinessRegistrationDto>
     {

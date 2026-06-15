@@ -92,60 +92,17 @@ namespace Appointment_SaaS.Business.Concrete
                     "Bu numara zaten kullanımda.",
                     StatusCodes.Status400BadRequest);
 
-            // 2. TC Kimlik doğrulaması — yalnızca production (NVİ gecikmesi kayıt timeout'una yol açmasın)
+            // 2. TC Kimlik — yalnızca algoritma (kontrol basamağı). NVİ/MERNİS çağrılmaz.
             dto.IdentityNumber = TurkishIdentityValidator.NormalizeIdentityNumber(dto.IdentityNumber);
             dto.UserFullName = TurkishTextNormalizer.ToTurkishTitleCase(dto.UserFullName);
 
-            if (!_hostEnvironment.IsDevelopment()
-                && !string.IsNullOrWhiteSpace(dto.IdentityNumber)
-                && dto.IdentityNumber.Length == 11)
+            if (!string.IsNullOrWhiteSpace(dto.IdentityNumber) && dto.IdentityNumber.Length == 11)
             {
                 if (!TurkishIdentityValidator.IsValidTcKimlik(dto.IdentityNumber))
                 {
                     throw new BadHttpRequestException(
                         "Girdiğiniz T.C. kimlik numarası geçersiz (kontrol basamağı hatası).",
                         StatusCodes.Status400BadRequest);
-                }
-
-                var nameParts = TurkishTextNormalizer.SplitTurkishFullName(dto.UserFullName);
-                if (nameParts == null)
-                {
-                    throw new BadHttpRequestException(
-                        "Ad ve soyadınızı kimliğinizdeki gibi, en az iki kelime olacak şekilde giriniz (ör. Ahmet Yılmaz).",
-                        StatusCodes.Status400BadRequest);
-                }
-
-                if (dto.BirthYear < 1900 || dto.BirthYear > DateTime.UtcNow.Year - 18)
-                {
-                    throw new BadHttpRequestException(
-                        "Doğum yılınızı kimliğinizdeki bilgiyle birebir giriniz.",
-                        StatusCodes.Status400BadRequest);
-                }
-
-                try
-                {
-                    var isTcValid = await ValidateTCKimlikAsync(
-                        dto.IdentityNumber,
-                        nameParts.Value.Ad,
-                        nameParts.Value.Soyad,
-                        dto.BirthYear);
-                    if (!isTcValid)
-                    {
-                        throw new BadHttpRequestException(
-                            "T.C. kimlik numarası, ad-soyad veya doğum yılı NVİ kayıtlarıyla eşleşmiyor. Bilgilerinizi kimliğinizdeki gibi birebir girin.",
-                            StatusCodes.Status400BadRequest);
-                    }
-                }
-                catch (BadHttpRequestException)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "NVİ TC Kimlik servisi erişilemedi.");
-                    throw new BadHttpRequestException(
-                        "Kimlik doğrulama servisine ulaşılamadı. Lütfen daha sonra tekrar deneyin.",
-                        StatusCodes.Status503ServiceUnavailable);
                 }
             }
 
@@ -376,56 +333,6 @@ namespace Appointment_SaaS.Business.Concrete
                     StatusCodes.Status504GatewayTimeout);
 
             return await work;
-        }
-
-        private async Task<bool> ValidateTCKimlikAsync(string tcKimlikNo, string ad, string soyad, int birthYear)
-        {
-            if (string.IsNullOrWhiteSpace(tcKimlikNo) || tcKimlikNo.Length != 11) return false;
-            if (string.IsNullOrWhiteSpace(ad) || string.IsNullOrWhiteSpace(soyad)) return false;
-
-            ad = ad.Trim().ToUpper(System.Globalization.CultureInfo.GetCultureInfo("tr-TR"));
-            soyad = soyad.Trim().ToUpper(System.Globalization.CultureInfo.GetCultureInfo("tr-TR"));
-
-            try
-            {
-                using var client = new System.Net.Http.HttpClient();
-                client.Timeout = TimeSpan.FromSeconds(10);
-
-                var soapEnvelope = $@"<?xml version=""1.0"" encoding=""utf-8""?>
-<soap:Envelope xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"" xmlns:soap=""http://schemas.xmlsoap.org/soap/envelope/"">
-  <soap:Body>
-    <TCKimlikNoDogrula xmlns=""http://tckimlik.nvi.gov.tr/WS"">
-      <TCKimlikNo>{System.Security.SecurityElement.Escape(tcKimlikNo)}</TCKimlikNo>
-      <Ad>{System.Security.SecurityElement.Escape(ad)}</Ad>
-      <Soyad>{System.Security.SecurityElement.Escape(soyad)}</Soyad>
-      <DogumYili>{birthYear}</DogumYili>
-    </TCKimlikNoDogrula>
-  </soap:Body>
-</soap:Envelope>";
-
-                var request = new System.Net.Http.HttpRequestMessage(
-                    System.Net.Http.HttpMethod.Post,
-                    "https://tckimlik.nvi.gov.tr/Service/KPSPublic.asmx")
-                {
-                    Content = new System.Net.Http.StringContent(soapEnvelope, Encoding.UTF8, "text/xml")
-                };
-                request.Headers.Add("SOAPAction", "http://tckimlik.nvi.gov.tr/WS/TCKimlikNoDogrula");
-
-                var response = await client.SendAsync(request);
-                if (response.IsSuccessStatusCode)
-                {
-                    var responseBody = await response.Content.ReadAsStringAsync();
-                    return responseBody.Contains("<TCKimlikNoDogrulaResult>true</TCKimlikNoDogrulaResult>");
-                }
-
-                _logger.LogWarning("NVİ servisi HTTP {StatusCode} döndü.", response.StatusCode);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "NVİ TC Kimlik doğrulama servisi erişilemedi.");
-            }
-
-            return false;
         }
 
         private Task<bool> TryReconcileSuspendedTenantAsync(Tenant tenant) =>
