@@ -93,17 +93,46 @@ namespace Appointment_SaaS.Business.Concrete
                     StatusCodes.Status400BadRequest);
 
             // 2. TC Kimlik doğrulaması — yalnızca production (NVİ gecikmesi kayıt timeout'una yol açmasın)
+            dto.IdentityNumber = TurkishIdentityValidator.NormalizeIdentityNumber(dto.IdentityNumber);
+            dto.UserFullName = TurkishTextNormalizer.ToTurkishTitleCase(dto.UserFullName);
+
             if (!_hostEnvironment.IsDevelopment()
                 && !string.IsNullOrWhiteSpace(dto.IdentityNumber)
                 && dto.IdentityNumber.Length == 11)
             {
+                if (!TurkishIdentityValidator.IsValidTcKimlik(dto.IdentityNumber))
+                {
+                    throw new BadHttpRequestException(
+                        "Girdiğiniz T.C. kimlik numarası geçersiz (kontrol basamağı hatası).",
+                        StatusCodes.Status400BadRequest);
+                }
+
+                var nameParts = TurkishTextNormalizer.SplitTurkishFullName(dto.UserFullName);
+                if (nameParts == null)
+                {
+                    throw new BadHttpRequestException(
+                        "Ad ve soyadınızı kimliğinizdeki gibi, en az iki kelime olacak şekilde giriniz (ör. Ahmet Yılmaz).",
+                        StatusCodes.Status400BadRequest);
+                }
+
+                if (dto.BirthYear < 1900 || dto.BirthYear > DateTime.UtcNow.Year - 18)
+                {
+                    throw new BadHttpRequestException(
+                        "Doğum yılınızı kimliğinizdeki bilgiyle birebir giriniz.",
+                        StatusCodes.Status400BadRequest);
+                }
+
                 try
                 {
-                    var isTcValid = await ValidateTCKimlikAsync(dto.IdentityNumber, dto.UserFullName, dto.BirthYear);
+                    var isTcValid = await ValidateTCKimlikAsync(
+                        dto.IdentityNumber,
+                        nameParts.Value.Ad,
+                        nameParts.Value.Soyad,
+                        dto.BirthYear);
                     if (!isTcValid)
                     {
                         throw new BadHttpRequestException(
-                            "TC Kimlik doğrulaması başarısız. Bilgilerinizi kontrol edin.",
+                            "T.C. kimlik numarası, ad-soyad veya doğum yılı NVİ kayıtlarıyla eşleşmiyor. Bilgilerinizi kimliğinizdeki gibi birebir girin.",
                             StatusCodes.Status400BadRequest);
                     }
                 }
@@ -349,17 +378,13 @@ namespace Appointment_SaaS.Business.Concrete
             return await work;
         }
 
-        private async Task<bool> ValidateTCKimlikAsync(string tcKimlikNo, string fullName, int birthYear)
+        private async Task<bool> ValidateTCKimlikAsync(string tcKimlikNo, string ad, string soyad, int birthYear)
         {
             if (string.IsNullOrWhiteSpace(tcKimlikNo) || tcKimlikNo.Length != 11) return false;
-            if (string.IsNullOrWhiteSpace(fullName)) return false;
+            if (string.IsNullOrWhiteSpace(ad) || string.IsNullOrWhiteSpace(soyad)) return false;
 
-            var parts = fullName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length < 2) return false;
-
-            var trCulture = new System.Globalization.CultureInfo("tr-TR");
-            string ad = string.Join(" ", parts.Take(parts.Length - 1)).ToUpper(trCulture);
-            string soyad = parts.Last().ToUpper(trCulture);
+            ad = ad.Trim().ToUpper(System.Globalization.CultureInfo.GetCultureInfo("tr-TR"));
+            soyad = soyad.Trim().ToUpper(System.Globalization.CultureInfo.GetCultureInfo("tr-TR"));
 
             try
             {
@@ -370,9 +395,9 @@ namespace Appointment_SaaS.Business.Concrete
 <soap:Envelope xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"" xmlns:soap=""http://schemas.xmlsoap.org/soap/envelope/"">
   <soap:Body>
     <TCKimlikNoDogrula xmlns=""http://tckimlik.nvi.gov.tr/WS"">
-      <TCKimlikNo>{tcKimlikNo}</TCKimlikNo>
-      <Ad>{ad}</Ad>
-      <Soyad>{soyad}</Soyad>
+      <TCKimlikNo>{System.Security.SecurityElement.Escape(tcKimlikNo)}</TCKimlikNo>
+      <Ad>{System.Security.SecurityElement.Escape(ad)}</Ad>
+      <Soyad>{System.Security.SecurityElement.Escape(soyad)}</Soyad>
       <DogumYili>{birthYear}</DogumYili>
     </TCKimlikNoDogrula>
   </soap:Body>

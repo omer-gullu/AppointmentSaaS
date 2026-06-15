@@ -26,7 +26,9 @@
   <!-- Generated bundle: skip VS legacy CSS parser (false errors on modern selectors) -->
   <ItemGroup>
     <Content Remove="wwwroot\css\bundle.min.css" />
-    <None Include="wwwroot\css\bundle.min.css" />
+    <Content Include="wwwroot\css\bundle.min.css">
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
   <PropertyGroup>
@@ -37,7 +39,7 @@
   <Target Name="EnsureBootstrapIconsFont" BeforeTargets="Build">
     <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot\fonts" />
     <Exec Condition="!Exists('$(BootstrapIconsFontPath)')"
-          Command="curl.exe -fsSL -o &quot;$(BootstrapIconsFontPath)&quot; &quot;$(BootstrapIconsFontUrl)&quot;" />
+          Command="curl -fsSL -o &quot;$(BootstrapIconsFontPath)&quot; &quot;$(BootstrapIconsFontUrl)&quot;" />
   </Target>
 
 </Project>

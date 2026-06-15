@@ -12,8 +12,8 @@ services:
       redis:
         condition: service_started
     ports:
-      # Üretimde 127.0.0.1:8080:8080 + Nginx/Traefik önerilir; test için 0.0.0.0
-      - "8080:8080"
+      # Nginx reverse proxy üzerinden HTTPS; doğrudan dışarıya açmayın
+      - "127.0.0.1:8080:8080"
     env_file:
       - .env
     volumes:

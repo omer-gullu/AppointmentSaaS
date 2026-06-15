@@ -45,8 +45,9 @@
             return false;
         }
 
-        var tc = document.getElementById('fieldIdentity').value.trim();
-        var year = document.getElementById('fieldBirthYear').value.trim();
+        var tc = document.getElementById('fieldIdentity').value.replace(/\D/g, '');
+        document.getElementById('fieldIdentity').value = tc;
+        var year = parseInt(document.getElementById('fieldBirthYear').value.trim(), 10);
         if (!/^[0-9]{10,11}$/.test(tc)) {
             var Swal6 = await loadSwal();
             await Swal6.fire({ icon: 'warning', title: 'T.C. Kimlik No', text: 'Lütfen 10 veya 11 haneli kimlik/vergi numaranızı giriniz.' });
@@ -61,9 +62,9 @@
             });
             return false;
         }
-        if (!year || year < 1900 || year > new Date().getFullYear()) {
+        if (!year || year < 1900 || year > new Date().getFullYear() - 18) {
             var Swal7 = await loadSwal();
-            await Swal7.fire({ icon: 'warning', title: 'Doğum Yılı', text: 'Lütfen geçerli bir doğum yılı giriniz.' });
+            await Swal7.fire({ icon: 'warning', title: 'Doğum Yılı', text: '18 yaşından büyük olmalısınız. Doğum yılını kimliğinizdeki gibi giriniz.' });
             return false;
         }
 

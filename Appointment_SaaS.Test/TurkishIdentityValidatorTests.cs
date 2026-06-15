@@ -25,6 +25,13 @@ public class TurkishIdentityValidatorTests
     }
 
     [Fact]
+    public void NormalizeIdentityNumber_StripsNonDigits()
+    {
+        Assert.Equal("12345678901", TurkishIdentityValidator.NormalizeIdentityNumber("123 456-78901"));
+        Assert.Equal("10000000146", TurkishIdentityValidator.NormalizeIdentityNumber(" 10000000146 "));
+    }
+
+    [Fact]
     public void IsValidTcOrVkn_RejectsEmpty()
     {
         Assert.False(TurkishIdentityValidator.IsValidTcOrVkn(null));

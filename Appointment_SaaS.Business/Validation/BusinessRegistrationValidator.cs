@@ -27,9 +27,29 @@ namespace Appointment_SaaS.Business.Validation
                 .MaximumLength(150).WithMessage("E-posta adresi en fazla 150 karakter olabilir.");
 
             RuleFor(x => x.IdentityNumber)
-                .NotEmpty().WithMessage("T.C. Kimlik / Vergi Numarası zorunludur.")
-                .Matches(@"^[0-9]{10,11}$").WithMessage("Geçerli bir T.C. Kimlik veya Vergi Numarası giriniz (10 veya 11 haneli).")
-                .Must(TurkishIdentityValidator.IsValidTcOrVkn).WithMessage("Girdiğiniz kimlik veya vergi numarası geçersiz (Matematiksel algoritma hatası).");
+                .Custom((value, context) =>
+                {
+                    var dto = (BusinessRegistrationDto)context.InstanceToValidate;
+                    var normalized = TurkishIdentityValidator.NormalizeIdentityNumber(value);
+                    dto.IdentityNumber = normalized;
+
+                    if (string.IsNullOrEmpty(normalized))
+                    {
+                        context.AddFailure("T.C. Kimlik / Vergi Numarası zorunludur.");
+                        return;
+                    }
+
+                    if (normalized.Length is not (10 or 11))
+                    {
+                        context.AddFailure("Geçerli bir T.C. Kimlik veya Vergi Numarası giriniz (10 veya 11 haneli).");
+                        return;
+                    }
+
+                    if (!TurkishIdentityValidator.IsValidTcOrVkn(normalized))
+                    {
+                        context.AddFailure("Girdiğiniz kimlik veya vergi numarası geçersiz (kontrol basamağı hatası).");
+                    }
+                });
 
             RuleFor(x => x.BirthYear)
                 .NotEmpty().WithMessage("Doğum yılı zorunludur.")

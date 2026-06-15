@@ -61,18 +61,11 @@ namespace Appointment_SaaS.WebUI.Controllers
 [ValidateAntiForgeryToken]
         public async Task<IActionResult> Register(RegisterViewModel model)
         {
-            static string ToTitleCase(string? s)
-            {
-                if (string.IsNullOrWhiteSpace(s)) return string.Empty;
-                var info = System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
-                return System.Globalization.CultureInfo.CurrentCulture.TextInfo
-                    .ToTitleCase(s.Trim().ToLower(info));
-            }
-
-            model.UserFullName = ToTitleCase(model.UserFullName);
-            model.BusinessName = ToTitleCase(model.BusinessName);
-            model.Address = ToTitleCase(model.Address);
+            model.UserFullName = TurkishTextNormalizer.ToTurkishTitleCase(model.UserFullName);
+            model.BusinessName = TurkishTextNormalizer.ToTurkishTitleCase(model.BusinessName);
+            model.Address = TurkishTextNormalizer.ToTurkishTitleCase(model.Address);
             model.UserEmail = model.UserEmail?.Trim().ToLowerInvariant() ?? string.Empty;
+            model.IdentityNumber = TurkishIdentityValidator.NormalizeIdentityNumber(model.IdentityNumber);
 
             var paymentCallbackAbsolute = Url.Action("PaymentCallback", "Auth", values: null, protocol: Request.Scheme, host: Request.Host.Value)
                 ?? $"{Request.Scheme}://{Request.Host}/Auth/PaymentCallback";
@@ -88,8 +81,8 @@ namespace Appointment_SaaS.WebUI.Controllers
                 address = model.Address,
                 planType = model.SelectedPlan ?? "trial",
                 billingCycle = model.BillingCycle ?? "Monthly",
-                identityNumber = model.IdentityNumber ?? "00000000000",
-                birthYear = model.BirthYear > 0 ? model.BirthYear : 1990,
+                identityNumber = model.IdentityNumber,
+                birthYear = model.BirthYear,
                 paymentCallbackUrl = paymentCallbackAbsolute
             };
 

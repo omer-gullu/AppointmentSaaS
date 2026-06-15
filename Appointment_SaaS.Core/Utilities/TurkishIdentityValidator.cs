@@ -7,7 +7,8 @@ public static class TurkishIdentityValidator
 {
     public static bool IsValidTcOrVkn(string? identityNumber)
     {
-        if (string.IsNullOrWhiteSpace(identityNumber)) return false;
+        identityNumber = NormalizeIdentityNumber(identityNumber);
+        if (string.IsNullOrEmpty(identityNumber)) return false;
 
         if (identityNumber.Length == 11)
             return IsValidTcKimlik(identityNumber);
@@ -16,6 +17,22 @@ public static class TurkishIdentityValidator
             return IsValidVkn(identityNumber);
 
         return false;
+    }
+
+    /// <summary>Rakam dışı karakterleri temizler (boşluk, tire vb.).</summary>
+    public static string NormalizeIdentityNumber(string? identityNumber)
+    {
+        if (string.IsNullOrWhiteSpace(identityNumber)) return string.Empty;
+
+        var chars = new char[identityNumber.Length];
+        var count = 0;
+        foreach (var ch in identityNumber)
+        {
+            if (ch is >= '0' and <= '9')
+                chars[count++] = ch;
+        }
+
+        return count == 0 ? string.Empty : new string(chars, 0, count);
     }
 
     public static bool IsValidTcKimlik(string tcKimlik)
