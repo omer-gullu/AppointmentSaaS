@@ -123,51 +123,49 @@ namespace Appointment_SaaS.WebUI.Controllers
                                  && reasonProp.ValueKind == JsonValueKind.String
                     ? reasonProp.GetString()
                     : null;
+                var paymentAwaitingCheckout = resultJson.TryGetProperty("paymentAwaitingCheckout", out var awaitingProp)
+                    && awaitingProp.ValueKind == JsonValueKind.True;
 
                 if (!string.IsNullOrWhiteSpace(checkoutFormScript))
                 {
                     ViewBag.CheckoutFormScript = checkoutFormScript;
-                    return View(model);
+                    return await ReloadRegisterViewAsync(model);
                 }
 
                 if (paymentSkipped && !string.IsNullOrWhiteSpace(skipReason))
                 {
                     if (tenantId > 0)
                     {
-                        TempData["RegisterSuccess"] =
-                            "Kayıt tamamlandı. Personel listeniz boş; OTP ile giriş için önce «İlk personeli ekle» adımını tamamlayın.";
+                        var nameParts = model.UserFullName?.Trim().Split(' ', 2) ?? [];
+                        var bootstrapPayload = new
+                        {
+                            tenantId = tenantId,
+                            firstName = nameParts.Length > 0 ? nameParts[0] : model.UserFullName ?? "",
+                            lastName = nameParts.Length > 1 ? nameParts[1] : "",
+                            email = model.UserEmail ?? "",
+                            phoneNumber = model.PhoneNumber ?? ""
+                        };
+                        var bootstrapContent = new StringContent(
+                            JsonSerializer.Serialize(bootstrapPayload), Encoding.UTF8, "application/json");
+                        await _httpClient.PostAsync("api/AppUsers/bootstrap-first-staff", bootstrapContent);
+                        TempData["RegisterSuccess"] = "Kayıt tamamlandı. OTP kodu ile giriş yapabilirsiniz.";
                         return RedirectToAction(nameof(Login));
                     }
-
                     ViewBag.PaymentSkippedInfo = skipReason;
-                    var skippedSectors = new List<(int Id, string Name)>();
-                    try
-                    {
-                        var sRes = await _httpClient.GetAsync("api/Sector");
-                        if (sRes.IsSuccessStatusCode)
-                        {
-                            var sjson = await sRes.Content.ReadAsStringAsync();
-                            var sarr = JsonDocument.Parse(sjson).RootElement;
-                            if (sarr.ValueKind == JsonValueKind.Array)
-                                foreach (var s in sarr.EnumerateArray())
-                                {
-                                    var id = s.TryGetProperty("sectorID", out var sid) ? sid.GetInt32() : 0;
-                                    var name = s.TryGetProperty("name", out var sname) ? sname.GetString() ?? "" : "";
-                                    if (id > 0 && !string.IsNullOrEmpty(name)) skippedSectors.Add((id, name));
-                                }
-                        }
-                    }
-                    catch { }
-
-                    ViewBag.Sectors = skippedSectors;
-                    ViewBag.SelectedPlan = model.SelectedPlan;
-                    ViewBag.BillingCycle = model.BillingCycle;
-                    return View(model);
+                    return await ReloadRegisterViewAsync(model);
                 }
 
-                TempData["RegisterSuccess"] =
-                    "Ödeme alındı. Personel listeniz boş; OTP ile giriş için önce «İlk personeli ekle» adımını tamamlayın.";
-                return RedirectToAction(nameof(Login));
+                if (paymentAwaitingCheckout || tenantId > 0)
+                {
+                    ViewBag.PaymentPending = true;
+                    ViewBag.Error =
+                        "Bilgileriniz kaydedildi. Kart doğrulaması veya ödeme adımını tamamlamadan giriş yapamazsınız. " +
+                        "İyzico ödeme penceresi görünmüyorsa sayfayı yenileyin veya destek ile iletişime geçin.";
+                    return await ReloadRegisterViewAsync(model);
+                }
+
+                ViewBag.Error = "Kayıt yanıtı beklenmedik biçimde. Lütfen tekrar deneyin veya destek ile iletişime geçin.";
+                return await ReloadRegisterViewAsync(model);
             }
 
             var err = await res.Content.ReadAsStringAsync();
