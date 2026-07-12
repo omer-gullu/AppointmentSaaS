@@ -2,17 +2,17 @@ name: Deploy to Hetzner
 
 # Secrets hazır olunca push tetikleyicisini açın (aşağıdaki yorum satırları).
 on:
-   push:
-  #   branches: [main, master]
-  #   paths:
-  #     - 'Appointment_SaaS.API/**'
-  #     - 'Appointment_SaaS.WebUI/**'
-  #     - 'Appointment_SaaS.Business/**'
-  #     - 'Appointment_SaaS.Core/**'
-  #     - 'Appointment_SaaS.Data/**'
-  #     - 'deploy/api/**'
-  #     - 'deploy/webui/**'
-  #     - '.github/workflows/deploy-hetzner.yml'
+  push:
+    branches: [main, master]
+    paths:
+      - 'Appointment_SaaS.API/**'
+      - 'Appointment_SaaS.WebUI/**'
+      - 'Appointment_SaaS.Business/**'
+      - 'Appointment_SaaS.Core/**'
+      - 'Appointment_SaaS.Data/**'
+      - 'deploy/api/**'
+      - 'deploy/webui/**'
+      - '.github/workflows/deploy-hetzner.yml'
   workflow_dispatch:
     inputs:
       target:
