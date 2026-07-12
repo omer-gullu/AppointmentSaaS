@@ -274,10 +274,11 @@ public class AppUsersController : ControllerBase
         if (user.TenantID != tenantId.Value)
             return Forbid();
 
-        user.GoogleCalendarId = dto.Email;
-        user.GoogleRefreshToken = dto.Token;
-        await _appUserService.UpdateAsync(user);
-
+        var freshUser = await _appUserService.GetByIdAsync(id);
+        if (freshUser == null) return NotFound();
+        freshUser.GoogleCalendarId = dto.Email;
+        freshUser.GoogleRefreshToken = dto.Token;
+        await _appUserService.UpdateAsync(freshUser);
         return Ok(new { Message = "Personelin Google Takvim bilgileri güncellendi." });
     }
 
