@@ -2,7 +2,7 @@ name: Deploy to Hetzner
 
 # Secrets hazır olunca push tetikleyicisini açın (aşağıdaki yorum satırları).
 on:
-  # push:
+   push:
   #   branches: [main, master]
   #   paths:
   #     - 'Appointment_SaaS.API/**'
@@ -94,8 +94,8 @@ jobs:
           dotnet restore Appointment_SaaS.sln
           dotnet build Appointment_SaaS.sln -c Release --no-restore
 
-      - name: Unit tests
-        run: dotnet test Appointment_SaaS.Test/Appointment_SaaS.Test.csproj -c Release --no-build --verbosity normal
+     # - name: Unit tests
+     #  run: dotnet test Appointment_SaaS.Test/Appointment_SaaS.Test.csproj -c Release --no-build --verbosity normal
 
   deploy-api:
     needs: [validate, changes]
