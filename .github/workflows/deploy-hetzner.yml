@@ -126,7 +126,7 @@ jobs:
       - name: Setup SSH
         run: |
           install -m 700 -d ~/.ssh
-          printf '%s' "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" | sed 's/\\n/\n/g' > ~/.ssh/deploy_key
+          echo "$SSH_PRIVATE_KEY" | tr '|' '\n' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "${{ secrets.HETZNER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
 
@@ -204,7 +204,7 @@ jobs:
       - name: Setup SSH
         run: |
           install -m 700 -d ~/.ssh
-          printf '%s' "${{ secrets.HETZNER_SSH_PRIVATE_KEY }}" | sed 's/\\n/\n/g' > ~/.ssh/deploy_key
+          echo "$SSH_PRIVATE_KEY" | tr '|' '\n' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "${{ secrets.HETZNER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
 
