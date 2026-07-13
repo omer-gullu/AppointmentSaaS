@@ -124,7 +124,7 @@ jobs:
             --self-contained false
 
       - name: Setup SSH
-      env:
+        env:
           SSH_PRIVATE_KEY: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
         run: |
           install -m 700 -d ~/.ssh
@@ -204,7 +204,7 @@ jobs:
             --self-contained false
 
       - name: Setup SSH
-      env:
+        env:
           SSH_PRIVATE_KEY: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
         run: |
           install -m 700 -d ~/.ssh
