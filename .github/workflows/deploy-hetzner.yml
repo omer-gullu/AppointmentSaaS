@@ -124,9 +124,11 @@ jobs:
             --self-contained false
 
       - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
         run: |
           install -m 700 -d ~/.ssh
-          echo "$SSH_PRIVATE_KEY" | tr '|' '\n' > ~/.ssh/deploy_key
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "${{ secrets.HETZNER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
 
@@ -202,9 +204,11 @@ jobs:
             --self-contained false
 
       - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.HETZNER_SSH_PRIVATE_KEY }}
         run: |
           install -m 700 -d ~/.ssh
-          echo "$SSH_PRIVATE_KEY" | tr '|' '\n' > ~/.ssh/deploy_key
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "${{ secrets.HETZNER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
 
