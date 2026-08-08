@@ -55,11 +55,8 @@ public class EvolutionApiManager : IEvolutionApiService
                         webhookBase64 = true,
                         events = new[]
                         {
-                            "MESSAGES_UPSERT",
-                            "MESSAGES_UPDATE",
-                            "MESSAGES_DELETE",
-                            "QRCODE_UPDATED",
-                            "CONNECTION_UPDATE"
+                            "MESSAGES_UPSERT"
+                            
                         }
                     }
                 };
@@ -120,11 +117,8 @@ public class EvolutionApiManager : IEvolutionApiService
                         webhookBase64 = false,
                         events = new[]
                         {
-                            "MESSAGES_UPSERT",
-                            "MESSAGES_UPDATE",
-                            "MESSAGES_DELETE",
-                            "QRCODE_UPDATED",
-                            "CONNECTION_UPDATE"
+                            "MESSAGES_UPSERT"
+                            
                         }
                     }
                 };
@@ -182,7 +176,7 @@ public class EvolutionApiManager : IEvolutionApiService
                                 url = _settings.WebhookUrl,
                                 webhookByEvents = false,
                                 webhookBase64 = false,
-                                events = new[] { "MESSAGES_UPSERT", "MESSAGES_UPDATE", "MESSAGES_DELETE", "QRCODE_UPDATED", "CONNECTION_UPDATE" }
+                                events = new[] {"MESSAGES_UPSERT" }
                             }
                         }), Encoding.UTF8, "application/json");
                         await _httpClient.PostAsync($"/webhook/set/{Uri.EscapeDataString(instanceName)}", wh);
@@ -236,12 +230,8 @@ public class EvolutionApiManager : IEvolutionApiService
                         webhookBase64 = true,
                         events = new[]
                         {
-                            "MESSAGES_UPSERT",
-                            "MESSAGES_UPDATE",
-                            "MESSAGES_DELETE",
-                            "SEND_MESSAGE",
-                            "QRCODE_UPDATED",
-                            "CONNECTION_UPDATE"
+                            "MESSAGES_UPSERT"
+                            
                         }
                     }
                 };
