@@ -165,10 +165,9 @@
             }
 
             if (response.ok && data.success) {
-                window.location.assign('/Dashboard/Index');
+                window.location.assign(data.redirectUrl || '/Dashboard/Index');
                 return;
             }
-
             showError(data.message || 'Hatalı veya süresi dolmuş kod.');
 
             if (response.status === 429 || response.status === 403) {

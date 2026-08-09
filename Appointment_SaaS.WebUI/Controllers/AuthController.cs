@@ -289,7 +289,10 @@ namespace Appointment_SaaS.WebUI.Controllers
                     new ClaimsPrincipal(claimsIdentity),
                     authProperties);
 
-                return Json(new { success = true });
+                var isAdmin = claims.Any(c => c.Type == ClaimTypes.Role && c.Value == "Admin");
+                var redirectUrl = isAdmin ? "/Business/Index" : "/Dashboard/Index";
+
+                return Json(new { success = true, redirectUrl });
             }
             catch (Exception)
             {
