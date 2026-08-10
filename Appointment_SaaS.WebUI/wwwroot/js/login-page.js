@@ -15,6 +15,13 @@
     var currentPhone = '';
     var otpValiditySeconds = 90;
 
+    /** CSRF/antiforgery token'ı sayfadaki gizli inputtan okur. */
+    function getAntiForgeryToken() {
+        var tokenInput = document.querySelector('#otpForm input[name="__RequestVerificationToken"]')
+            || document.querySelector('input[name="__RequestVerificationToken"]');
+        return tokenInput ? tokenInput.value : '';
+    }
+
     /** Doğrulama: gizli alan → telefon input → bellek (E2E API OTP + panel uyumu). */
     function resolveLoginPhone() {
         var hidden = (document.getElementById('loginPhone') && document.getElementById('loginPhone').value) || '';
@@ -65,7 +72,10 @@
             syncLoginPhoneHidden();
             var response = await fetch('/Auth/GenerateOtp', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': getAntiForgeryToken()
+                },
                 body: JSON.stringify({ phoneNumber: resolveLoginPhone() })
             });
             var data = await response.json();
@@ -97,7 +107,10 @@
         try {
             var response = await fetch('/Auth/GenerateOtp', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': getAntiForgeryToken()
+                },
                 body: JSON.stringify({ phoneNumber: resolveLoginPhone() })
             });
 
@@ -137,9 +150,7 @@
         inputs.forEach(function (i) { otpCode += i.value; });
 
         try {
-            var tokenInput = document.querySelector('#otpForm input[name="__RequestVerificationToken"]')
-                || document.querySelector('input[name="__RequestVerificationToken"]');
-            var token = tokenInput ? tokenInput.value : '';
+            var token = getAntiForgeryToken();
             var response = await fetch('/Auth/VerifyOtp', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
