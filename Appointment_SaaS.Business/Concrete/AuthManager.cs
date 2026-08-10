@@ -364,9 +364,9 @@ namespace Appointment_SaaS.Business.Concrete
                     "Sistemde böyle bir numaraya ait kayıt bulunamadı.",
                     StatusCodes.Status404NotFound);
 
-            if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTime.Now)
+            if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTime.UtcNow)
             {
-                var remaining = (int)Math.Ceiling((user.LockoutEnd.Value - DateTime.Now).TotalMinutes);
+                var remaining = (int)Math.Ceiling((user.LockoutEnd.Value - DateTime.UtcNow).TotalMinutes);
                 throw new BadHttpRequestException(
                     $"Hesabınız geçici olarak kilitlendi. Lütfen {remaining} dakika sonra tekrar deneyin.",
                     StatusCodes.Status429TooManyRequests);
@@ -380,7 +380,7 @@ namespace Appointment_SaaS.Business.Concrete
             await EnforceTenantAccessOrThrowAsync(tenant, user);
 
             if (user.LastOtpRequestDate.HasValue
-                && (DateTime.Now - user.LastOtpRequestDate.Value).TotalSeconds < OtpLoginSettings.ResendCooldownSeconds)
+                && (DateTime.UtcNow - user.LastOtpRequestDate.Value).TotalSeconds < OtpLoginSettings.ResendCooldownSeconds)
                 throw new BadHttpRequestException(
                     $"Lütfen yeni bir kod istemeden önce {OtpLoginSettings.ResendCooldownSeconds} saniye bekleyin.",
                     StatusCodes.Status429TooManyRequests);
@@ -416,8 +416,8 @@ namespace Appointment_SaaS.Business.Concrete
             }
 
             user.OtpCode = otpCode;
-            user.OtpExpiry = DateTime.Now.AddSeconds(OtpLoginSettings.ValiditySeconds);
-            user.LastOtpRequestDate = DateTime.Now;
+            user.OtpExpiry = DateTime.UtcNow.AddSeconds(OtpLoginSettings.ValiditySeconds);
+            user.LastOtpRequestDate = DateTime.UtcNow;
             await _userService.UpdateAsync(user);
 
             return true;
@@ -432,9 +432,9 @@ namespace Appointment_SaaS.Business.Concrete
                 throw new BadHttpRequestException("Kullanıcı bulunamadı.");
 
             // 1. Lockout kontrolü
-            if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTime.Now)
+            if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTime.UtcNow)
             {
-                var remaining = (int)Math.Ceiling((user.LockoutEnd.Value - DateTime.Now).TotalMinutes);
+                var remaining = (int)Math.Ceiling((user.LockoutEnd.Value - DateTime.UtcNow).TotalMinutes);
                 throw new BadHttpRequestException(
                     $"Hesabınız geçici olarak kilitlenmiştir. Lütfen {remaining} dakika sonra tekrar deneyin.",
                     StatusCodes.Status429TooManyRequests);
@@ -453,7 +453,7 @@ namespace Appointment_SaaS.Business.Concrete
             if (string.IsNullOrEmpty(expectedOtp)
                 || expectedOtp != submittedOtp
                 || !user.OtpExpiry.HasValue
-                || user.OtpExpiry.Value < DateTime.Now)
+                || user.OtpExpiry.Value < DateTime.UtcNow)
             {
                 user.AccessFailedCount++;
                 _logger.LogWarning(
@@ -462,7 +462,7 @@ namespace Appointment_SaaS.Business.Concrete
 
                 if (user.AccessFailedCount >= _lockoutSettings.MaxFailedAccessAttempts)
                 {
-                    user.LockoutEnd = DateTime.Now.AddMinutes(_lockoutSettings.DefaultLockoutTimeSpanInMinutes);
+                    user.LockoutEnd = DateTime.UtcNow.AddMinutes(_lockoutSettings.DefaultLockoutTimeSpanInMinutes);
                     user.AccessFailedCount = 0;
                     await _userService.UpdateAsync(user);
 
@@ -480,6 +480,7 @@ namespace Appointment_SaaS.Business.Concrete
             // 4. Başarılı giriş — sayaçları sıfırla
             user.OtpCode = null;
             user.OtpExpiry = null;
+            user.LastOtpRequestDate = null;
             user.AccessFailedCount = 0;
             user.LockoutEnd = null;
 

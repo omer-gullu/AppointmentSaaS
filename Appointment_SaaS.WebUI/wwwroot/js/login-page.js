@@ -224,10 +224,36 @@
     window.backToStep1 = backToStep1;
 
     function showError(msg) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'error',
+                title: 'Hata!',
+                text: msg,
+                confirmButtonText: 'Tamam'
+            });
+        } else if (typeof window.loadSweetAlert === 'function') {
+            window.loadSweetAlert().then(function () {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Hata!',
+                    text: msg,
+                    confirmButtonText: 'Tamam'
+                });
+            }).catch(function () {
+                fallbackShowError(msg);
+            });
+        } else {
+            fallbackShowError(msg);
+        }
+    }
+
+    function fallbackShowError(msg) {
         var errBox = document.getElementById('errorMessage');
-        errBox.querySelector('span').innerText = msg;
-        errBox.classList.remove('d-none');
-        errBox.classList.add('d-flex');
+        if (errBox) {
+            errBox.querySelector('span').innerText = msg;
+            errBox.classList.remove('d-none');
+            errBox.classList.add('d-flex');
+        }
     }
 
     function toggleButtonLoader(btn, isLoading) {

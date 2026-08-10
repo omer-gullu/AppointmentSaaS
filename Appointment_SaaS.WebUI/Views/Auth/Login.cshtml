@@ -2,6 +2,7 @@
     ViewData["Title"] = "Giriş Yap";
     ViewData["Description"] = "Akıllı Randevu sistemine güvenli şifresiz giriş yapın. WhatsApp ile OTP doğrulama.";
     ViewData["RequireBootstrapIcons"] = true;
+    ViewData["RequireSweetAlert"] = true;
     Layout = "_LayoutAuth";
     var prefilledPhone = TempData["PrefilledPhone"] as string ?? string.Empty;
 }
