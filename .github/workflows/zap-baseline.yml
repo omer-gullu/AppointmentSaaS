@@ -1,0 +1,39 @@
+name: DAST - OWASP ZAP Baseline Scan
+
+on:
+  # Manuel olarak "Run workflow" butonuyla tetikleme
+  workflow_dispatch:
+
+  # Her hafta Pazartesi sabahı 06:00 UTC'de otomatik çalışır (09:00 TR saati)
+  # Production'a karşı olduğu için her push'ta DEĞİL, zamanlanmış çalıştırıyoruz
+  schedule:
+    - cron: '0 6 * * 1'
+
+jobs:
+  zap_baseline_scan:
+    runs-on: ubuntu-latest
+    name: ZAP Baseline Scan (Passive - Production)
+    steps:
+      - name: Checkout repo (zap kural dosyaları için)
+        uses: actions/checkout@v4
+
+      - name: ZAP Baseline Scan çalıştır
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: 'https://akillirandevu.net'
+          # Aşağıdaki dosya ile bazı kuralları/uyarıları yönetebilirsiniz (opsiyonel, ileride eklenecek)
+          # rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a'
+          fail_action: false   # Bulgu varsa pipeline'ı KIRMASIN, sadece rapor üretsin (başlangıç için güvenli ayar)
+          issue_title: 'ZAP Baseline Scan Bulguları'
+          allow_issue_writing: false
+
+      - name: Tarama raporunu artifact olarak yükle
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-baseline-report
+          path: |
+            report_html.html
+            report_md.md
+            report_json.json
