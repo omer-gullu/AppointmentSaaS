@@ -19,18 +19,18 @@ jobs:
           target: 'https://akillirandevu.net'
           artifact_name: 'zap-full-report'
           cmd_options: >-
-            -config globalexcludeurl.url_list.url(0).regex="^https://akillirandevu\.net/Auth/GenerateOtp.*"
-            -config globalexcludeurl.url_list.url(0).description="OTP gönderme - gerçek WhatsApp mesajı tetikler"
+            -z "-config globalexcludeurl.url_list.url(0).regex=^https://akillirandevu\.net/Auth/GenerateOtp.*
+            -config globalexcludeurl.url_list.url(0).description=OTP_gonderme_gercek_WhatsApp_mesaji_tetikler
             -config globalexcludeurl.url_list.url(0).enabled=true
-            -config globalexcludeurl.url_list.url(1).regex="^https://akillirandevu\.net/Auth/VerifyOtp.*"
-            -config globalexcludeurl.url_list.url(1).description="OTP doğrulama"
+            -config globalexcludeurl.url_list.url(1).regex=^https://akillirandevu\.net/Auth/VerifyOtp.*
+            -config globalexcludeurl.url_list.url(1).description=OTP_dogrulama
             -config globalexcludeurl.url_list.url(1).enabled=true
-            -config globalexcludeurl.url_list.url(2).regex="^https://akillirandevu\.net/.*[Pp]ayment.*"
-            -config globalexcludeurl.url_list.url(2).description="Ödeme/İyzico ile ilgili sayfalar"
+            -config globalexcludeurl.url_list.url(2).regex=^https://akillirandevu\.net/.*[Pp]ayment.*
+            -config globalexcludeurl.url_list.url(2).description=Odeme_Iyzico_ile_ilgili_sayfalar
             -config globalexcludeurl.url_list.url(2).enabled=true
-            -config globalexcludeurl.url_list.url(3).regex="^https://akillirandevu\.net/.*[Cc]heckout.*"
-            -config globalexcludeurl.url_list.url(3).description="Checkout ile ilgili sayfalar"
-            -config globalexcludeurl.url_list.url(3).enabled=true
+            -config globalexcludeurl.url_list.url(3).regex=^https://akillirandevu\.net/.*[Cc]heckout.*
+            -config globalexcludeurl.url_list.url(3).description=Checkout_ile_ilgili_sayfalar
+            -config globalexcludeurl.url_list.url(3).enabled=true"
           fail_action: false
           allow_issue_writing: false
 
