@@ -29,6 +29,12 @@ namespace Appointment_SaaS.WebUI.Controllers
         [HttpGet]
         public async Task<IActionResult> Register(string plan = "trial", string cycle = "monthly")
         {
+            var validPlans = new[] { "trial", "starter", "business", "pro" };
+            if (string.IsNullOrEmpty(plan) || !validPlans.Contains(plan))
+            {
+                plan = "trial";
+            }
+
             var sectors = new List<(int Id, string Name)>();
             try
             {
@@ -50,7 +56,6 @@ namespace Appointment_SaaS.WebUI.Controllers
                 }
             }
             catch { }
-
             ViewBag.Sectors = sectors;
             ViewBag.SelectedPlan = plan;
             ViewBag.BillingCycle = cycle;
@@ -58,9 +63,15 @@ namespace Appointment_SaaS.WebUI.Controllers
         }
 
         [HttpPost]
-[ValidateAntiForgeryToken]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Register(RegisterViewModel model)
         {
+            var validPlans = new[] { "trial", "starter", "business", "pro" };
+            if (string.IsNullOrEmpty(model.SelectedPlan) || !validPlans.Contains(model.SelectedPlan))
+            {
+                model.SelectedPlan = "trial";
+            }
+
             model.UserFullName = TurkishTextNormalizer.ToTurkishTitleCase(model.UserFullName);
             model.BusinessName = TurkishTextNormalizer.ToTurkishTitleCase(model.BusinessName);
             model.Address = TurkishTextNormalizer.ToTurkishTitleCase(model.Address);
@@ -79,7 +90,7 @@ namespace Appointment_SaaS.WebUI.Controllers
                 sectorID = model.SectorID,
                 phoneNumber = model.PhoneNumber,
                 address = model.Address,
-                planType = model.SelectedPlan ?? "trial",
+                planType = model.SelectedPlan,
                 billingCycle = model.BillingCycle ?? "Monthly",
                 identityNumber = model.IdentityNumber,
                 birthYear = model.BirthYear,

@@ -53,11 +53,11 @@
             var errorString = TempData["Error"].ToString();
             if (errorString.Trim().StartsWith("{"))
             {
-                <script type="application/json" id="dashboard-temp-error">@Html.Raw(errorString)</script>
+                <script type="application/json" id="dashboard-temp-error">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(errorString))</script>
             }
             else if (errorString.StartsWith("Hata: {"))
             {
-                <script type="application/json" id="dashboard-temp-error">@Html.Raw(errorString.Substring(6))</script>
+                <script type="application/json" id="dashboard-temp-error">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(errorString.Substring(6)))</script>
             }
             else
             {

@@ -1,4 +1,5 @@
 @model Appointment_SaaS.WebUI.Models.RegisterViewModel
+@using System.Linq
 @using Appointment_SaaS.Core.Constants
 @{
     ViewData["RequireSweetAlert"] = true;
@@ -7,7 +8,12 @@
     ViewData["Description"] = "Akıllı Randevu sistemine işletmenizi kaydedin. Hızlı kurulum, WhatsApp ve Google Takvim entegrasyonu hazır.";
     Layout = "_LayoutAuth";
 
-    var selectedPlan = ViewBag.SelectedPlan as string ?? "trial";
+    var validPlans = new[] { "trial", "starter", "business", "pro" };
+    var selectedPlan = ViewBag.SelectedPlan as string;
+    if (string.IsNullOrEmpty(selectedPlan) || !validPlans.Contains(selectedPlan))
+    {
+        selectedPlan = "trial";
+    }
     var billingCycle = ViewBag.BillingCycle as string ?? "monthly";
     bool isTrial = selectedPlan == "trial";
 
