@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using System.IO.Compression;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.AspNetCore.HttpOverrides;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -143,6 +144,11 @@ builder.Services.AddHsts(options =>
 
 var app = builder.Build();
 
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseHsts();
@@ -165,6 +171,9 @@ if (!app.Environment.IsDevelopment())
 
 app.UseResponseCompression();
 
+
+app.UseSecurityHeaders();
+
 app.UseStaticFiles(new StaticFileOptions
 {
     OnPrepareResponse = ctx =>
@@ -181,7 +190,6 @@ app.UseRouting();
 
 app.UseResponseCaching();
 
-app.UseSecurityHeaders();
 
 app.UseAuthentication();
 app.UseAuthorization();
