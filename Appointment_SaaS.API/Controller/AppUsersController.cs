@@ -126,7 +126,9 @@ public class AppUsersController : ControllerBase
             GoogleCalendarId = dto.GoogleCalendarId,
             TenantID = tenantId.Value,
             Status = true,
-            SecurityStamp = Guid.NewGuid().ToString()
+            SecurityStamp = Guid.NewGuid().ToString(),
+            TrialStartDate = DateTime.UtcNow,
+            TrialEndDate = tenant.SubscriptionEndDate
         };
 
         var userId = await _appUserService.AddAppUserAsync(newUser);
@@ -191,7 +193,9 @@ public class AppUsersController : ControllerBase
             Specialization = dto.Specialization,
             TenantID = dto.TenantId,
             Status = true,
-            SecurityStamp = Guid.NewGuid().ToString()
+            SecurityStamp = Guid.NewGuid().ToString(),
+            TrialStartDate = DateTime.UtcNow,
+            TrialEndDate = tenant.SubscriptionEndDate
         };
 
         var userId = await _appUserService.AddAppUserAsync(newUser);
