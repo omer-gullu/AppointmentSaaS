@@ -9,7 +9,6 @@ using Appointment_SaaS.Core.DTOs;
 using Appointment_SaaS.Core.Entities;
 using Appointment_SaaS.Data.Abstract;
 using Appointment_SaaS.Data.Context;
-using AutoMapper;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,7 +21,6 @@ namespace Appointment_SaaS.Test
     public class TenantManagerTests
     {
         private readonly Mock<ITenantRepository> _mockTenantRepository;
-        private readonly Mock<IMapper> _mockMapper;
         private readonly Mock<IEvolutionApiService> _mockEvolutionApiService;
         private readonly AppDbContext _dbContext;
         private readonly TenantManager _tenantManager;
@@ -30,7 +28,6 @@ namespace Appointment_SaaS.Test
         public TenantManagerTests()
         {
             _mockTenantRepository = new Mock<ITenantRepository>();
-            _mockMapper = new Mock<IMapper>();
             _mockEvolutionApiService = new Mock<IEvolutionApiService>();
 
             // InMemory DB — her test için izole
@@ -50,7 +47,6 @@ namespace Appointment_SaaS.Test
 
             _tenantManager = new TenantManager(
                 _mockTenantRepository.Object,
-                _mockMapper.Object,
                 _mockEvolutionApiService.Object,
                 _dbContext,
                 mockEnvironment.Object,
@@ -129,7 +125,6 @@ namespace Appointment_SaaS.Test
             };
             _mockTenantRepository.Setup(x => x.Where(It.IsAny<Expression<Func<Tenant, bool>>>()))
                                  .Returns((Expression<Func<Tenant, bool>> predicate) => existingTenants.AsQueryable().Where(predicate).BuildMock());
-            _mockMapper.Setup(m => m.Map<Tenant>(dto)).Returns(new Tenant { PhoneNumber = "5551234567", Name = dto.Name });
 
             Func<Task> act = async () => await _tenantManager.AddTenantAsync(dto, It.IsAny<string>());
 
@@ -143,16 +138,19 @@ namespace Appointment_SaaS.Test
             var dto = new TenantCreateDto { Name = "Rollback Test", PhoneNumber = "5559998877" };
             _mockTenantRepository.Setup(x => x.Where(It.IsAny<Expression<Func<Tenant, bool>>>()))
                                  .Returns((Expression<Func<Tenant, bool>> predicate) => new List<Tenant>().AsQueryable().Where(predicate).BuildMock());
-            var fakeTenant = new Tenant { Name = dto.Name, PhoneNumber = "5559998877", InstanceName = "rollback_test" };
-            _mockMapper.Setup(m => m.Map<Tenant>(dto)).Returns(fakeTenant);
-            _mockEvolutionApiService.Setup(x => x.CreateInstanceAsync(It.IsAny<string>())).ReturnsAsync(true);
+            string? deletedInstance = null;
+            _mockEvolutionApiService.Setup(x => x.DeleteInstanceAsync(It.IsAny<string>()))
+                .Callback<string>(name => deletedInstance = name)
+                .ReturnsAsync(true);
             _mockTenantRepository.Setup(x => x.SaveAsync()).ThrowsAsync(new Exception("DB Connection Error"));
 
             Func<Task> act = async () => await _tenantManager.AddTenantAsync(dto, It.IsAny<string>());
 
             var exception = await act.Should().ThrowAsync<Exception>();
             exception.WithMessage("İşletme kaydedilemedi: DB Connection Error");
-            _mockEvolutionApiService.Verify(x => x.DeleteInstanceAsync("rollback_test"), Times.Once);
+            deletedInstance.Should().NotBeNullOrEmpty();
+            deletedInstance.Should().StartWith("rollbacktest_");
+            _mockEvolutionApiService.Verify(x => x.DeleteInstanceAsync(It.IsAny<string>()), Times.Once);
         }
 
         // ─── YENİ: Anti-Fraud & Finansal Güvenlik Testleri ──────────────────────

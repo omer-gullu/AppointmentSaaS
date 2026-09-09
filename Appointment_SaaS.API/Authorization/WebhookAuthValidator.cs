@@ -31,13 +31,20 @@ public class WebhookAuthValidator
         if (!WebhookProtectedPathEvaluator.RequiresWebhookToken(path, method))
             return new WebhookAuthResult(WebhookAuthResultKind.NotApplicable);
 
-        if (context.User?.Identity?.IsAuthenticated == true
+        // Sistem-only yollar (çok kiracılı cron: reminders/pending & reminders/run) TÜM
+        // tenant'ların verisine dokunur ve toplu WhatsApp tetikler. Bu yüzden panel JWT'si
+        // (ücretsiz trial dahil) bu yolları ATLAYAMAZ — yalnızca N8nAuthToken sistem token'ı
+        // kabul edilir. JWT muafiyeti sadece tenant-kapsamlı webhook yolları içindir.
+        var isSystemOnly = WebhookProtectedPathEvaluator.IsSystemOnlyPath(path, method);
+
+        if (!isSystemOnly
+            && context.User?.Identity?.IsAuthenticated == true
             && context.User.Identity.AuthenticationType != "WebhookScheme")
             return new WebhookAuthResult(WebhookAuthResultKind.AllowJwt);
 
         var providedToken = context.Request.Headers["X-Auth-Token"].FirstOrDefault();
 
-        if (WebhookProtectedPathEvaluator.IsSystemOnlyPath(path, method))
+        if (isSystemOnly)
             return ValidateSystemToken(providedToken);
 
         var tenantId = await WebhookTenantResolver.ResolveTenantIdAsync(context.Request, _tenantService);

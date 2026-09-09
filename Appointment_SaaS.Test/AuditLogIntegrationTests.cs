@@ -6,7 +6,6 @@ using Appointment_SaaS.Core.Entities;
 using Appointment_SaaS.Data.Concrete;
 using Appointment_SaaS.Data.Context;
 using Appointment_SaaS.Business.Abstract;
-using AutoMapper;
 using Moq;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -17,12 +16,10 @@ namespace Appointment_SaaS.Test
 {
     public class AuditLogIntegrationTests
     {
-        private readonly Mock<IMapper> _mockMapper;
         private readonly Mock<IEvolutionApiService> _mockEvolutionApiService;
 
         public AuditLogIntegrationTests()
         {
-            _mockMapper = new Mock<IMapper>();
             _mockEvolutionApiService = new Mock<IEvolutionApiService>();
         }
 
@@ -65,7 +62,6 @@ namespace Appointment_SaaS.Test
 
             var tenantService = new TenantManager(
                 tenantRepo,
-                _mockMapper.Object,
                 _mockEvolutionApiService.Object,
                 db,
                 mockEnvironment.Object,

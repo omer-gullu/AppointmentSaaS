@@ -1,3 +1,8 @@
+import path from 'path';
+import { config as loadEnv } from 'dotenv';
+
+loadEnv({ path: path.join(__dirname, '..', '.env') });
+
 export type PlaywrightEnv = 'development' | 'staging' | 'production';
 
 export interface EnvConfig {
@@ -9,42 +14,48 @@ export interface EnvConfig {
   smokeOnly: boolean;
 }
 
-const profiles: Record<PlaywrightEnv, Omit<EnvConfig, 'name'>> = {
-  development: {
-    webUiBaseUrl: process.env.E2E_WEB_UI_URL ?? 'https://localhost:7140',
-    apiBaseUrl: process.env.E2E_API_URL ?? 'http://localhost:5294',
-    readonly: false,
-    smokeOnly: false,
-  },
-  staging: {
-    webUiBaseUrl: process.env.E2E_WEB_UI_URL ?? process.env.STAGING_WEB_UI_URL ?? '',
-    apiBaseUrl: process.env.E2E_API_URL ?? process.env.STAGING_API_URL ?? '',
-    readonly: false,
-    smokeOnly: false,
-  },
-  production: {
-    webUiBaseUrl: process.env.E2E_WEB_UI_URL ?? process.env.PRODUCTION_WEB_UI_URL ?? '',
-    apiBaseUrl: process.env.E2E_API_URL ?? process.env.PRODUCTION_API_URL ?? '',
-    readonly: true,
-    smokeOnly: true,
-  },
-};
-
 export function getPlaywrightEnv(): PlaywrightEnv {
   const raw = (process.env.PLAYWRIGHT_ENV ?? 'development').toLowerCase();
   if (raw === 'staging' || raw === 'production') return raw;
   return 'development';
 }
 
+function stripTrailingSlash(url: string): string {
+  return url.trim().replace(/\/+$/, '');
+}
+
+function envUrl(...keys: string[]): string {
+  for (const key of keys) {
+    const value = process.env[key]?.trim();
+    if (value) return stripTrailingSlash(value);
+  }
+  return '';
+}
+
 export function getEnvConfig(): EnvConfig {
   const name = getPlaywrightEnv();
-  const profile = profiles[name];
-  if (!profile.webUiBaseUrl || !profile.apiBaseUrl) {
+  const webUiBaseUrl =
+    name === 'development'
+      ? envUrl('E2E_WEB_UI_URL') || 'https://localhost:7140'
+      : envUrl('E2E_WEB_UI_URL', name === 'staging' ? 'STAGING_WEB_UI_URL' : 'PRODUCTION_WEB_UI_URL');
+  const apiBaseUrl =
+    name === 'development'
+      ? envUrl('E2E_API_URL') || 'http://localhost:5294'
+      : envUrl('E2E_API_URL', name === 'staging' ? 'STAGING_API_URL' : 'PRODUCTION_API_URL');
+
+  if (!webUiBaseUrl || !apiBaseUrl) {
     throw new Error(
       `PLAYWRIGHT_ENV=${name} requires E2E_WEB_UI_URL and E2E_API_URL (or STAGING_/PRODUCTION_ variants).`,
     );
   }
-  return { name, ...profile };
+
+  return {
+    name,
+    webUiBaseUrl,
+    apiBaseUrl,
+    readonly: name === 'production',
+    smokeOnly: name === 'production',
+  };
 }
 
 export function requireEnv(name: string): string {

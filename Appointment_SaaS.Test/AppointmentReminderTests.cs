@@ -3,9 +3,9 @@ using Appointment_SaaS.Business.Concrete;
 using Appointment_SaaS.Core.Constants;
 using Appointment_SaaS.Core.Entities;
 using Appointment_SaaS.Core.Services;
+using Appointment_SaaS.Core.Utilities;
 using Appointment_SaaS.Data.Abstract;
 using Appointment_SaaS.Data.Context;
-using AutoMapper;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -35,7 +35,8 @@ public class AppointmentReminderTests
         var starterTenant = CreateTenant(2, "Starter Salon", "Starter", "starter-instance");
         _db.Tenants.AddRange(proTenant, starterTenant);
 
-        var tomorrow = DateTime.Today.AddDays(1).Date.AddHours(14);
+        var tomorrowLocal = BusinessClock.IstanbulToday.AddDays(1).ToDateTime(new TimeOnly(14, 0));
+        var tomorrowUtc = BusinessClock.ToUtc(tomorrowLocal);
         _db.Appointments.Add(new Appointment
         {
             TenantID = 1,
@@ -43,8 +44,8 @@ public class AppointmentReminderTests
             ServiceID = 1,
             CustomerName = "Ali",
             CustomerPhone = "05317239931",
-            StartDate = tomorrow,
-            EndDate = tomorrow.AddHours(1),
+            StartDate = tomorrowUtc,
+            EndDate = tomorrowUtc.AddHours(1),
             Status = "Beklemede",
             Note = "",
             Service = new Service { ServiceID = 1, TenantID = 1, Name = "Kesim", DurationInMinutes = 30, Price = 100 }
@@ -56,8 +57,8 @@ public class AppointmentReminderTests
             ServiceID = 2,
             CustomerName = "Veli",
             CustomerPhone = "05551234567",
-            StartDate = tomorrow,
-            EndDate = tomorrow.AddHours(1),
+            StartDate = tomorrowUtc,
+            EndDate = tomorrowUtc.AddHours(1),
             Status = "Beklemede",
             Note = "",
             Service = new Service { ServiceID = 2, TenantID = 2, Name = "Kesim", DurationInMinutes = 30, Price = 100 }
@@ -67,7 +68,6 @@ public class AppointmentReminderTests
         var mockAppointmentRepo = new Mock<IAppointmentRepository>();
         var mockTenantRepo = new Mock<ITenantRepository>();
         var mockEvolution = new Mock<IEvolutionApiService>();
-        var mockMapper = new Mock<IMapper>();
         var mockTenantProvider = new Mock<ITenantProvider>();
         var mockLogger = new Mock<ILogger<AppointmentManager>>();
         var mockCache = new Mock<IMemoryCache>();
@@ -75,7 +75,6 @@ public class AppointmentReminderTests
 
         _manager = new AppointmentManager(
             mockAppointmentRepo.Object,
-            mockMapper.Object,
             mockTenantRepo.Object,
             mockEvolution.Object,
             _db,
@@ -117,5 +116,32 @@ public class AppointmentReminderTests
         PlanPricing.CanUseReminders("Business").Should().BeTrue();
         PlanPricing.CanUseReminders("Starter").Should().BeFalse();
         PlanPricing.CanUseReminders("Trial").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetPendingRemindersAsync_DoesNotInclude_IstanbulTodayStoredAsUtc()
+    {
+        var todayLocal = BusinessClock.IstanbulToday.ToDateTime(new TimeOnly(14, 0));
+        var todayUtc = BusinessClock.ToUtc(todayLocal);
+        _db.Appointments.Add(new Appointment
+        {
+            TenantID = 1,
+            AppUserID = 1,
+            ServiceID = 1,
+            CustomerName = "Bugun",
+            CustomerPhone = "05321112233",
+            StartDate = todayUtc,
+            EndDate = todayUtc.AddHours(1),
+            Status = "Beklemede",
+            Note = ""
+        });
+        await _db.SaveChangesAsync();
+
+        var pending = await _manager.GetPendingRemindersAsync();
+
+        pending.Should().NotContain(x => x.CustomerName == "Bugun");
+        pending.Should().ContainSingle(x => x.CustomerName == "Ali");
+        pending.Single(x => x.CustomerName == "Ali").StartDate.Should().Be(
+            BusinessClock.IstanbulToday.AddDays(1).ToDateTime(new TimeOnly(14, 0)).ToString("dd.MM.yyyy HH:mm"));
     }
 }

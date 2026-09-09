@@ -1,6 +1,6 @@
 /**
- * Gerekli env: E2E_API_URL, IYZICO_WEBHOOK_SECRET, E2E_DB_*, E2E_RUN_PANEL_TESTS=true
- * Kayıt: doğrudan API (WebUI SQL timeout riskini azaltır) + İyzico webhook + OTP panel.
+ * Gerekli env: E2E_RUN_IYZICO=true, E2E_API_URL, IYZICO_WEBHOOK_SECRET, E2E_DB_*, E2E_RUN_PANEL_TESTS=true
+ * Kayıt: doğrudan API + İyzico webhook + OTP panel. Canlı İyzico yokken çalıştırmayın.
  */
 import { test, expect, request as playwrightRequest } from '@playwright/test';
 import { loginWithOtpOnPage, PANEL_URL, expectAuthCookie } from '../helpers/auth';
@@ -11,7 +11,7 @@ import {
   getTenantSubscriptionState,
   requireDbConfigured,
 } from '../helpers/db';
-import { panelTestsEnabled } from '../helpers/e2e-config';
+import { iyzicoTestsEnabled, panelTestsEnabled } from '../helpers/e2e-config';
 import { getEnvConfig, isReadonlyEnv } from '../helpers/env';
 import { postIyzicoWebhook } from '../helpers/webhooks';
 
@@ -115,6 +115,7 @@ async function bootstrapFirstStaffViaApi(
 
 test.describe('Kayıt + ödeme aktivasyonu @destructive', () => {
   test.beforeAll(() => {
+    test.skip(!iyzicoTestsEnabled(), 'İyzico henüz canlı değil — E2E_RUN_IYZICO=true ile açın');
     test.skip(isReadonlyEnv(), 'Production readonly: kayıt testi kapalı');
     requireDbConfigured();
     test.skip(!IYZICO_SECRET, 'IYZICO_WEBHOOK_SECRET gerekli');

@@ -1,8 +1,10 @@
+using Appointment_SaaS.Core.Utilities;
 using Appointment_SaaS.WebUI.Models;
 using Appointment_SaaS.WebUI.Services;
 using Appointment_SaaS.WebUI.Services.Abstract;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using System.Text;
 using System.Text.Json;
 
@@ -13,21 +15,26 @@ namespace Appointment_SaaS.WebUI.Controllers
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IDashboardApiService _dashboardApiService;
+        private readonly IyzicoSettings _iyzicoSettings;
 
         public PricingController(
             IHttpClientFactory httpClientFactory,
             IHttpContextAccessor httpContextAccessor,
-            IDashboardApiService dashboardApiService)
+            IDashboardApiService dashboardApiService,
+            IOptions<IyzicoSettings> iyzicoOptions)
         {
             _httpClientFactory = httpClientFactory;
             _httpContextAccessor = httpContextAccessor;
             _dashboardApiService = dashboardApiService;
+            _iyzicoSettings = iyzicoOptions.Value;
         }
 
         [HttpGet]
-        [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any)]
+        // Ödeme bayrağı değişince eski HTML kalmasın diye uzun cache yok.
+        [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
         public IActionResult Index()
         {
+            ViewBag.PaymentsEnabled = _iyzicoSettings.Enabled;
             return View();
         }
 
@@ -42,7 +49,11 @@ namespace Appointment_SaaS.WebUI.Controllers
                 return RedirectToAction("Login", "Auth");
             }
 
-            var model = new ChangePlanViewModel { TenantId = tenantId };
+            var model = new ChangePlanViewModel
+            {
+                TenantId = tenantId,
+                PaymentsEnabled = _iyzicoSettings.Enabled
+            };
             var client = await CreateApiClientAsync();
             var tenantRes = await client.GetAsync($"api/Tenants/{tenantId}");
             if (tenantRes.IsSuccessStatusCode)
@@ -91,6 +102,12 @@ namespace Appointment_SaaS.WebUI.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CancelSubscriptionForChangePlan()
         {
+            if (!_iyzicoSettings.Enabled)
+            {
+                TempData["ChangePlanError"] = "Ödeme altyapısı henüz aktif değil. Abonelik işlemleri yakında açılacak.";
+                return RedirectToAction(nameof(ChangePlan));
+            }
+
             var tenantIdClaim = User.FindFirst("TenantId")?.Value;
             if (!int.TryParse(tenantIdClaim, out var tenantId))
             {
@@ -112,6 +129,13 @@ namespace Appointment_SaaS.WebUI.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ChangePlan(string targetPlanType, string targetBillingCycle)
         {
+            if (!_iyzicoSettings.Enabled)
+            {
+                TempData["ChangePlanError"] =
+                    "Erken erişim döneminde ücretli plan seçimi kapalı. Deneme sürümünüzü kullanmaya devam edebilirsiniz; ödeme açıldığında buradan plan seçebileceksiniz.";
+                return RedirectToAction(nameof(ChangePlan));
+            }
+
             var tenantIdClaim = User.FindFirst("TenantId")?.Value;
             if (!int.TryParse(tenantIdClaim, out var tenantId))
             {

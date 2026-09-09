@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 [Route("api/[controller]")]
 [ApiController]
 [Authorize(Roles = "Admin,Manager")]
+[RequireActiveTenant]
 public class AppUsersController : ControllerBase
 {
     private readonly IAppUserService _appUserService;

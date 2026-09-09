@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {
   apiGetAsN8n,
+  assertN8nWebhookOk,
   buildEvolutionWebhookPayload,
   formatWhatsAppJid,
   getN8nAuthToken,
@@ -44,8 +45,7 @@ test.describe('n8n canlı workflow @destructive', () => {
     });
 
     const { status, body } = await postEvolutionWebhookToN8n(payload);
-    expect(status, body.slice(0, 500)).toBeGreaterThanOrEqual(200);
-    expect(status).toBeLessThan(500);
+    assertN8nWebhookOk({ status, body }, 'asistanı kapat');
 
     await expect
       .poll(

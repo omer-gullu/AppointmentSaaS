@@ -1,0 +1,16 @@
+[
+  {
+    "outputFileName": "wwwroot/css/bundle.min.css",
+    "inputFiles": [
+      "wwwroot/css/brand-icons.css",
+      "wwwroot/css/pricing.css",
+      "wwwroot/css/layout-shell.css",
+      "wwwroot/css/pricing-critical.css",
+      "wwwroot/css/ar-brand.css",
+      "wwwroot/css/lean-bootstrap.css"
+    ],
+    "minify": {
+      "enabled": false
+    }
+  }
+]

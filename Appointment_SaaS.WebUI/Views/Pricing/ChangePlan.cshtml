@@ -135,7 +135,22 @@
             </div>
         }
 
-        @if (Model.IsTrial)
+        @if (!Model.PaymentsEnabled)
+        {
+            <div class="cancel-step-card mb-4" style="max-width:720px;margin-left:auto;margin-right:auto;background:linear-gradient(135deg,#eef2ff 0%,#f8fafc 100%);border-color:#c7d2fe;">
+                <div class="d-flex align-items-start gap-3">
+                    <i class="bi bi-info-circle fs-4" style="color:#4338ca;"></i>
+                    <div>
+                        <div class="fw-bold mb-1" style="color:#4338ca;">Erken erişim — ödeme henüz açık değil</div>
+                        <p class="mb-0 small text-muted">
+                            Ücretli plan seçimi geçici olarak kapalı. Deneme sürümünüzü kullanmaya devam edebilirsiniz.
+                            Ödeme altyapısı hazır olduğunda buradan plan seçip ödemeye geçebileceksiniz.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (Model.IsTrial)
         {
             <div class="cancel-step-card mb-4" style="max-width:720px;margin-left:auto;margin-right:auto;">
                 <div class="d-flex align-items-start gap-3">
@@ -223,7 +238,7 @@
                     <input type="hidden" name="targetPlanType" value="Starter" />
                     <input type="hidden" name="targetBillingCycle" value="@BillingCycles.Monthly" class="billing-cycle-input" />
                     <button type="submit" class="pcard-btn plan-select-btn w-100" disabled="@(!planButtonsEnabled || starterMonthlyCurrent)">
-                        @(starterMonthlyCurrent ? "Mevcut Plan (Aylık)" : "Seç ve öde")
+                        @(starterMonthlyCurrent ? "Mevcut Plan (Aylık)" : (Model.PaymentsEnabled ? "Seç ve öde" : "Ödeme yakında"))
                     </button>
                 </form>
                 @if (overStaffStarter)
@@ -264,7 +279,7 @@
                     <input type="hidden" name="targetPlanType" value="Pro" />
                     <input type="hidden" name="targetBillingCycle" value="@BillingCycles.Monthly" class="billing-cycle-input" />
                     <button type="submit" class="pcard-btn featured-btn plan-select-btn w-100" disabled="@(!planButtonsEnabled || proMonthlyCurrent)">
-                        @(proMonthlyCurrent ? "Mevcut Plan (Aylık)" : "Seç ve öde")
+                        @(proMonthlyCurrent ? "Mevcut Plan (Aylık)" : (Model.PaymentsEnabled ? "Seç ve öde" : "Ödeme yakında"))
                     </button>
                 </form>
                 @if (overStaffPro)

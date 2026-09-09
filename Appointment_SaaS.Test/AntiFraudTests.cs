@@ -10,7 +10,6 @@ using Appointment_SaaS.Core.Utilities;
 using Appointment_SaaS.Core.Utilities.Security.JWT;
 using Appointment_SaaS.Core.Utilities.Security.Jwt;
 using Appointment_SaaS.Core.Utilities.Security;
-using AutoMapper;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -29,7 +28,6 @@ namespace Appointment_SaaS.Test
         private readonly Mock<IAppUserService> _mockUserService;
         private readonly Mock<ITenantService> _mockTenantService;
         private readonly Mock<ITokenHelper> _mockTokenHelper;
-        private readonly Mock<IMapper> _mockMapper;
         private readonly Mock<IEvolutionApiService> _mockEvolutionApiService;
         private readonly Mock<IUserOperationClaimService> _mockUserOpClaimService;
         private readonly Mock<IIyzicoPaymentService> _mockIyzicoPaymentService;
@@ -41,7 +39,6 @@ namespace Appointment_SaaS.Test
             _mockUserService = new Mock<IAppUserService>();
             _mockTenantService = new Mock<ITenantService>();
             _mockTokenHelper = new Mock<ITokenHelper>();
-            _mockMapper = new Mock<IMapper>();
             _mockEvolutionApiService = new Mock<IEvolutionApiService>();
             _mockUserOpClaimService = new Mock<IUserOperationClaimService>();
             _mockIyzicoPaymentService = new Mock<IIyzicoPaymentService>();

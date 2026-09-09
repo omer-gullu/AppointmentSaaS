@@ -5,6 +5,7 @@ using Appointment_SaaS.Business.Abstract;
 using Appointment_SaaS.Business.Concrete;
 using Appointment_SaaS.Core.Entities;
 using Appointment_SaaS.Core.Services;
+using Appointment_SaaS.Core.Utilities;
 using Appointment_SaaS.Data.Abstract;
 using Appointment_SaaS.Data.Context;
 using FluentAssertions;
@@ -39,9 +40,8 @@ namespace Appointment_SaaS.Test
 
             _appointmentManager = new AppointmentManager(
                 mockAppointmentRepo.Object,
-                null!,
                 mockTenantRepo.Object,
-                null!,
+                Mock.Of<IEvolutionApiService>(),
                 _db,
                 mockTenantProvider.Object,
                 new Mock<ILogger<AppointmentManager>>().Object,
@@ -127,7 +127,7 @@ namespace Appointment_SaaS.Test
                     {
                         TenantID = tenantId, AppUserID = staffId, ServiceID = 1,
                         CustomerName = $"M{staffId}-{i}", CustomerPhone = "555",
-                        StartDate = today.AddHours(i + staffId), EndDate = today.AddHours(i + staffId + 1),
+                        StartDate = BusinessClock.ToUtc(today.AddHours(i + staffId)), EndDate = BusinessClock.ToUtc(today.AddHours(i + staffId + 1)),
                         Status = "Beklemede", Note = ""
                     });
                 }

@@ -2,7 +2,7 @@ using Appointment_SaaS.Business.Abstract;
 using Appointment_SaaS.Core.DTOs;
 using Appointment_SaaS.Core.Entities;
 using Appointment_SaaS.Data.Abstract;
-using AutoMapper;
+using Appointment_SaaS.Business.Mapping;
 using Microsoft.EntityFrameworkCore;
 
 namespace Appointment_SaaS.Business.Concrete;
@@ -10,17 +10,15 @@ namespace Appointment_SaaS.Business.Concrete;
 public class ServiceManager : IServiceService
 {
     private readonly IServiceRepository _serviceRepository;
-    private readonly IMapper _mapper;
 
-    public ServiceManager(IServiceRepository serviceRepository, IMapper mapper)
+    public ServiceManager(IServiceRepository serviceRepository)
     {
         _serviceRepository = serviceRepository;
-        _mapper = mapper;
     }
 
     public async Task<int> AddServiceAsync(ServiceCreateDto dto)
     {
-        var service = _mapper.Map<Service>(dto);
+        var service = EntityMapper.ToService(dto);
       
         // İŞ MANTIĞI: Hizmet isminin ilk harflerini büyük yap (Örn: saç kesimi -> Saç Kesimi)
         if (!string.IsNullOrWhiteSpace(service.Name))

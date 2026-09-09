@@ -3,22 +3,18 @@ import { PANEL_URL } from '../helpers/auth';
 import { isManagerAuthReady, MANAGER_AUTH_FILE } from '../helpers/panel-auth';
 import {
   assertAppointmentFields,
+  appointmentExists,
   createAppointmentAsN8n,
   deleteAppointmentAsN8n,
   isoToPanelDate,
   isoToPanelTime,
   resolveAlternateServiceAndStaff,
-  shiftSlotIso,
   updateAppointmentAsN8n,
+  type AppointmentApiLookup,
 } from '../helpers/appointments';
-import {
-  assertDbWritable,
-  appointmentExists,
-  ensureE2eBusinessHours,
-  requireDbConfigured,
-} from '../helpers/db';
-import { getE2eStaticConfig, panelTestsEnabled } from '../helpers/e2e-config';
-import { getN8nAuthToken, resolveE2eBookingContext } from '../helpers/n8n';
+import { assertDbWritable, ensureE2eBusinessHours } from '../helpers/db';
+import { panelTestsEnabled } from '../helpers/e2e-config';
+import { getN8nAuthToken, resolveE2eBookingContext, resolveLaterSlotIso } from '../helpers/n8n';
 import { isReadonlyEnv } from '../helpers/env';
 
 const E2E_PHONE = process.env.E2E_MANAGER_PHONE?.trim();
@@ -40,11 +36,19 @@ function uniqueName(prefix: string): string {
   return `Esse ${prefix} Mut ${letters[slotSeq % letters.length]}${letters[(slotSeq + 3) % letters.length]}`;
 }
 
+function apiLookup(phone: string, token: string): AppointmentApiLookup {
+  return {
+    tenantId: E2E_TENANT_ID,
+    token,
+    instanceName: E2E_INSTANCE,
+    customerPhone: phone,
+  };
+}
+
 test.describe.configure({ mode: 'serial' });
 
 function skipUnlessMutationsEnv(): void {
   test.skip(isReadonlyEnv(), 'readonly ortam');
-  requireDbConfigured();
   test.skip(!E2E_TENANT_ID || !E2E_PHONE, 'E2E_TENANT_ID ve E2E_MANAGER_PHONE gerekli');
   test.skip(!E2E_SERVICE_ID || !E2E_STAFF_ID || !E2E_INSTANCE, 'E2E_INSTANCE_NAME, SERVICE, STAFF gerekli');
   test.skip(!getN8nAuthToken(), 'E2E_N8N_TOKEN gerekli');
@@ -81,7 +85,13 @@ test.describe('Randevu güncelle / sil — API @destructive', () => {
       E2E_TENANT_ID,
     );
 
-    const newIso = shiftSlotIso(booking.startIso, 10);
+    const newIso = await resolveLaterSlotIso(
+      E2E_TENANT_ID,
+      E2E_INSTANCE,
+      token,
+      E2E_STAFF_ID,
+      booking,
+    );
     const upd = await updateAppointmentAsN8n(
       appointmentId,
       {
@@ -96,10 +106,10 @@ test.describe('Randevu güncelle / sil — API @destructive', () => {
       E2E_TENANT_ID,
     );
     expect(upd.status, JSON.stringify(upd.json)).toBe(200);
-    await assertAppointmentFields(appointmentId, { startIsoPrefix: newIso });
+    await assertAppointmentFields(appointmentId, { startIsoPrefix: newIso }, apiLookup(phone, token));
 
     await deleteAppointmentAsN8n(appointmentId, token, E2E_TENANT_ID);
-    expect(await appointmentExists(appointmentId)).toBeFalsy();
+    expect(await appointmentExists(appointmentId, apiLookup(phone, token))).toBeFalsy();
   });
 
   test('API: hizmet + personel değiştir → DB', async () => {
@@ -159,7 +169,13 @@ test.describe('Randevu güncelle / sil — API @destructive', () => {
       E2E_TENANT_ID,
     );
     if (upd.status === 409) {
-      const retryIso = shiftSlotIso(altBooking.startIso, 15);
+      const retryIso = await resolveLaterSlotIso(
+        E2E_TENANT_ID,
+        E2E_INSTANCE,
+        token,
+        alt!.staffId,
+        altBooking,
+      );
       upd = await updateAppointmentAsN8n(
         appointmentId,
         {
@@ -175,10 +191,14 @@ test.describe('Randevu güncelle / sil — API @destructive', () => {
       );
     }
     expect(upd.status, JSON.stringify(upd.json)).toBe(200);
-    await assertAppointmentFields(appointmentId, {
-      serviceId: alt!.serviceId,
-      staffId: alt!.staffId,
-    });
+    await assertAppointmentFields(
+      appointmentId,
+      {
+        serviceName: alt!.serviceName,
+        staffName: alt!.staffName,
+      },
+      apiLookup(phone, token),
+    );
 
     await deleteAppointmentAsN8n(appointmentId, token, E2E_TENANT_ID);
   });
@@ -209,7 +229,7 @@ test.describe('Randevu güncelle / sil — API @destructive', () => {
 
     const del = await deleteAppointmentAsN8n(appointmentId, token, E2E_TENANT_ID);
     expect(del.status, JSON.stringify(del.json)).toBe(200);
-    expect(await appointmentExists(appointmentId)).toBeFalsy();
+    expect(await appointmentExists(appointmentId, apiLookup(phone, token))).toBeFalsy();
   });
 });
 
@@ -259,7 +279,13 @@ test.describe('Randevu güncelle / sil — panel @destructive', () => {
       E2E_TENANT_ID,
     );
 
-    const newIso = shiftSlotIso(booking.startIso, 15);
+    const newIso = await resolveLaterSlotIso(
+      E2E_TENANT_ID,
+      E2E_INSTANCE,
+      token,
+      alt!.staffId,
+      booking,
+    );
     const baseUrl = process.env.E2E_WEB_UI_URL ?? 'https://localhost:7140';
     await page.goto(`${baseUrl}${PANEL_URL}`);
 
@@ -276,11 +302,15 @@ test.describe('Randevu güncelle / sil — panel @destructive', () => {
     await page.locator('#editAppointmentModal button[type="submit"]').click();
     await expect(page.locator('#editAppointmentModal')).toBeHidden({ timeout: 45_000 });
 
-    await assertAppointmentFields(appointmentId, {
-      serviceId: alt!.serviceId,
-      staffId: alt!.staffId,
-      startIsoPrefix: newIso,
-    });
+    await assertAppointmentFields(
+      appointmentId,
+      {
+        serviceName: alt!.serviceName,
+        staffName: alt!.staffName,
+        startIsoPrefix: newIso,
+      },
+      apiLookup(phone, token),
+    );
 
     await deleteAppointmentAsN8n(appointmentId, token, E2E_TENANT_ID);
   });
@@ -322,7 +352,10 @@ test.describe('Randevu güncelle / sil — panel @destructive', () => {
     await confirm.click();
 
     await expect
-      .poll(() => appointmentExists(appointmentId), { timeout: 30_000, intervals: [1000, 2000] })
+      .poll(() => appointmentExists(appointmentId, apiLookup(phone, token)), {
+        timeout: 30_000,
+        intervals: [1000, 2000],
+      })
       .toBeFalsy();
   });
 });

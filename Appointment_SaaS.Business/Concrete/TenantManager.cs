@@ -4,7 +4,7 @@ using Appointment_SaaS.Core.Entities;
 using Appointment_SaaS.Core.Utilities;
 using Appointment_SaaS.Data.Abstract;
 using Appointment_SaaS.Data.Context;
-using AutoMapper;
+using Appointment_SaaS.Business.Mapping;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,7 +16,6 @@ namespace Appointment_SaaS.Business.Concrete
     public class TenantManager : ITenantService
     {
         private readonly ITenantRepository _tenantRepository;
-        private readonly IMapper _mapper;
         private readonly IEvolutionApiService _evolutionApiService;
         private readonly AppDbContext _db;
         private readonly IHostEnvironment _environment;
@@ -26,7 +25,6 @@ namespace Appointment_SaaS.Business.Concrete
 
         public TenantManager(
             ITenantRepository tenantRepository,
-            IMapper mapper,
             IEvolutionApiService evolutionApiService,
             AppDbContext db,
             IHostEnvironment environment,
@@ -35,7 +33,6 @@ namespace Appointment_SaaS.Business.Concrete
             IServiceScopeFactory serviceScopeFactory)
         {
             _tenantRepository = tenantRepository;
-            _mapper = mapper;
             _evolutionApiService = evolutionApiService;
             _db = db;
             _environment = environment;
@@ -106,7 +103,7 @@ namespace Appointment_SaaS.Business.Concrete
 
         public async Task<Tenant?> GetContextByInstanceAsync(string instanceName)
         {
-            var today = DateOnly.FromDateTime(DateTime.Today);
+            var today = DateOnly.FromDateTime(BusinessClock.IstanbulNow);
 
             return await _tenantRepository
                 .Where(x => x.InstanceName == instanceName)
@@ -138,7 +135,7 @@ namespace Appointment_SaaS.Business.Concrete
                 var users = await _db.AppUsers.Where(u => u.TenantID == tenant.TenantID).ToListAsync();
                 foreach (var user in users)
                 {
-                    user.LockoutEnd = DateTime.Now.AddYears(10);
+                    user.LockoutEnd = DateTime.UtcNow.AddYears(10);
                     user.AccessFailedCount = 99;
                     user.SecurityStamp = Guid.NewGuid().ToString();
                 }
@@ -182,7 +179,7 @@ namespace Appointment_SaaS.Business.Concrete
 
         public async Task<int> AddTenantAsync(TenantCreateDto dto, string fingerprint)
         {
-            var tenant = _mapper.Map<Tenant>(dto);
+            var tenant = EntityMapper.ToTenant(dto);
 
             // Telefon normalizasyonu
             if (!string.IsNullOrWhiteSpace(tenant.PhoneNumber))
@@ -210,7 +207,7 @@ namespace Appointment_SaaS.Business.Concrete
             // Temel alanlar
             tenant.ApiKey = TenantIntegrationKeyGenerator.Create();
             tenant.CreatedAt = DateTime.UtcNow;
-            tenant.SubscriptionEndDate = DateTime.Now.AddDays(15);
+            tenant.SubscriptionEndDate = DateTime.UtcNow.AddDays(15);
             tenant.IsTrial = true;
             // ✅ DÜZELTME: IsActive başlangıçta true — AuthManager zaten yönetiyor
             tenant.IsActive = true;

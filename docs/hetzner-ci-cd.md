@@ -22,7 +22,7 @@
 | Dosya | Tetikleyici | Ne yapar |
 |-------|-------------|----------|
 | **ci.yml** | Her push / PR | Solution build + unit test + E2E derleme |
-| **deploy-hetzner.yml** | Manuel (`workflow_dispatch`) | Validate → API ve/veya WebUI rsync |
+| **deploy-hetzner.yml** | Manuel (`workflow_dispatch`) veya `main` push | Validate (**unit test zorunlu**) → API ve/veya WebUI rsync. Test fail → deploy yok. |
 | **deploy-hetzner-infra.yml** | Manuel | n8n / Evolution docker sync (`.env` hariç) |
 | **playwright-e2e.yml** | e2e / API / WebUI değişince | Canlı E2E (secret gerekir) |
 
@@ -84,7 +84,8 @@ Infra deploy **`.env` dosyalarını üzerine yazmaz**.
    # veya geliştirme makinesinden:
    dotnet ef database update --project Appointment_SaaS.Data --startup-project Appointment_SaaS.API
    ```
-5. Nginx + certbot: `api.`, `akillirandevu.net` (WebUI), `n8n.`, `evolution.`
+5. Nginx + certbot: `akillirandevu.net` (WebUI). Şablon: `deploy/nginx/` (HSTS tek kaynak, TRACE kapalı, X-Real-IP = `$remote_addr`).
+   - API'yi mümkünse internete **açmayın** (WebUI/n8n → `127.0.0.1:5294`). Ayrıntı: `deploy/nginx/README.md`.
 6. GitHub secrets
 7. Actions → Deploy to Hetzner → Run workflow
 
@@ -97,11 +98,15 @@ Infra deploy **`.env` dosyalarını üzerine yazmaz**.
 ```
 PR / push → ci.yml: sln build + Test + E2E compile
 
-Manuel deploy (secrets hazır)
-  → deploy-hetzner: validate → rsync → systemctl restart
+Deploy (push main veya manuel)
+  → validate: build + Appointment_SaaS.Test
+  → test fail ise rsync/systemctl çalışmaz
+  → test geçerse API/WebUI rsync + restart
 
 Manuel infra deploy
   → deploy-hetzner-infra: rsync compose → docker compose up
 ```
+
+Canlı Playwright (`playwright-e2e.yml`) OTP / tünel / n8n’e bağlıdır; **deploy’u kilitlemez**. Kapı: `Appointment_SaaS.Test` (206 unit).
 
 n8n **workflow JSON** repoda olsa bile CI/CD onları sunucuya otomatik yüklemez — import UI'dan yapılır.

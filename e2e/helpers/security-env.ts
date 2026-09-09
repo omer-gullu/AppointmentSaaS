@@ -134,6 +134,12 @@ export async function bootstrapSecurityEnvFromDb(): Promise<void> {
 
   if (missingSecurityEnv().length > 0) return;
 
+  const passiveId = Number(envTrim('E2E_PASSIVE_TENANT_ID'));
+  const tenantBId = Number(envTrim('E2E_TENANT_B_ID'));
+  if (passiveId > 0 && tenantBId > 0 && passiveId !== tenantBId) {
+    return;
+  }
+
   await ensurePassiveScenarioForTests();
 }
 

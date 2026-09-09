@@ -1,6 +1,12 @@
 import { postN8nAppointment } from './webhooks';
-import { apiDeleteAsN8n, apiGetAsN8n, apiPutAsN8n } from './n8n';
-import { getAppointmentById } from './db';
+import {
+  apiDeleteAsN8n,
+  apiGetAsN8n,
+  apiPutAsN8n,
+  fetchMyActiveAppointments,
+  findActiveAppointment,
+  type MyActiveAppointment,
+} from './n8n';
 
 export type AlternateIds = {
   serviceId: number;
@@ -8,6 +14,27 @@ export type AlternateIds = {
   serviceName: string;
   staffName: string;
 };
+
+export type AppointmentApiLookup = {
+  tenantId: number;
+  token: string;
+  instanceName: string;
+  customerPhone: string;
+};
+
+function istanbulHm(value: string): string {
+  const hasTz = /Z|[+-]\d{2}:\d{2}$/.test(value);
+  const d = new Date(hasTz ? value : `${value.slice(0, 19)}+03:00`);
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Istanbul',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(d);
+  const hour = parts.find((p) => p.type === 'hour')?.value ?? '';
+  const minute = parts.find((p) => p.type === 'minute')?.value ?? '';
+  return `${hour}:${minute}`;
+}
 
 export async function createAppointmentAsN8n(
   payload: {
@@ -30,9 +57,7 @@ export async function createAppointmentAsN8n(
     const msg = String(json.message ?? json.Message ?? '');
     if (status === 200) break;
     if (status === 400 && /çakış/i.test(msg) && attempt < 5) {
-      const d = new Date(payload.startDate);
-      d.setMinutes(d.getMinutes() + 5);
-      payload.startDate = d.toISOString().slice(0, 19);
+      payload.startDate = shiftSlotIso(payload.startDate, 30);
       continue;
     }
     break;
@@ -41,16 +66,9 @@ export async function createAppointmentAsN8n(
     throw new Error(`Appointment create failed (${status}): ${JSON.stringify(json)}`);
   }
   const id =
-    Number(json.ID ?? json.id ?? json.appointmentId ?? json.AppointmentID ?? 0) ||
-    (await getAppointmentByIdFromPhone(tenantId, payload.customerPhone));
-  if (!id) throw new Error('Appointment ID missing from create response');
+    Number(json.ID ?? json.id ?? json.appointmentId ?? json.AppointmentID ?? 0);
+  if (!id) throw new Error(`Appointment ID missing from create response: ${JSON.stringify(json)}`);
   return { appointmentId: id, status };
-}
-
-async function getAppointmentByIdFromPhone(tenantId: number, phone: string): Promise<number> {
-  const { findAppointmentByCustomerPhone } = await import('./db');
-  const row = await findAppointmentByCustomerPhone(tenantId, phone.slice(-8));
-  return row?.AppointmentID ?? 0;
 }
 
 export async function updateAppointmentAsN8n(
@@ -128,10 +146,20 @@ export async function resolveAlternateServiceAndStaff(
 }
 
 export function shiftSlotIso(iso: string, minutes: number): string {
-  const d = new Date(iso);
-  d.setMinutes(d.getMinutes() + minutes);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+  const wall = /Z|[+-]\d{2}:\d{2}$/.test(iso) ? iso : `${iso.slice(0, 19)}+03:00`;
+  const d = new Date(wall);
+  d.setTime(d.getTime() + minutes * 60_000);
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Istanbul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(d);
+  const g = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? '';
+  return `${g('year')}-${g('month')}-${g('day')}T${g('hour')}:${g('minute')}:00`;
 }
 
 export function isoToPanelDate(iso: string): string {
@@ -143,30 +171,93 @@ export function isoToPanelTime(iso: string): string {
   return t.slice(0, 5);
 }
 
+async function fetchActiveRow(
+  appointmentId: number,
+  lookup: AppointmentApiLookup,
+): Promise<MyActiveAppointment | undefined> {
+  const mine = await fetchMyActiveAppointments(
+    lookup.tenantId,
+    lookup.instanceName,
+    lookup.token,
+    lookup.customerPhone,
+  );
+  if (mine.status !== 200) {
+    throw new Error(
+      `my-active-appointments HTTP ${mine.status}: ${JSON.stringify(mine.body)}`,
+    );
+  }
+  return findActiveAppointment(mine.body, appointmentId);
+}
+
+export async function waitForAppointmentViaApi(
+  lookup: AppointmentApiLookup,
+  timeoutMs = 30_000,
+): Promise<MyActiveAppointment> {
+  const deadline = Date.now() + timeoutMs;
+  let lastStatus = 0;
+  while (Date.now() < deadline) {
+    const mine = await fetchMyActiveAppointments(
+      lookup.tenantId,
+      lookup.instanceName,
+      lookup.token,
+      lookup.customerPhone,
+    );
+    lastStatus = mine.status;
+    const row = (mine.body.appointments ?? [])[0];
+    if (mine.status === 200 && row) return row;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  throw new Error(
+    `Appointment not found via API for phone ${lookup.customerPhone} (last HTTP ${lastStatus})`,
+  );
+}
+
+export async function appointmentExists(
+  appointmentId: number,
+  lookup: AppointmentApiLookup,
+): Promise<boolean> {
+  const mine = await fetchMyActiveAppointments(
+    lookup.tenantId,
+    lookup.instanceName,
+    lookup.token,
+    lookup.customerPhone,
+  );
+  if (mine.status !== 200) return false;
+  return Boolean(findActiveAppointment(mine.body, appointmentId));
+}
+
 export async function assertAppointmentFields(
   appointmentId: number,
   expected: Partial<{
-    serviceId: number;
-    staffId: number;
+    serviceName: string;
+    staffName: string;
     startIsoPrefix: string;
+    customerName: string;
   }>,
+  lookup: AppointmentApiLookup,
 ): Promise<void> {
-  const row = await getAppointmentById(appointmentId);
-  if (!row) throw new Error(`Appointment ${appointmentId} not found in DB`);
-  if (expected.serviceId != null && row.ServiceID !== expected.serviceId) {
-    throw new Error(`Expected ServiceID ${expected.serviceId}, got ${row.ServiceID}`);
+  const row = await fetchActiveRow(appointmentId, lookup);
+  if (!row) throw new Error(`Appointment ${appointmentId} not found via API`);
+
+  const serviceName = String(row.serviceName ?? row.ServiceName ?? '');
+  const staffName = String(row.staffName ?? row.StaffName ?? '');
+  const customerName = String(row.customerName ?? row.CustomerName ?? '');
+  const start = String(row.startTime ?? row.StartTime ?? '');
+
+  if (expected.customerName != null && !customerName.match(new RegExp(expected.customerName, 'i'))) {
+    throw new Error(`Expected customer ~${expected.customerName}, got ${customerName}`);
   }
-  if (expected.staffId != null && row.AppUserID !== expected.staffId) {
-    throw new Error(`Expected AppUserID ${expected.staffId}, got ${row.AppUserID}`);
+  if (expected.serviceName != null && serviceName !== expected.serviceName) {
+    throw new Error(`Expected service ${expected.serviceName}, got ${serviceName}`);
+  }
+  if (expected.staffName != null && staffName !== expected.staffName) {
+    throw new Error(`Expected staff ${expected.staffName}, got ${staffName}`);
   }
   if (expected.startIsoPrefix != null) {
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const fmt = (d: Date) =>
-      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    const actual = fmt(new Date(row.StartDate));
-    const want = fmt(new Date(expected.startIsoPrefix));
+    const actual = istanbulHm(start);
+    const want = istanbulHm(expected.startIsoPrefix);
     if (actual !== want) {
-      throw new Error(`Expected StartDate ~${want}, got ${actual}`);
+      throw new Error(`Expected StartDate ~${want}, got ${actual} (${start})`);
     }
   }
 }

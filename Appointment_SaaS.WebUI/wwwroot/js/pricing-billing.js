@@ -20,7 +20,9 @@
             const noteEl = document.getElementById('ynote-' + p);
             if (noteEl) noteEl.innerHTML = d.note;
             const linkEl = document.getElementById('link-' + p);
-            if (linkEl) linkEl.href = cfg.baseUrl + '?plan=' + p + '&cycle=' + type;
+            if (linkEl && linkEl.tagName === 'A' && cfg.paymentsEnabled !== false) {
+                linkEl.href = cfg.baseUrl + '?plan=' + p + '&cycle=' + type;
+            }
         });
     }
 

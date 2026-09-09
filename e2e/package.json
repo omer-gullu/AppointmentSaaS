@@ -9,9 +9,9 @@
     "test:ui": "playwright test --ui",
     "test:smoke": "playwright test --config=playwright.smoke.config.ts",
     "test:appointment": "playwright test tests/appointment.spec.ts",
-    "test:payment": "playwright test tests/payment.spec.ts",
+    "test:payment": "cross-env E2E_RUN_IYZICO=true playwright test tests/payment.spec.ts",
     "test:security": "playwright test tests/security.spec.ts",
-    "test:register": "playwright test tests/register-checkout.spec.ts",
+    "test:register": "cross-env E2E_RUN_IYZICO=true playwright test tests/register-checkout.spec.ts",
     "test:load:appointments": "k6 run load-tests/appointment-load.js",
     "test:load:webhook": "powershell -ExecutionPolicy Bypass -File scripts/run-k6.ps1 -Script load-tests/n8n-webhook-load.js",
     "test:load:webhook:light": "powershell -ExecutionPolicy Bypass -File scripts/run-k6.ps1 -Script load-tests/n8n-webhook-load.js -Scenario load -LoadVus 10",
@@ -19,7 +19,7 @@
     "test:load:race": "powershell -ExecutionPolicy Bypass -File scripts/run-k6.ps1 -Script load-tests/n8n-webhook-load.js -Scenario race",
     "test:load:ai": "cross-env E2E_RUN_LOAD_AI=true k6 run load-tests/ai-response-load.js",
     "test:load": "npm run test:load:appointments",
-    "test:billing": "playwright test tests/billing.spec.ts",
+    "test:billing": "cross-env E2E_RUN_IYZICO=true playwright test tests/billing.spec.ts",
     "test:n8n": "playwright test tests/n8n-contract.spec.ts tests/n8n-workflow.spec.ts",
     "test:n8n:contract": "playwright test tests/n8n-contract.spec.ts",
     "test:api": "playwright test tests/n8n-contract.spec.ts tests/appointment.spec.ts tests/appointment-mutations.spec.ts --grep \"API|n8n API\"",
@@ -34,7 +34,8 @@
     "test:production": "cross-env PLAYWRIGHT_ENV=production playwright test",
     "report": "playwright show-report",
     "install:browsers": "playwright install chromium",
-    "sync:env": "node scripts/sync-env.mjs"
+    "sync:env": "node scripts/sync-env.mjs",
+    "tunnel:api": "powershell -ExecutionPolicy Bypass -File scripts/api-tunnel.ps1 -KillLocalListener"
   },
   "devDependencies": {
     "@playwright/test": "^1.50.0",

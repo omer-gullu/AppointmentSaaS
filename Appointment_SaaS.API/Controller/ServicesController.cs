@@ -9,6 +9,7 @@ namespace Appointment_SaaS.API.Controllers;
 [Route("api/[controller]")]
 [ApiController]
 [Authorize]
+[RequireActiveTenant]
 public class ServicesController : ControllerBase
 {
     private readonly IServiceService _serviceService;
@@ -20,10 +21,22 @@ public class ServicesController : ControllerBase
         _tenantService = tenantService;
     }
 
+    private string FirstValidationError()
+    {
+        var msg = ModelState.Values
+            .SelectMany(v => v.Errors)
+            .Select(e => e.ErrorMessage)
+            .FirstOrDefault(m => !string.IsNullOrWhiteSpace(m));
+        return string.IsNullOrWhiteSpace(msg) ? "Geçersiz veya eksik hizmet bilgisi." : msg;
+    }
+
     // Task<int> AddServiceAsync(ServiceCreateDto dto) metodunu kullanır
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] ServiceCreateDto dto)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(new { Message = FirstValidationError() });
+
         var enforce = ControllerTenantAccess.EnforceDtoTenantForManager(this, tid => dto.TenantID = tid);
         if (enforce != null)
             return enforce;
@@ -96,6 +109,9 @@ public class ServicesController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] ServiceCreateDto dto)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(new { Message = FirstValidationError() });
+
         var service = await _serviceService.GetByIdAsync(id);
         if (service == null)
             return NotFound(new { Message = "Hizmet bulunamadı." });

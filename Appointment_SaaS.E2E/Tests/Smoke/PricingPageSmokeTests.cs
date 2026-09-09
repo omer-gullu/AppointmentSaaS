@@ -6,7 +6,7 @@ using Xunit;
 namespace Appointment_SaaS.E2E.Tests.Smoke;
 
 /// <summary>
-/// Pricing sayfası duman testleri — API (5294) ve WebUI (7140) ayakta olmalı.
+/// Pricing sayfası duman testleri — canlı WebUI (akillirandevu.net). API tüneli gerekmez.
 /// </summary>
 public class PricingPageSmokeTests : E2EPageTest
 {

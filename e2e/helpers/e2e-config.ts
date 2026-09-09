@@ -1,4 +1,4 @@
-import { getEnvConfig } from './env';
+import { getEnvConfig, getPlaywrightEnv } from './env';
 
 /** Statik E2E: tüm kimlik bilgileri .env'den (discover-env.ps1 ile doldurulur). */
 export type E2eStaticConfig = {
@@ -25,6 +25,20 @@ export function isPlaceholderEnvValue(value: string | undefined): boolean {
 /** Panel OTP login testleri (varsayılan kapalı). */
 export function panelTestsEnabled(): boolean {
   return process.env.E2E_RUN_PANEL_TESTS === 'true';
+}
+
+/**
+ * Gerçek İyzico / imzalı ödeme webhook mutasyonları (varsayılan kapalı).
+ * Plan seçimi henüz canlı İyzico’ya gitmiyorsa açmayın — canlı tenant aboneliğini bozar.
+ */
+export function iyzicoTestsEnabled(): boolean {
+  return process.env.E2E_RUN_IYZICO === 'true';
+}
+
+/** Staging/production: randevu kaynağı canlı Postgres; yerel SQLEXPRESS'e yazma/okuma yanlış DB. */
+export function isLiveApiEnv(): boolean {
+  const env = getPlaywrightEnv();
+  return env === 'staging' || env === 'production';
 }
 
 export function getE2eStaticConfig(): E2eStaticConfig | null {

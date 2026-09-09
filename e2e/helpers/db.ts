@@ -2,7 +2,12 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import sql from 'mssql';
-import { requireEnv, hasEnv, isReadonlyEnv } from './env';
+import { requireEnv, hasEnv, isReadonlyEnv, getPlaywrightEnv } from './env';
+
+function isLiveApiEnv(): boolean {
+  const env = getPlaywrightEnv();
+  return env === 'staging' || env === 'production';
+}
 
 let cachedSqlCmdExe: string | null = null;
 
@@ -315,21 +320,26 @@ export async function appointmentExists(appointmentId: number): Promise<boolean>
   return row != null;
 }
 
-/** E2E temizliği: sandbox numarasını gri listeden çıkar. */
+/** E2E temizliği: sandbox numarasını gri listeden çıkar. Canlı Postgres'te SQL yok — no-op. */
 export async function unblockCustomerPhone(tenantId: number, phoneFragment: string): Promise<void> {
+  if (isLiveApiEnv()) return;
   assertDbWritable();
   const digits = phoneFragment.replace(/\D/g, '').slice(-10);
   const query = `SET NOCOUNT ON; DELETE FROM TenantBlockedPhones WHERE TenantID = ${tenantId} AND PhoneCore LIKE '%${digits}%';`;
-  if (useSqlCmd()) {
-    runSqlCmdQuery(query);
-    return;
+  try {
+    if (useSqlCmd()) {
+      runSqlCmdQuery(query);
+      return;
+    }
+    const db = await getDbPool();
+    await db
+      .request()
+      .input('tenantId', sql.Int, tenantId)
+      .input('phone', sql.NVarChar, `%${digits}%`)
+      .query(`DELETE FROM TenantBlockedPhones WHERE TenantID = @tenantId AND PhoneCore LIKE @phone`);
+  } catch (e) {
+    console.warn(`unblockCustomerPhone atlandı: ${(e as Error).message}`);
   }
-  const db = await getDbPool();
-  await db
-    .request()
-    .input('tenantId', sql.Int, tenantId)
-    .input('phone', sql.NVarChar, `%${digits}%`)
-    .query(`DELETE FROM TenantBlockedPhones WHERE TenantID = @tenantId AND PhoneCore LIKE @phone`);
 }
 
 export async function countAppointmentsForPhone(tenantId: number, phoneFragment: string): Promise<number> {
@@ -615,6 +625,7 @@ export async function setTenantPendingPlanChange(
 /** Webhook askısı / lockout sonrası panel OTP için tenant + kullanıcıları aç. */
 export async function ensureE2eTenantBillingActive(tenantId: number): Promise<void> {
   if (tenantId <= 0) return;
+  if (isLiveApiEnv()) return;
 
   const billingSql = `SET NOCOUNT ON; UPDATE Tenants SET IsActive = 1, IsSubscriptionActive = 1 WHERE TenantID = ${tenantId}; UPDATE AppUsers SET LockoutEnd = NULL, AccessFailedCount = 0 WHERE TenantID = ${tenantId}`;
 
@@ -904,6 +915,7 @@ export async function ensureE2eBreakTime(
   end = '13:00',
   enabled = true,
 ): Promise<void> {
+  if (isLiveApiEnv()) return;
   assertDbWritable();
   const en = enabled ? 1 : 0;
   const query = `SET NOCOUNT ON; UPDATE Tenants SET BreakTimeEnabled = ${en}, BreakStartTime = '${start}:00', BreakEndTime = '${end}:00' WHERE TenantID = ${tenantId};`;
@@ -919,6 +931,7 @@ export async function ensureE2eBreakTime(
  * E2E tenant için haftalık çalışma saatleri (Pazar kapalı, diğer günler 08:00–21:00).
  */
 export async function ensureE2eBusinessHours(tenantId: number): Promise<void> {
+  if (isLiveApiEnv()) return;
   assertDbWritable();
   const open = '08:00:00';
   const close = '21:00:00';

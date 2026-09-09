@@ -14,6 +14,7 @@ public class SecurityHeadersMiddleware
         headers["X-Frame-Options"] = "DENY";
         headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
         headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()";
+        headers["Cross-Origin-Resource-Policy"] = "same-site";
         headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'";
         headers.Remove("Server");
         headers.Remove("X-Powered-By");

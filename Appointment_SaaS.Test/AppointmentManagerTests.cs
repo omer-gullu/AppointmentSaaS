@@ -8,8 +8,8 @@ using Appointment_SaaS.Business.Concrete;
 using Appointment_SaaS.Core.DTOs;
 using Appointment_SaaS.Core.Entities;
 using Appointment_SaaS.Core.Services;
+using Appointment_SaaS.Core.Utilities;
 using Appointment_SaaS.Data.Abstract;
-using AutoMapper;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -28,7 +28,6 @@ namespace Appointment_SaaS.Test
         private readonly Mock<IAppointmentRepository> _mockAppointmentRepo;
         private readonly Mock<ITenantRepository> _mockTenantRepo;
         private readonly Mock<IEvolutionApiService> _mockEvolutionService;
-        private readonly Mock<IMapper> _mockMapper;
         private readonly AppDbContext _db;
         private readonly int _staffId;
         private readonly AppointmentManager _manager;
@@ -38,7 +37,6 @@ namespace Appointment_SaaS.Test
             _mockAppointmentRepo = new Mock<IAppointmentRepository>();
             _mockTenantRepo = new Mock<ITenantRepository>();
             _mockEvolutionService = new Mock<IEvolutionApiService>();
-            _mockMapper = new Mock<IMapper>();
 
             var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -57,7 +55,6 @@ namespace Appointment_SaaS.Test
 
             _manager = new AppointmentManager(
                 _mockAppointmentRepo.Object,
-                _mockMapper.Object,
                 _mockTenantRepo.Object,
                 _mockEvolutionService.Object,
                 _db,
@@ -113,14 +110,12 @@ namespace Appointment_SaaS.Test
                     AppointmentID = 10,
                     TenantID = 1, 
                     AppUserID = _staffId,
-                    StartDate = dto.StartDate, 
-                    EndDate = dto.EndDate 
+                    StartDate = BusinessClock.ToUtc(dto.StartDate), 
+                    EndDate = BusinessClock.ToUtc(dto.EndDate) 
                 }
             };
             _mockAppointmentRepo.Setup(x => x.Where(It.IsAny<Expression<Func<Appointment, bool>>>()))
                                 .Returns((Expression<Func<Appointment, bool>> predicate) => appointments.AsQueryable().Where(predicate).BuildMock());
-
-            _mockMapper.Setup(m => m.Map<Appointment>(dto)).Returns(new Appointment { StartDate = dto.StartDate, EndDate = dto.EndDate });
 
             // Act
             Func<Task> act = async () => await _manager.AddAppointmentAsync(dto);
@@ -220,12 +215,10 @@ namespace Appointment_SaaS.Test
             _mockAppointmentRepo.Setup(x => x.Where(It.IsAny<Expression<Func<Appointment, bool>>>()))
                                 .Returns((Expression<Func<Appointment, bool>> predicate) => new List<Appointment>().AsQueryable().Where(predicate).BuildMock());
 
-            var fakeAppointment = new Appointment 
-            { 
-                AppointmentID = 99, 
-                StartDate = dto.StartDate
-            };
-            _mockMapper.Setup(m => m.Map<Appointment>(dto)).Returns(fakeAppointment);
+            _mockAppointmentRepo.Setup(x => x.AddAsync(It.IsAny<Appointment>()))
+                .Callback<Appointment>(a => a.AppointmentID = 99)
+                .Returns(Task.CompletedTask);
+            _mockAppointmentRepo.Setup(x => x.SaveAsync()).ReturnsAsync(1);
 
             _mockEvolutionService.Setup(x => x.SendWhatsAppMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
                                  .ReturnsAsync(true); // Succesful send
@@ -235,7 +228,10 @@ namespace Appointment_SaaS.Test
 
             // Assert
             result.Should().Be(99); 
-            _mockAppointmentRepo.Verify(x => x.AddAsync(fakeAppointment), Times.Once);
+            _mockAppointmentRepo.Verify(x => x.AddAsync(It.Is<Appointment>(a =>
+                a.TenantID == dto.TenantID &&
+                a.CustomerName == dto.CustomerName &&
+                a.CustomerPhone == dto.CustomerPhone)), Times.Once);
             _mockAppointmentRepo.Verify(x => x.SaveAsync(), Times.Once);
             _mockEvolutionService.Verify(x => x.SendWhatsAppMessageAsync($"tenant_{dto.TenantID}", "05551234567", It.Is<string>(s => s.Contains("başarıyla oluşturulmuştur"))), Times.Once);
         }
@@ -282,8 +278,10 @@ namespace Appointment_SaaS.Test
             _mockAppointmentRepo.Setup(x => x.Where(It.IsAny<Expression<Func<Appointment, bool>>>()))
                 .Returns((Expression<Func<Appointment, bool>> predicate) => new List<Appointment>().AsQueryable().Where(predicate).BuildMock());
 
-            var fakeAppointment = new Appointment { AppointmentID = 501, StartDate = dto.StartDate };
-            _mockMapper.Setup(m => m.Map<Appointment>(dto)).Returns(fakeAppointment);
+            _mockAppointmentRepo.Setup(x => x.AddAsync(It.IsAny<Appointment>()))
+                .Callback<Appointment>(a => a.AppointmentID = 501)
+                .Returns(Task.CompletedTask);
+            _mockAppointmentRepo.Setup(x => x.SaveAsync()).ReturnsAsync(1);
 
             _mockEvolutionService.Setup(x => x.SendWhatsAppMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
                 .ReturnsAsync(true);
@@ -311,8 +309,8 @@ namespace Appointment_SaaS.Test
                 {
                     TenantID = tenantId,
                     AppUserID = _staffId,
-                    StartDate = new DateTime(2030, 1, 1, 10, 30, 0), // 10:30-11:30 (Overlap with 10:00-11:00)
-                    EndDate = new DateTime(2030, 1, 1, 11, 30, 0)
+                    StartDate = BusinessClock.ToUtc(new DateTime(2030, 1, 1, 10, 30, 0)),
+                    EndDate = BusinessClock.ToUtc(new DateTime(2030, 1, 1, 11, 30, 0))
                 }
             };
 
@@ -340,8 +338,8 @@ namespace Appointment_SaaS.Test
                 {
                     TenantID = tenantId,
                     AppUserID = _staffId,
-                    StartDate = new DateTime(2030, 1, 1, 11, 0, 0), // 11:00-12:00 (No Overlap with 10:00-11:00)
-                    EndDate = new DateTime(2030, 1, 1, 12, 0, 0)
+                    StartDate = BusinessClock.ToUtc(new DateTime(2030, 1, 1, 11, 0, 0)),
+                    EndDate = BusinessClock.ToUtc(new DateTime(2030, 1, 1, 12, 0, 0))
                 }
             };
 
@@ -388,9 +386,9 @@ namespace Appointment_SaaS.Test
             var existingAppointments = new List<Appointment>
             {
                 // 09:00 - 10:15 (09:00 ile 09:30 dahil dolu)
-                new Appointment { TenantID = 1, StartDate = targetDate.AddHours(9).AddMinutes(30), EndDate = targetDate.AddHours(10).AddMinutes(15) }, 
+                new Appointment { TenantID = 1, StartDate = BusinessClock.ToUtc(targetDate.AddHours(9).AddMinutes(30)), EndDate = BusinessClock.ToUtc(targetDate.AddHours(10).AddMinutes(15)) }, 
                 // 11:00 - 12:00
-                new Appointment { TenantID = 1, StartDate = targetDate.AddHours(11), EndDate = targetDate.AddHours(12) }
+                new Appointment { TenantID = 1, StartDate = BusinessClock.ToUtc(targetDate.AddHours(11)), EndDate = BusinessClock.ToUtc(targetDate.AddHours(12)) }
             };
 
             await _db.BusinessHours.AddAsync(new BusinessHour
@@ -599,8 +597,8 @@ namespace Appointment_SaaS.Test
                     AppointmentID = 200,
                     TenantID = 1,
                     AppUserID = _staffId,
-                    StartDate = future,
-                    EndDate = future.AddMinutes(30)
+                    StartDate = BusinessClock.ToUtc(future),
+                    EndDate = BusinessClock.ToUtc(future.AddMinutes(30))
                 }
             };
             _mockAppointmentRepo.Setup(x => x.Where(It.IsAny<Expression<Func<Appointment, bool>>>()))
@@ -714,7 +712,6 @@ namespace Appointment_SaaS.Test
 
             var manager = new AppointmentManager(
                 _mockAppointmentRepo.Object,
-                _mockMapper.Object,
                 _mockTenantRepo.Object,
                 _mockEvolutionService.Object,
                 _db,

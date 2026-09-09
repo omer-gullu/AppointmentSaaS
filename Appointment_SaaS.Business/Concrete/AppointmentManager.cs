@@ -9,7 +9,7 @@ using Appointment_SaaS.Data.Abstract;
 using Appointment_SaaS.Data.Context;
 using Appointment_SaaS.Core.DTOs;
 using Appointment_SaaS.Core.Services;
-using AutoMapper;
+using Appointment_SaaS.Business.Mapping;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Caching.Memory;
@@ -20,7 +20,6 @@ namespace Appointment_SaaS.Business.Concrete;
 public class AppointmentManager : IAppointmentService
 {
     private readonly IAppointmentRepository _appointmentRepository;
-    private readonly IMapper _mapper;
     private readonly ITenantRepository _tenantRepository;
     private readonly IEvolutionApiService _evolutionApiService;
     private readonly AppDbContext _db;
@@ -31,7 +30,6 @@ public class AppointmentManager : IAppointmentService
 
     public AppointmentManager(
         IAppointmentRepository appointmentRepository,
-        IMapper mapper,
         ITenantRepository tenantRepository,
         IEvolutionApiService evolutionApiService,
         AppDbContext db,
@@ -41,7 +39,6 @@ public class AppointmentManager : IAppointmentService
         IGoogleCalendarService googleCalendarService)
     {
         _appointmentRepository = appointmentRepository;
-        _mapper = mapper;
         _tenantRepository = tenantRepository;
         _evolutionApiService = evolutionApiService;
         _db = db;
@@ -143,7 +140,10 @@ public class AppointmentManager : IAppointmentService
     /// 30 saniye TTL — işlem tamamlanmazsa kilit otomatik düşer.
     /// </summary>
     private static string BuildLockKey(int tenantId, DateTime startDate)
-        => $"slot_lock:{tenantId}:{startDate:yyyyMMddHHmm}";
+    {
+        var wall = BusinessClock.ToIstanbul(startDate);
+        return $"slot_lock:{tenantId}:{wall:yyyyMMddHHmm}";
+    }
 
     internal static bool IsActiveAppointmentStatus(string? status)
     {
@@ -186,8 +186,11 @@ public class AppointmentManager : IAppointmentService
     // ─── Randevu Oluşturma ────────────────────────────────────────────────────
     public async Task<int> AddAppointmentAsync(AppointmentCreateDto dto)
     {
-        if (dto.StartDate < DateTime.Now)
+        if (BusinessClock.ToUtc(dto.StartDate) < DateTime.UtcNow)
             throw new BadHttpRequestException("Geçmiş bir tarihe randevu verilemez.");
+
+        var wallStart = BusinessClock.ToIstanbul(dto.StartDate);
+        var wallEnd = BusinessClock.ToIstanbul(dto.EndDate);
 
         dto.CustomerName = HtmlInputSanitizer.SanitizeName(dto.CustomerName);
         dto.CustomerPhone = HtmlInputSanitizer.SanitizePhone(dto.CustomerPhone);
@@ -201,40 +204,7 @@ public class AppointmentManager : IAppointmentService
             .Include(t => t.Holidays)
             .FirstOrDefaultAsync();
 
-        // ── Çalışma Saati Kontrolü ───────────────────────────────────────────
-        if (tenant?.BusinessHours != null && tenant.BusinessHours.Any())
-        {
-            int dayOfWeek = (int)dto.StartDate.DayOfWeek;
-            var businessHour = tenant.BusinessHours.FirstOrDefault(b => b.DayOfWeek == dayOfWeek);
-
-            if (businessHour != null)
-            {
-                if (businessHour.IsClosed)
-                    throw new BadHttpRequestException("İşletme bu gün hizmet vermemektedir.");
-
-                var timeOfDay = dto.StartDate.TimeOfDay;
-                var endOfDay = dto.EndDate.TimeOfDay;
-
-                if (timeOfDay < businessHour.OpenTime || endOfDay > businessHour.CloseTime)
-                    throw new BadHttpRequestException(
-                        $"Randevu saati işletmenin çalışma saatleri " +
-                        $"({businessHour.OpenTime:hh\\:mm} - {businessHour.CloseTime:hh\\:mm}) dışındadır.");
-            }
-        }
-
-        if (tenant != null && TenantBreakTimeHelper.OverlapsBreak(
-                tenant.BreakTimeEnabled, tenant.BreakStartTime, tenant.BreakEndTime, dto.StartDate, dto.EndDate))
-        {
-            throw new BadHttpRequestException(
-                $"Seçilen saat dilimi mola saatleri ({tenant.BreakStartTime:hh\\:mm} - {tenant.BreakEndTime:hh\\:mm}) ile çakışıyor.");
-        }
-
-        if (tenant != null)
-        {
-            var holiday = TenantHolidayHelper.FindHolidayForAppointment(tenant.Holidays, dto.StartDate, dto.EndDate);
-            if (holiday != null)
-                throw new BadHttpRequestException($"Bu gün {holiday.Name} nedeniyle randevu verilemez.");
-        }
+        EnsureWithinWorkingHours(tenant, wallStart, wallEnd);
 
         if (!dto.AppUserID.HasValue || dto.AppUserID.Value <= 0)
             throw new BadHttpRequestException("Randevu için personel (AppUserID) seçilmelidir.");
@@ -248,9 +218,11 @@ public class AppointmentManager : IAppointmentService
             dto.ServiceIds = orderedServiceIds;
         }
 
-        var appointment = _mapper.Map<Appointment>(dto);
+        var appointment = EntityMapper.ToAppointment(dto);
         appointment.Status = "Beklemede";
         appointment.Note = dto.Note ?? "Not eklenmedi";
+        appointment.StartDate = BusinessClock.ToUtc(dto.StartDate);
+        appointment.EndDate = BusinessClock.ToUtc(dto.EndDate);
 
         // ── Transaction + RepeatableRead + Kontrol İçeride ───────────────────
         // RepeatableRead: transaction boyunca okunan satırları kilitler.
@@ -338,7 +310,7 @@ public class AppointmentManager : IAppointmentService
             var summary = $"{dto.CustomerName} - {await FormatServiceNamesByIdsAsync(orderedServiceIds)}";
             var description = $"Telefon: {dto.CustomerPhone}";
             googleEventId = await _googleCalendarService.AddEventAsync(
-                dto.AppUserID.Value, summary, description, dto.StartDate, dto.EndDate);
+                dto.AppUserID.Value, summary, description, wallStart, wallEnd);
         }
         catch (Exception ex)
         {
@@ -365,7 +337,7 @@ public class AppointmentManager : IAppointmentService
         {
             string instanceName = tenant?.InstanceName ?? $"tenant_{dto.TenantID}";
             var serviceLabel = await FormatServiceNamesByIdsAsync(orderedServiceIds);
-            string message = $"Sayın {dto.CustomerName}, {dto.StartDate:dd.MM.yyyy HH:mm} tarihindeki ({serviceLabel}) randevunuz başarıyla oluşturulmuştur.";
+            string message = $"Sayın {dto.CustomerName}, {wallStart:dd.MM.yyyy HH:mm} tarihindeki ({serviceLabel}) randevunuz başarıyla oluşturulmuştur.";
             await _evolutionApiService.SendWhatsAppMessageAsync(instanceName, dto.CustomerPhone, message);
         }
         catch (Exception ex)
@@ -469,17 +441,19 @@ public class AppointmentManager : IAppointmentService
 
     public async Task<bool> IsSlotAvailableAsync(int tenantId, int staffId, DateTime startDate, DateTime endDate)
     {
+        var startUtc = BusinessClock.ToUtc(startDate);
+        var endUtc = BusinessClock.ToUtc(endDate);
         var exists = await _appointmentRepository.Where(x =>
             x.TenantID == tenantId &&
             x.AppUserID == staffId &&
-            x.StartDate < endDate &&
-            x.EndDate > startDate).AsNoTracking().AnyAsync();
+            x.StartDate < endUtc &&
+            x.EndDate > startUtc).AsNoTracking().AnyAsync();
         return !exists;
     }
 
     public async Task<List<string>> GetAvailableSlotsAsync(int tenantId, DateTime targetDate, int durationMinutes, int count = 3)
     {
-        var date = targetDate.Date;
+        var date = BusinessClock.ToIstanbul(targetDate).Date;
         var tenantBreak = await _db.Tenants.AsNoTracking()
             .Where(t => t.TenantID == tenantId)
             .Select(t => new { t.BreakTimeEnabled, t.BreakStartTime, t.BreakEndTime })
@@ -497,17 +471,19 @@ public class AppointmentManager : IAppointmentService
 
         var startOfDay = date.Add(businessHour.OpenTime);
         var endOfDay = date.Add(businessHour.CloseTime);
+        var (rangeStartUtc, rangeEndUtc) = BusinessClock.UtcRange(startOfDay, endOfDay);
 
         var appointments = await _appointmentRepository
-            .Where(x => x.TenantID == tenantId && x.StartDate >= startOfDay && x.StartDate < endOfDay)
+            .Where(x => x.TenantID == tenantId && x.StartDate >= rangeStartUtc && x.StartDate < rangeEndUtc)
             .AsNoTracking()
             .OrderBy(x => x.StartDate)
             .ToListAsync();
+        var booked = ToIstanbulWindows(appointments);
 
         var suggestions = new List<string>();
 
-        var now = DateTime.Now;
-        var currentTime = (targetDate.Date == now.Date && now > startOfDay)
+        var now = BusinessClock.IstanbulNow;
+        var currentTime = (date.Date == now.Date && now > startOfDay)
             ? now.AddMinutes(15 - now.Minute % 15)
             : startOfDay;
 
@@ -529,14 +505,15 @@ public class AppointmentManager : IAppointmentService
                 }
             }
 
-            var conflictingAppt = appointments
-                .Where(a => a.StartDate < potentialEnd && a.EndDate > currentTime)
-                .OrderByDescending(a => a.EndDate)
+            var conflictEnd = booked
+                .Where(a => a.Start < potentialEnd && a.End > currentTime)
+                .Select(a => (DateTime?)a.End)
+                .OrderByDescending(end => end)
                 .FirstOrDefault();
 
-            if (conflictingAppt != null)
+            if (conflictEnd != null)
             {
-                currentTime = conflictingAppt.EndDate;
+                currentTime = conflictEnd.Value;
             }
             else
             {
@@ -552,8 +529,11 @@ public class AppointmentManager : IAppointmentService
     {
         EnsureTenantAuthorization(appointment.TenantID);
 
-        if (appointment.StartDate < DateTime.Now)
+        if (BusinessClock.ToUtc(appointment.StartDate) < DateTime.UtcNow)
             throw new BadHttpRequestException("Geçmiş bir tarihe randevu güncellenemez.");
+
+        var wallStart = BusinessClock.ToIstanbul(appointment.StartDate);
+        var wallEnd = BusinessClock.ToIstanbul(appointment.EndDate);
 
         // ── Çalışma Saati Kontrolü (AddAppointmentAsync ile tutarlı) ──────────
         var tenant = await _tenantRepository.Where(t => t.TenantID == appointment.TenantID)
@@ -561,40 +541,10 @@ public class AppointmentManager : IAppointmentService
             .Include(t => t.Holidays)
             .FirstOrDefaultAsync();
 
-        if (tenant?.BusinessHours != null && tenant.BusinessHours.Any())
-        {
-            int dayOfWeek = (int)appointment.StartDate.DayOfWeek;
-            var businessHour = tenant.BusinessHours.FirstOrDefault(b => b.DayOfWeek == dayOfWeek);
+        EnsureWithinWorkingHours(tenant, wallStart, wallEnd);
 
-            if (businessHour != null)
-            {
-                if (businessHour.IsClosed)
-                    throw new BadHttpRequestException("İşletme bu gün hizmet vermemektedir.");
-
-                var timeOfDay = appointment.StartDate.TimeOfDay;
-                var endOfDay = appointment.EndDate.TimeOfDay;
-
-                if (timeOfDay < businessHour.OpenTime || endOfDay > businessHour.CloseTime)
-                    throw new BadHttpRequestException(
-                        $"Randevu saati işletmenin çalışma saatleri " +
-                        $"({businessHour.OpenTime:hh\\:mm} - {businessHour.CloseTime:hh\\:mm}) dışındadır.");
-            }
-        }
-
-        if (tenant != null && TenantBreakTimeHelper.OverlapsBreak(
-                tenant.BreakTimeEnabled, tenant.BreakStartTime, tenant.BreakEndTime,
-                appointment.StartDate, appointment.EndDate))
-        {
-            throw new BadHttpRequestException(
-                $"Seçilen saat dilimi mola saatleri ({tenant.BreakStartTime:hh\\:mm} - {tenant.BreakEndTime:hh\\:mm}) ile çakışıyor.");
-        }
-
-        if (tenant != null)
-        {
-            var holiday = TenantHolidayHelper.FindHolidayForAppointment(tenant.Holidays, appointment.StartDate, appointment.EndDate);
-            if (holiday != null)
-                throw new BadHttpRequestException($"Bu gün {holiday.Name} nedeniyle randevu verilemez.");
-        }
+        appointment.StartDate = BusinessClock.ToUtc(appointment.StartDate);
+        appointment.EndDate = BusinessClock.ToUtc(appointment.EndDate);
 
         // ── Slot Çakışma Kontrolü (kendisini hariç tutarak) ──────────────────
         var hasConflict = await _appointmentRepository.Where(x =>
@@ -633,7 +583,7 @@ public class AppointmentManager : IAppointmentService
 
                 // Önce yeni personelin takvimine ekle; başarılı olursa eskiyi sil (tersi: silinip eklenemezse GoogleEventID null kalırdı)
                 var newEventId = await _googleCalendarService.AddEventAsync(
-                    appointment.AppUserID, summary, description, appointment.StartDate, appointment.EndDate);
+                    appointment.AppUserID, summary, description, wallStart, wallEnd);
 
                 if (!string.IsNullOrEmpty(newEventId))
                 {
@@ -652,7 +602,7 @@ public class AppointmentManager : IAppointmentService
             else if (!string.IsNullOrWhiteSpace(appointment.GoogleEventID))
             {
                 var updated = await _googleCalendarService.UpdateEventAsync(
-                    appointment.AppUserID, appointment.GoogleEventID, summary, description, appointment.StartDate, appointment.EndDate);
+                    appointment.AppUserID, appointment.GoogleEventID, summary, description, wallStart, wallEnd);
 
                 if (!updated && appointment.AppUserID > 0)
                 {
@@ -660,7 +610,7 @@ public class AppointmentManager : IAppointmentService
                         "[GoogleCalendar] Event güncellenemedi, yeniden ekleniyor. RandevuID={ID}",
                         appointment.AppointmentID);
                     var newEventId = await _googleCalendarService.AddEventAsync(
-                        appointment.AppUserID, summary, description, appointment.StartDate, appointment.EndDate);
+                        appointment.AppUserID, summary, description, wallStart, wallEnd);
                     if (!string.IsNullOrEmpty(newEventId))
                         appointment.GoogleEventID = newEventId;
                 }
@@ -668,7 +618,7 @@ public class AppointmentManager : IAppointmentService
             else if (appointment.AppUserID > 0)
             {
                 var newEventId = await _googleCalendarService.AddEventAsync(
-                    appointment.AppUserID, summary, description, appointment.StartDate, appointment.EndDate);
+                    appointment.AppUserID, summary, description, wallStart, wallEnd);
 
                 if (!string.IsNullOrEmpty(newEventId))
                     appointment.GoogleEventID = newEventId;
@@ -714,13 +664,12 @@ public class AppointmentManager : IAppointmentService
 
     public async Task<int?> GetStaffWithFewestAppointmentsAsync(int tenantId, DateTime date)
     {
-        var startOfDay = date.Date;
-        var endOfDay = startOfDay.AddDays(1);
+        var (startOfDayUtc, endOfDayUtc) = BusinessClock.UtcRangeForIstanbulDay(date);
 
         var todayAppointments = await _db.Appointments
             .Where(x => x.TenantID == tenantId &&
-                        x.StartDate >= startOfDay &&
-                        x.StartDate < endOfDay &&
+                        x.StartDate >= startOfDayUtc &&
+                        x.StartDate < endOfDayUtc &&
                         x.AppUserID > 0)
             .AsNoTracking()
             .ToListAsync();
@@ -793,13 +742,12 @@ public class AppointmentManager : IAppointmentService
 
     public async Task<List<Appointment>> GetTomorrowAppointmentsAsync(int tenantId)
     {
-        var tomorrow = DateTime.Today.AddDays(1);
-        var dayAfter = tomorrow.AddDays(1);
+        var (tomorrowUtc, dayAfterUtc) = BusinessClock.UtcRangeForIstanbulDate(BusinessClock.IstanbulToday.AddDays(1));
 
         return await _db.Appointments
             .Where(a => a.TenantID == tenantId &&
-                        a.StartDate >= tomorrow &&
-                        a.StartDate < dayAfter)
+                        a.StartDate >= tomorrowUtc &&
+                        a.StartDate < dayAfterUtc)
             .Include(a => a.Service)
             .Include(a => a.AppointmentServiceLinks).ThenInclude(l => l.Service)
             .AsNoTracking()
@@ -809,12 +757,11 @@ public class AppointmentManager : IAppointmentService
 
     public async Task<List<AppointmentReminderPendingDto>> GetPendingRemindersAsync()
     {
-        var tomorrow = DateTime.Today.AddDays(1);
-        var dayAfter = tomorrow.AddDays(1);
+        var (tomorrowUtc, dayAfterUtc) = BusinessClock.UtcRangeForIstanbulDate(BusinessClock.IstanbulToday.AddDays(1));
 
         var appointments = await _db.Appointments
-            .Where(a => a.StartDate >= tomorrow &&
-                        a.StartDate < dayAfter &&
+            .Where(a => a.StartDate >= tomorrowUtc &&
+                        a.StartDate < dayAfterUtc &&
                         a.ReminderSentAt == null &&
                         !string.IsNullOrWhiteSpace(a.CustomerPhone) &&
                         (a.Status == null || !a.Status.ToLower().Contains("iptal")))
@@ -840,7 +787,7 @@ public class AppointmentManager : IAppointmentService
                 ? string.Join(", ", a.AppointmentServiceLinks.OrderBy(l => l.SortOrder).Select(l => l.Service?.Name).Where(n => n != null))
                 : a.Service?.Name ?? "Randevu";
 
-            var startLocal = a.StartDate.ToString("dd.MM.yyyy HH:mm");
+            var startLocal = BusinessClock.ToIstanbul(a.StartDate).ToString("dd.MM.yyyy HH:mm");
             var shopName = a.Tenant.Name;
             var message =
                 $"Merhaba {a.CustomerName}, {shopName} randevunuzu hatırlatmak isteriz: Yarın {startLocal} — {serviceName}. " +
@@ -905,7 +852,7 @@ public class AppointmentManager : IAppointmentService
     }
     public async Task<List<string>> GetAvailableSlotsByStaffAsync(int tenantId, int staffId, DateTime targetDate, int durationMinutes, int count = 100, string? requestedTime = null)
     {
-        var date = targetDate.Date;
+        var date = BusinessClock.ToIstanbul(targetDate).Date;
         var dateOnly = DateOnly.FromDateTime(date);
         if (await _db.Holidays.AsNoTracking().AnyAsync(h => h.TenantId == tenantId && h.Date == dateOnly))
             return new List<string>();
@@ -924,15 +871,17 @@ public class AppointmentManager : IAppointmentService
             return new List<string>();
         var startOfDay = date.Add(businessHour.OpenTime);
         var endOfDay = date.Add(businessHour.CloseTime);
+        var (rangeStartUtc, rangeEndUtc) = BusinessClock.UtcRange(startOfDay, endOfDay);
 
         var appointments = await _appointmentRepository
             .Where(x => x.TenantID == tenantId
                      && x.AppUserID == staffId
-                     && x.StartDate >= startOfDay
-                     && x.StartDate < endOfDay)
+                     && x.StartDate >= rangeStartUtc
+                     && x.StartDate < rangeEndUtc)
             .AsNoTracking()
             .OrderBy(x => x.StartDate)
             .ToListAsync();
+        var booked = ToIstanbulWindows(appointments);
 
         // Belirli bir saat istendiyse sadece onu kontrol et
         if (!string.IsNullOrEmpty(requestedTime) && TimeSpan.TryParse(requestedTime, out var reqSpan))
@@ -951,7 +900,7 @@ public class AppointmentManager : IAppointmentService
                         return new List<string>();
                 }
 
-                var hasConflict = appointments.Any(a => a.StartDate < requestedEnd && a.EndDate > requestedStart);
+                var hasConflict = booked.Any(a => a.Start < requestedEnd && a.End > requestedStart);
                 if (!hasConflict)
                     return new List<string> { requestedStart.ToString("HH:mm") };
                 else
@@ -961,7 +910,7 @@ public class AppointmentManager : IAppointmentService
         }
 
         var suggestions = new List<string>();
-        var now = DateTime.Now;
+        var now = BusinessClock.IstanbulNow;
         var currentTime = (date == now.Date && now > startOfDay)
             ? now.AddMinutes(15 - now.Minute % 15)
             : startOfDay;
@@ -982,12 +931,13 @@ public class AppointmentManager : IAppointmentService
                 }
             }
 
-            var conflict = appointments
-                .Where(a => a.StartDate < potentialEnd && a.EndDate > currentTime)
-                .OrderByDescending(a => a.EndDate)
+            var conflictEnd = booked
+                .Where(a => a.Start < potentialEnd && a.End > currentTime)
+                .Select(a => (DateTime?)a.End)
+                .OrderByDescending(end => end)
                 .FirstOrDefault();
-            if (conflict != null)
-                currentTime = conflict.EndDate;
+            if (conflictEnd != null)
+                currentTime = conflictEnd.Value;
             else
             {
                 suggestions.Add(currentTime.ToString("HH:mm"));
@@ -1003,7 +953,7 @@ public class AppointmentManager : IAppointmentService
             var blockedByBreak = tenantBreak != null && TenantBreakTimeHelper.GetResumeTimeAfterBreak(
                 tenantBreak.BreakTimeEnabled, tenantBreak.BreakStartTime, tenantBreak.BreakEndTime,
                 date, latestStart, latestEnd) != null;
-            var hasConflict = appointments.Any(a => a.StartDate < latestEnd && a.EndDate > latestStart);
+            var hasConflict = booked.Any(a => a.Start < latestEnd && a.End > latestStart);
             if (!blockedByBreak && !hasConflict && latestStart >= now)
                 suggestions.Add(latestStart.ToString("HH:mm"));
         }
@@ -1042,7 +992,7 @@ public class AppointmentManager : IAppointmentService
 
         var appointments = await _db.Appointments
             .Where(a => a.TenantID == tenantId &&
-                       a.StartDate >= DateTime.Now &&
+                       a.StartDate >= DateTime.UtcNow &&
                        phoneKeys.Contains(a.CustomerPhone))
             .Include(a => a.Service)
             .Include(a => a.AppointmentServiceLinks).ThenInclude(l => l.Service)
@@ -1062,8 +1012,8 @@ public class AppointmentManager : IAppointmentService
         return appointments.Select(a => (object)new
         {
             AppointmentID = a.AppointmentID,
-            StartDate = a.StartDate.ToString("dd.MM.yyyy HH:mm"),
-            EndDate = a.EndDate.ToString("dd.MM.yyyy HH:mm"),
+            StartDate = BusinessClock.ToIstanbul(a.StartDate).ToString("dd.MM.yyyy HH:mm"),
+            EndDate = BusinessClock.ToIstanbul(a.EndDate).ToString("dd.MM.yyyy HH:mm"),
             ServiceName = DisplayService(a),
             Status = a.Status
         }).ToList();
@@ -1076,7 +1026,7 @@ public class AppointmentManager : IAppointmentService
             return new List<CustomerAppointmentDto>();
 
         var rows = await _appointmentRepository.GetActiveByPhoneAsync(
-            tenantId, keys is IReadOnlyCollection<string> rc ? rc : keys.ToList(), DateTime.Now);
+            tenantId, keys is IReadOnlyCollection<string> rc ? rc : keys.ToList(), DateTime.UtcNow);
 
         static string? FormatServiceName(Appointment a)
         {
@@ -1107,12 +1057,52 @@ public class AppointmentManager : IAppointmentService
                 AppointmentId = a.AppointmentID,
                 CustomerName = a.CustomerName,
                 CustomerPhone = a.CustomerPhone,
-                StartTime = a.StartDate,
-                EndTime = a.EndDate,
+                StartTime = BusinessClock.ToIstanbul(a.StartDate),
+                EndTime = BusinessClock.ToIstanbul(a.EndDate),
                 StaffName = FormatStaffName(a),
                 ServiceName = FormatServiceName(a),
                 Status = a.Status
             })
             .ToList();
     }
+
+    private static void EnsureWithinWorkingHours(Tenant? tenant, DateTime wallStart, DateTime wallEnd)
+    {
+        if (tenant?.BusinessHours != null && tenant.BusinessHours.Any())
+        {
+            int dayOfWeek = (int)wallStart.DayOfWeek;
+            var businessHour = tenant.BusinessHours.FirstOrDefault(b => b.DayOfWeek == dayOfWeek);
+
+            if (businessHour != null)
+            {
+                if (businessHour.IsClosed)
+                    throw new BadHttpRequestException("İşletme bu gün hizmet vermemektedir.");
+
+                var timeOfDay = wallStart.TimeOfDay;
+                var endOfDay = wallEnd.TimeOfDay;
+
+                if (timeOfDay < businessHour.OpenTime || endOfDay > businessHour.CloseTime)
+                    throw new BadHttpRequestException(
+                        $"Randevu saati işletmenin çalışma saatleri " +
+                        $"({businessHour.OpenTime:hh\\:mm} - {businessHour.CloseTime:hh\\:mm}) dışındadır.");
+            }
+        }
+
+        if (tenant != null && TenantBreakTimeHelper.OverlapsBreak(
+                tenant.BreakTimeEnabled, tenant.BreakStartTime, tenant.BreakEndTime, wallStart, wallEnd))
+        {
+            throw new BadHttpRequestException(
+                $"Seçilen saat dilimi mola saatleri ({tenant.BreakStartTime:hh\\:mm} - {tenant.BreakEndTime:hh\\:mm}) ile çakışıyor.");
+        }
+
+        if (tenant != null)
+        {
+            var holiday = TenantHolidayHelper.FindHolidayForAppointment(tenant.Holidays, wallStart, wallEnd);
+            if (holiday != null)
+                throw new BadHttpRequestException($"Bu gün {holiday.Name} nedeniyle randevu verilemez.");
+        }
+    }
+
+    private static List<(DateTime Start, DateTime End)> ToIstanbulWindows(IEnumerable<Appointment> appointments)
+        => appointments.Select(a => (BusinessClock.ToIstanbul(a.StartDate), BusinessClock.ToIstanbul(a.EndDate))).ToList();
 }

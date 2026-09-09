@@ -13,10 +13,10 @@ Tarayıcı ve API tabanlı uçtan uca testler. Mevcut `Appointment_SaaS.E2E` (C#
 | `tests/n8n-ai-edge-cases.spec.ts` | AI kenar durumları: belirsiz zaman, çakışma, spam, paralel mesaj (`E2E_RUN_AI_EDGE=true`) |
 | `tests/appointment-mutations.spec.ts` | Randevu **güncelle/sil** (API + panel): tarih, hizmet, personel |
 | `tests/n8n-behavior.spec.ts` | n8n: opt-out, gri liste, rate limit, context; failover/özür (manuel flag) |
-| `tests/payment.spec.ts` | İmzalı Iyzico webhook, tenant `IsActive`, ödeme sonrası panel |
-| `tests/billing.spec.ts` | Webhook `payment.failed` (askı / pending plan), panel `ChangePlan` |
+| `tests/payment.spec.ts` | İmzalı Iyzico webhook (`E2E_RUN_IYZICO=true`) |
+| `tests/billing.spec.ts` | Webhook `payment.failed` (`E2E_RUN_IYZICO=true`); panel `ChangePlan` kartları İyzico’suz |
 | `tests/security.spec.ts` | Çapraz-kiracı API 403 + pasif tenant panel redirect |
-| `tests/register-checkout.spec.ts` | WebUI kayıt + İyzico webhook aktivasyon + OTP dashboard |
+| `tests/register-checkout.spec.ts` | API kayıt + İyzico webhook aktivasyon (`E2E_RUN_IYZICO=true`) |
 | `tests/smoke.spec.ts` | Pricing duman: plan kartları, CTA, aylık/yıllık toggle — DB/OTP yok |
 
 ## Ortamlar (`playwright.config.ts`)
@@ -71,9 +71,9 @@ npm run test:n8n:gemini
 # Randevu güncelle / sil (panel + API)
 npm run test:mutations
 
-# Abonelik webhook + ChangePlan paneli
+# Abonelik webhook + ChangePlan paneli (canlı İyzico gerekir)
 npm run test:billing
-# Gerekir: e2e/.env → IYZICO_WEBHOOK_SECRET, E2E_TENANT_ID, E2E_DB_*; panel için E2E_RUN_PANEL_TESTS=true
+# Gerekir: E2E_RUN_IYZICO=true, IYZICO_WEBHOOK_SECRET, E2E_TENANT_ID, canlı DB; panel için E2E_RUN_PANEL_TESTS=true
 
 # İyzico başarı webhook + panel giriş
 npm run test:payment
@@ -84,7 +84,7 @@ npm run test:n8n:behavior
 # Güvenlik (çapraz tenant — iki tenant env gerekli)
 npm run test:security
 
-# Kayıt + ödeme (hibrit, İyzico açık olmalı)
+# Kayıt + ödeme (canlı İyzico gerekir; canlı tenant üretir)
 npm run test:register
 ```
 
@@ -127,7 +127,7 @@ npm run test:load:ai   # E2E_RUN_LOAD_AI=true — Gemini maliyeti
 |---------|-----------|-----|
 | `asistanı kapat` / `Asistanı kapat` | Evet | Gri listeye eklenir |
 | Gri listede yanıt / randevu yok | Evet | 15 sn içinde yeni DB randevusu yok |
-| Redis rate limit | Evet | Varsayılan 16 ardışık webhook, 500 olmamalı |
+| Redis rate limit | Evet | Varsayılan 12 ardışık webhook, 500 olmamalı (canlı n8n 16. istekte 500) |
 | Hafızamı tazele | Kısmi | Webhook + `GetContext` dolu (node adı workflow’a bağlı) |
 | 1. agent → 2. agent | Manuel | `E2E_N8N_VERIFY_AI_FAILURE=true` + n8n’de 1. agent’ı hata verecek test modu |
 | Özür mesajı | Manuel | Aynı flag; Evolution gönderimi log’dan doğrulanır |

@@ -4,7 +4,6 @@ using Appointment_SaaS.Core.Services;
 using Appointment_SaaS.Core.Utilities;
 using Appointment_SaaS.Data.Abstract;
 using Appointment_SaaS.Data.Context;
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -39,7 +38,6 @@ public class SlotLockSecurityTests
 
         var manager = new AppointmentManager(
             Mock.Of<IAppointmentRepository>(),
-            Mock.Of<IMapper>(),
             Mock.Of<ITenantRepository>(),
             Mock.Of<IEvolutionApiService>(),
             db,

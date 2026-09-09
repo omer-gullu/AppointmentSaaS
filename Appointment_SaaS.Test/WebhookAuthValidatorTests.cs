@@ -5,6 +5,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Moq;
+using System.Security.Claims;
 using Xunit;
 
 namespace Appointment_SaaS.Test;
@@ -57,6 +58,37 @@ public class WebhookAuthValidatorTests
         var result = await validator.EvaluateAsync(ctx, ctx.Request.Path, ctx.Request.Method);
 
         result.Kind.Should().Be(WebhookAuthResultKind.AllowSystem);
+    }
+
+    [Fact]
+    public async Task SystemPath_ShouldReject_JwtUser_WithoutSystemToken()
+    {
+        // Ücretsiz trial ile panele giren bir kullanıcının JWT'si sistem-only yolu ATLAYAMAZ.
+        var tenant = new Tenant { TenantID = 1, ApiKey = "TENANT-KEY", IsActive = true };
+        var validator = CreateValidator("SYSTEM-TOKEN", tenant);
+        var ctx = CreateContext("/api/appointments/reminders/pending", "GET", token: null);
+        ctx.User = new ClaimsPrincipal(new ClaimsIdentity(
+            new[] { new Claim(ClaimTypes.NameIdentifier, "42") },
+            authenticationType: "Bearer"));
+
+        var result = await validator.EvaluateAsync(ctx, ctx.Request.Path, ctx.Request.Method);
+
+        result.Kind.Should().Be(WebhookAuthResultKind.Unauthorized);
+    }
+
+    [Fact]
+    public async Task SystemPath_ShouldReject_JwtUser_EvenWithTenantApiKey()
+    {
+        var tenant = new Tenant { TenantID = 1, ApiKey = "TENANT-KEY", IsActive = true };
+        var validator = CreateValidator("SYSTEM-TOKEN", tenant);
+        var ctx = CreateContext("/api/appointments/reminders/run", "POST", token: "TENANT-KEY", tenantId: 1);
+        ctx.User = new ClaimsPrincipal(new ClaimsIdentity(
+            new[] { new Claim(ClaimTypes.NameIdentifier, "42") },
+            authenticationType: "Bearer"));
+
+        var result = await validator.EvaluateAsync(ctx, ctx.Request.Path, ctx.Request.Method);
+
+        result.Kind.Should().Be(WebhookAuthResultKind.Unauthorized);
     }
 
     [Fact]

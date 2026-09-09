@@ -8,7 +8,7 @@ import {
   getTenantSubscriptionState,
 } from '../helpers/db';
 import { postIyzicoWebhook } from '../helpers/webhooks';
-import { panelTestsEnabled } from '../helpers/e2e-config';
+import { iyzicoTestsEnabled, panelTestsEnabled } from '../helpers/e2e-config';
 import { isReadonlyEnv } from '../helpers/env';
 
 const E2E_PHONE = process.env.E2E_MANAGER_PHONE?.trim();
@@ -17,6 +17,7 @@ const IYZICO_SECRET = process.env.IYZICO_WEBHOOK_SECRET?.trim();
 
 test.describe('Iyzico ödeme webhook @destructive', () => {
   test.beforeAll(() => {
+    test.skip(!iyzicoTestsEnabled(), 'İyzico henüz canlı değil — E2E_RUN_IYZICO=true ile açın');
     test.skip(isReadonlyEnv(), 'Production readonly: ödeme webhook testi kapalı');
     requireDbConfigured();
     test.skip(!IYZICO_SECRET, 'IYZICO_WEBHOOK_SECRET gerekli');

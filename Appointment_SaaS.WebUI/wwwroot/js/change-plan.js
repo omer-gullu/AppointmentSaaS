@@ -33,10 +33,12 @@
 
             var enabled = cfg.canSelectPlan && !isCurrent;
             btn.disabled = !enabled;
-            if (type === 'yearly' && enabled) {
-                btn.textContent = 'Seç ve öde — ' + d.fullPrice + ' ₺/yıl';
-            } else if (isCurrent) {
+            if (isCurrent) {
                 btn.textContent = type === 'yearly' ? 'Mevcut Plan (Yıllık)' : 'Mevcut Plan (Aylık)';
+            } else if (!cfg.canSelectPlan) {
+                btn.textContent = 'Ödeme yakında';
+            } else if (type === 'yearly') {
+                btn.textContent = 'Seç ve öde — ' + d.fullPrice + ' ₺/yıl';
             } else {
                 btn.textContent = 'Seç ve öde';
             }

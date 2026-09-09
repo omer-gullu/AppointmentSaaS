@@ -209,7 +209,7 @@ namespace Appointment_SaaS.Business.Concrete
                 : Appointment_SaaS.Core.Constants.BillingCycles.Normalize(dto.BillingCycle);
 
             tenant.SubscriptionEndDate = Appointment_SaaS.Core.Utilities.SubscriptionPeriodCalculator
-                .CalculateEndDateFromPayment(DateTime.Now, tenant.BillingCycle, isTrial);
+                .CalculateEndDateFromPayment(DateTime.UtcNow, tenant.BillingCycle, isTrial);
 
             await _tenantService.UpdateAsync(tenant);
 
@@ -298,7 +298,7 @@ namespace Appointment_SaaS.Business.Concrete
                 tenant.IsActive = true;
                 tenant.IsTrial = false;
                 tenant.SubscriptionEndDate = SubscriptionPeriodCalculator.CalculateEndDateFromPayment(
-                    DateTime.Now, tenant.BillingCycle, isTrial: false);
+                    DateTime.UtcNow, tenant.BillingCycle, isTrial: false);
 
                 await _tenantService.UpdateSubscriptionStatusAsync(tenant, true);
                 await _tenantService.UpdateAsync(tenant);

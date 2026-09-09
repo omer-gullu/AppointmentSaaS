@@ -294,19 +294,23 @@ public class TenantsController : ControllerBase
         if (scopeDenied != null)
             return scopeDenied;
 
-        var today = DateTime.Today;
+        var today = BusinessClock.IstanbulNow.Date;
         var tomorrow = today.AddDays(1);
 
         var todayAppointments = tenant.Appointments?
-            .Where(a => a.StartDate >= today && a.StartDate < tomorrow)
+            .Where(a =>
+            {
+                var startLocal = BusinessClock.ToIstanbul(a.StartDate);
+                return startLocal >= today && startLocal < tomorrow;
+            })
             .OrderBy(a => a.StartDate)
             .Select(a => new
             {
                 Id = a.AppointmentID,
                 CustomerName = a.CustomerName,
                 CustomerPhone = a.CustomerPhone,
-                Start = a.StartDate.ToString("HH:mm"),
-                End = a.EndDate.ToString("HH:mm"),
+                Start = BusinessClock.ToIstanbul(a.StartDate).ToString("HH:mm"),
+                End = BusinessClock.ToIstanbul(a.EndDate).ToString("HH:mm"),
                 Status = a.Status,
                 ServiceId = a.ServiceID,
                 GoogleEventId = a.GoogleEventID
@@ -319,6 +323,7 @@ public class TenantsController : ControllerBase
             Phone = tenant.PhoneNumber,
             GoogleEmail = tenant.GoogleEmail,
             TenantID = tenant.TenantID,
+            PlanType = tenant.PlanType,
             IntegrationKey = tenant.ApiKey,
             Services = tenant.Services?.Select(s => new
             {

@@ -2,7 +2,7 @@
 using Appointment_SaaS.Core.DTOs;
 using Appointment_SaaS.Core.Entities;
 using Appointment_SaaS.Data.Abstract;
-using AutoMapper;
+using Appointment_SaaS.Business.Mapping;
 using Microsoft.EntityFrameworkCore;
 
 namespace Appointment_SaaS.Business.Concrete;
@@ -10,12 +10,10 @@ namespace Appointment_SaaS.Business.Concrete;
 public class SectorManager : ISectorService
 {
     private readonly ISectorRepository _sectorRepository;
-    private readonly IMapper _mapper;
 
-    public SectorManager(ISectorRepository sectorRepository, IMapper mapper)
+    public SectorManager(ISectorRepository sectorRepository)
     {
         _sectorRepository = sectorRepository;
-        _mapper = mapper;
     }
 
     public async Task<List<Sector>> GetAllAsync()
@@ -28,7 +26,7 @@ public class SectorManager : ISectorService
 
     public async Task<int> AddAsync(SectorCreateDto dto)
     {
-        var sector = _mapper.Map<Sector>(dto);
+        var sector = EntityMapper.ToSector(dto);
        
 
         await _sectorRepository.AddAsync(sector);

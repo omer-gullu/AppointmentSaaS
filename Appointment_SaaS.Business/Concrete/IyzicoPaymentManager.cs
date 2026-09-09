@@ -4,6 +4,7 @@ using Appointment_SaaS.Business.Abstract;
 using Appointment_SaaS.Business.Diagnostics;
 using Appointment_SaaS.Core.Entities;
 using Appointment_SaaS.Core.Utilities;
+using Appointment_SaaS.Core.Utilities.Security;
 using Iyzipay;
 using Iyzipay.Model;
 using Iyzipay.Model.V2.Subscription;
@@ -240,13 +241,13 @@ public class IyzicoPaymentManager : IIyzicoPaymentService
         if (form == null || form.Status != "success" || form.PaymentStatus != "SUCCESS")
         {
             var err = form?.ErrorMessage ?? "Trial ödeme onaylanamadı.";
-            _logger.LogWarning("Iyzico trial CheckoutForm.Retrieve failed. Token={Token} Error={Error}", token, err);
+            _logger.LogWarning("Iyzico trial CheckoutForm.Retrieve failed. Token={Token} Error={Error}", SensitiveDataMasker.MaskToken(token), err);
             throw new InvalidOperationException(err);
         }
 
         if (form.PaymentItems == null || form.PaymentItems.Count == 0)
         {
-            _logger.LogWarning("Trial checkout sonrası PaymentItems boş. Token={Token}", token);
+            _logger.LogWarning("Trial checkout sonrası PaymentItems boş. Token={Token}", SensitiveDataMasker.MaskToken(token));
             throw new InvalidOperationException("Ödeme kalemi bulunamadı; iade yapılamadı.");
         }
 
@@ -274,7 +275,7 @@ public class IyzicoPaymentManager : IIyzicoPaymentService
         if (refund == null || refund.Status != "success")
         {
             var err = refund?.ErrorMessage ?? "Trial iade başarısız.";
-            _logger.LogError("Iyzico trial refund failed. Token={Token} Tx={Tx} Error={Error}", token, first.PaymentTransactionId, err);
+            _logger.LogError("Iyzico trial refund failed. Token={Token} Tx={Tx} Error={Error}", SensitiveDataMasker.MaskToken(token), first.PaymentTransactionId, err);
             throw new InvalidOperationException(err);
         }
 

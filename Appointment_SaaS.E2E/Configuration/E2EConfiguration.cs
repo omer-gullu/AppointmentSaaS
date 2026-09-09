@@ -26,9 +26,15 @@ public sealed class E2EConfiguration
             DefaultTimeoutMs = int.TryParse(section["DefaultTimeoutMs"], out var ms) ? ms : 30_000
         };
 
-        var envBase = Environment.GetEnvironmentVariable("PLAYWRIGHT_BASE_URL");
+        var envBase =
+            Environment.GetEnvironmentVariable("PLAYWRIGHT_BASE_URL")
+            ?? Environment.GetEnvironmentVariable("E2E_WEB_UI_URL");
         if (!string.IsNullOrWhiteSpace(envBase))
             settings.WebUiBaseUrl = envBase.TrimEnd('/');
+
+        var envApi = Environment.GetEnvironmentVariable("E2E_API_URL");
+        if (!string.IsNullOrWhiteSpace(envApi))
+            settings.ApiBaseUrl = envApi.TrimEnd('/');
 
         return settings;
     }

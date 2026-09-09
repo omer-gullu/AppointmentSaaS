@@ -8,9 +8,9 @@ using Appointment_SaaS.Business.Concrete;
 using Appointment_SaaS.Core.DTOs;
 using Appointment_SaaS.Core.Entities;
 using Appointment_SaaS.Core.Services;
+using Appointment_SaaS.Core.Utilities;
 using Appointment_SaaS.Data.Abstract;
 using Appointment_SaaS.Data.Context;
-using AutoMapper;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -34,7 +34,6 @@ namespace Appointment_SaaS.Test
         private readonly Mock<ITenantRepository> _mockTenantRepo;
         private readonly Mock<IEvolutionApiService> _mockEvolutionService;
         private readonly Mock<IGoogleCalendarService> _mockGoogleService;
-        private readonly Mock<IMapper> _mockMapper;
         private readonly Mock<ILogger<AppointmentManager>> _mockLogger;
         private readonly AppDbContext _db;
         private readonly int _staffId;
@@ -46,7 +45,6 @@ namespace Appointment_SaaS.Test
             _mockTenantRepo = new Mock<ITenantRepository>();
             _mockEvolutionService = new Mock<IEvolutionApiService>();
             _mockGoogleService = new Mock<IGoogleCalendarService>();
-            _mockMapper = new Mock<IMapper>();
             _mockLogger = new Mock<ILogger<AppointmentManager>>();
 
             var dbOptions = new DbContextOptionsBuilder<AppDbContext>()
@@ -62,7 +60,6 @@ namespace Appointment_SaaS.Test
 
             _manager = new AppointmentManager(
                 _mockAppointmentRepo.Object,
-                _mockMapper.Object,
                 _mockTenantRepo.Object,
                 _mockEvolutionService.Object,
                 _db,
@@ -117,20 +114,6 @@ namespace Appointment_SaaS.Test
             _mockAppointmentRepo.Setup(x => x.Where(It.IsAny<Expression<Func<Appointment, bool>>>()))
                 .Returns((Expression<Func<Appointment, bool>> predicate) =>
                     new List<Appointment>().AsQueryable().Where(predicate).BuildMock());
-
-            // Mapper mock
-            var fakeAppointment = new Appointment
-            {
-                AppointmentID = 1,
-                TenantID = dto.TenantID,
-                AppUserID = dto.AppUserID ?? 0,
-                ServiceID = dto.ServiceID,
-                StartDate = dto.StartDate,
-                EndDate = dto.EndDate,
-                CustomerName = dto.CustomerName,
-                CustomerPhone = dto.CustomerPhone
-            };
-            _mockMapper.Setup(m => m.Map<Appointment>(dto)).Returns(fakeAppointment);
 
             return (dto, tenant);
         }
@@ -243,7 +226,7 @@ namespace Appointment_SaaS.Test
             Func<Task> act = async () => await _manager.UpdateAsync(appointment);
 
             await act.Should().NotThrowAsync();
-            appointment.StartDate.Hour.Should().Be(15);
+            BusinessClock.ToIstanbul(appointment.StartDate).Hour.Should().Be(15);
             _mockAppointmentRepo.Verify(x => x.Update(appointment), Times.Once);
             _mockAppointmentRepo.Verify(x => x.SaveAsync(), Times.Once);
         }

@@ -3,6 +3,7 @@
     ViewData["Title"] = "Plan Seçin";
     ViewData["Description"] = "İşletmeniz için en uygun randevu yönetim planını seçin. Ücretsiz deneme ile hemen başlayın.";
     Layout = "_LayoutPricing";
+    var paymentsEnabled = ViewBag.PaymentsEnabled == true;
 }
 
 <div class="pricing-page">
@@ -15,8 +16,25 @@
                 İşletmenize özel<br><span class="grad">en doğru planı seçin</span>
             </h1>
             <p class="pricing-sub">
-                Kurulum ücreti yok · Anında aktifleme<br>Her plan WhatsApp AI + Google Takvim entegrasyonu içerir
+                @if (paymentsEnabled)
+                {
+                    <text>Kurulum ücreti yok · Anında aktifleme<br>Her plan WhatsApp AI + Google Takvim entegrasyonu içerir</text>
+                }
+                else
+                {
+                    <text>Erken erişim dönemi · Ücretsiz deneme ile başlayın<br>Her plan WhatsApp AI + Google Takvim entegrasyonu içerir</text>
+                }
             </p>
+            @if (!paymentsEnabled)
+            {
+                <div class="mx-auto mb-4" style="max-width:640px;text-align:left;background:linear-gradient(135deg,#eef2ff 0%,#f8fafc 100%);border:1.5px solid #c7d2fe;border-radius:16px;padding:16px 20px;">
+                    <div class="fw-bold mb-1" style="color:#4338ca;"><i class="bi bi-info-circle me-1"></i> Erken erişim</div>
+                    <p class="mb-0 small text-muted">
+                        Ücretli plan seçimi ve ödeme henüz açık değil. Bu dönem geçicidir; ödeme altyapısı hazır olduğunda planlar aktifleşecek.
+                        Şimdilik <strong>ücretsiz deneme</strong> ile başlayabilirsiniz.
+                    </p>
+                </div>
+            }
             <div class="toggle-wrap au d1" id="billingWrap">
                 <button class="toggle-btn active" id="btnMonthly" onclick="setBilling('monthly')">Aylık</button>
                 <button class="toggle-btn" id="btnYearly" onclick="setBilling('yearly')">
@@ -52,14 +70,26 @@
                     <li class="off"><span class="fcheck"><i class="bi bi-x"></i></span> Çoklu personel hesabı</li>
                 </ul>
 
-                <a href="/Auth/Register?plan=starter" id="link-starter" class="pcard-btn">
-                    Bu Planı Seç <i class="bi bi-arrow-right ms-1"></i>
-                </a>
-                <p class="text-center mt-2 mb-0" style="font-size:0.68rem; color:#94a3b8;">
-                    <i class="bi bi-arrow-repeat me-1"></i>İptal edilmediği sürece abonelik otomatik yenilenir.
-                </p>
+                @if (paymentsEnabled)
+                {
+                    <a href="/Auth/Register?plan=starter" id="link-starter" class="pcard-btn">
+                        Bu Planı Seç <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                    <p class="text-center mt-2 mb-0" style="font-size:0.68rem; color:#94a3b8;">
+                        <i class="bi bi-arrow-repeat me-1"></i>İptal edilmediği sürece abonelik otomatik yenilenir.
+                    </p>
+                }
+                else
+                {
+                    <button type="button" class="pcard-btn" id="link-starter" disabled style="opacity:0.65;cursor:not-allowed;">
+                        Ödeme yakında
+                    </button>
+                    <p class="text-center mt-2 mb-0" style="font-size:0.68rem; color:#94a3b8;">
+                        Ücretli planlar erken erişim sonunda açılacak.
+                    </p>
+                }
             </div>
-            
+
            <!-- PRO -->
             <div class="pcard featured au d4">
                 <div class="pcard-badge">⭐ En Çok Tercih Edilen</div>
@@ -80,65 +110,59 @@
                     <li><span class="fcheck"><i class="bi bi-check2"></i></span> Öncelikli e-posta desteği</li>
                     <li><span class="fcheck"><i class="bi bi-check2"></i></span> Randevu hatırlatma mesajı</li>
                     <li class="off"><span class="fcheck"><i class="bi bi-x"></i></span> Çoklu lokasyon yönetimi</li>
-                    <li class="off"><span class="fcheck"><i class="bi bi-check2"></i></span> İstatistik & raporlama paneli</li> 
+                    <li class="off"><span class="fcheck"><i class="bi bi-check2"></i></span> İstatistik & raporlama paneli</li>
                     <li class="off"><span class="fcheck"><i class="bi bi-check2"></i></span> No-show ve iptal raporları</li>
                 </ul>
 
-                <a href="/Auth/Register?plan=pro" id="link-pro" class="pcard-btn featured-btn">
-                    <i class="bi bi-lightning-fill me-1"></i> Bu Planı Seç
-                </a>
-                <p class="text-center mt-2 mb-0" style="font-size:0.68rem; color:#a5b4fc;">
-                    <i class="bi bi-arrow-repeat me-1"></i>İptal edilmediği sürece abonelik otomatik yenilenir.
-                </p>
+                @if (paymentsEnabled)
+                {
+                    <a href="/Auth/Register?plan=pro" id="link-pro" class="pcard-btn featured-btn">
+                        <i class="bi bi-lightning-fill me-1"></i> Bu Planı Seç
+                    </a>
+                    <p class="text-center mt-2 mb-0" style="font-size:0.68rem; color:#a5b4fc;">
+                        <i class="bi bi-arrow-repeat me-1"></i>İptal edilmediği sürece abonelik otomatik yenilenir.
+                    </p>
+                }
+                else
+                {
+                    <button type="button" class="pcard-btn featured-btn" id="link-pro" disabled style="opacity:0.65;cursor:not-allowed;">
+                        Ödeme yakında
+                    </button>
+                    <p class="text-center mt-2 mb-0" style="font-size:0.68rem; color:#a5b4fc;">
+                        Ücretli planlar erken erişim sonunda açılacak.
+                    </p>
+                }
             </div>
-
-@*             <!-- BUSINESS (featured) -->
-            <div class="pcard au d4">
-                <div class="pcard-name">Business</div>
-                <div class="pcard-price" id="amt-business">@PlanPricing.ProMonthly.ToString("N0")<sub> ₺/ay</sub></div>
-                <div class="pcard-yearly-note" id="ynote-business"></div>
-                <p class="pcard-desc">Zincir işletmeler ve büyük ekipler için tam güç, öncelikli destek.</p>
-
-                <div class="pcard-limits">
-                    <span class="lchip"><i class="bi bi-geo-alt-fill"></i> 3 Lokasyon</span>
-                    <span class="lchip"><i class="bi bi-calendar-check"></i> Sınırsız</span>
-                    <span class="lchip"><i class="bi bi-people"></i> Sınırsız</span>
-                </div>
-
-                <ul class="flist">
-                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> Business'taki her şey</li>
-                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> 3 lokasyon yönetimi</li>
-                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> Sınırsız personel hesabı</li>
-                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> Gelişmiş istatistikler & API</li>
-                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> Özel onboarding desteği</li>
-                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> 7/24 öncelikli destek hattı</li>
-                    <li><span class="fcheck"><i class="bi bi-check2"></i></span> Özel istekler & entegrasyon</li>
-                </ul>
-
-                <a href="/Auth/Register?plan=business" id="link-business" class="pcard-btn">
-                    Bu Planı Seç <i class="bi bi-arrow-right ms-1"></i>
-                </a>
-                <p class="text-center mt-2 mb-0" style="font-size:0.68rem; color:#94a3b8;">
-                    <i class="bi bi-arrow-repeat me-1"></i>İptal edilmediği sürece abonelik otomatik yenilenir.
-                </p>
-            </div> *@
         </div>
 
         <!-- ── TRIAL BANNER ── -->
         <div class="trial-section au d5 mb-5">
             <div class="row align-items-center g-4">
                 <div class="col-md-8">
-                    <div class="trial-title">🎁 14 Gün Ücretsiz Deneyin</div>
+                    <div class="trial-title">🎁 @(paymentsEnabled ? "14 Gün Ücretsiz Deneyin" : "Ücretsiz Erken Erişim")</div>
                     <div class="trial-sub">
-                        Business özelliklerini 14 gün boyunca tam kullanın.<br>
-                        <strong>⚠️ Önemli:</strong> Deneme süresi sonunda veya bir plan seçildiğinde,
-                        <strong>aboneliğiniz iptal edilmediği sürece her ay otomatik olarak yenilenir.</strong>
-                        İstediğiniz zaman panelden iptal edebilirsiniz.
+                        @if (paymentsEnabled)
+                        {
+                            <text>
+                                Business özelliklerini 14 gün boyunca tam kullanın.<br>
+                                <strong>⚠️ Önemli:</strong> Deneme süresi sonunda veya bir plan seçildiğinde,
+                                <strong>aboneliğiniz iptal edilmediği sürece her ay otomatik olarak yenilenir.</strong>
+                                İstediğiniz zaman panelden iptal edebilirsiniz.
+                            </text>
+                        }
+                        else
+                        {
+                            <text>
+                                Erken erişim döneminde ücretsiz başlayın. WhatsApp AI + Google Takvim ile randevularınızı yönetin.<br>
+                                <strong>Bu dönem geçicidir;</strong> ödeme altyapısı hazır olduğunda ücretli planlar açılacak.
+                                Erken kullanıcılar kurucu avantajından yararlanacak.
+                            </text>
+                        }
                     </div>
                 </div>
                 <div class="col-md-4 text-md-end">
-                    <a href="@(User.Identity?.IsAuthenticated == true ? "/Pricing/Upgrade?plan=trial" : "/Auth/Register?plan=trial")" class="btn-trial">
-                        <i class="bi bi-play-fill"></i> Deneme Sürümünü Başlat
+                    <a href="@(User.Identity?.IsAuthenticated == true ? "/Dashboard" : "/Auth/Register?plan=trial")" class="btn-trial">
+                        <i class="bi bi-play-fill"></i> @(paymentsEnabled ? "Deneme Sürümünü Başlat" : "Ücretsiz Başla")
                     </a>
                 </div>
             </div>
@@ -147,10 +171,20 @@
         <!-- ── TRUST ── -->
         <div class="trust-row au d6">
             <div class="trust-item"><i class="bi bi-shield-check-fill"></i> SSL Güvenli</div>
-            <div class="trust-item"><i class="bi bi-credit-card-fill"></i> İyzico ile Güvenli Ödeme</div>
+            @if (paymentsEnabled)
+            {
+                <div class="trust-item"><i class="bi bi-credit-card-fill"></i> İyzico ile Güvenli Ödeme</div>
+            }
+            else
+            {
+                <div class="trust-item"><i class="bi bi-gift-fill"></i> Erken erişim · Ücretsiz deneme</div>
+            }
             <div class="trust-item"><i class="bi bi-lock-fill"></i> KVKK Uyumlu</div>
             <div class="trust-item"><i class="bi bi-headset"></i> 7/24 Destek</div>
-            <div class="trust-item"><i class="bi bi-arrow-counterclockwise"></i> İstediğin zaman iptal</div>
+            @if (paymentsEnabled)
+            {
+                <div class="trust-item"><i class="bi bi-arrow-counterclockwise"></i> İstediğin zaman iptal</div>
+            }
         </div>
 
     </div>
@@ -159,6 +193,7 @@
 @section Scripts {
 @{
     var pricingConfig = new {
+        paymentsEnabled,
         baseUrl = User.Identity?.IsAuthenticated == true ? "/Pricing/Upgrade" : "/Auth/Register",
         priceData = new {
             monthly = new {

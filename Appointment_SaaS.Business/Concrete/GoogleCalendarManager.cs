@@ -1,4 +1,6 @@
 using Appointment_SaaS.Business.Abstract;
+using Appointment_SaaS.Core.Utilities;
+using Appointment_SaaS.Core.Utilities.Security;
 using Appointment_SaaS.Data.Abstract;
 using Appointment_SaaS.DataAccess.Abstract;
 using Microsoft.EntityFrameworkCore;
@@ -60,7 +62,7 @@ public class GoogleCalendarManager : IGoogleCalendarService
 
         if (!response.IsSuccessStatusCode)
         {
-            _logger.LogError("[GoogleCalendar] Token alınamadı. AppUserID={Id} Body={Body}", appUserId, body);
+            _logger.LogError("[GoogleCalendar] Token alınamadı. AppUserID={Id} Body={Body}", appUserId, SensitiveDataMasker.SummarizeBody(body));
             return null;
         }
 
@@ -85,8 +87,8 @@ public class GoogleCalendarManager : IGoogleCalendarService
             {
                 summary,
                 description,
-                start = new { dateTime = start.ToString("yyyy-MM-ddTHH:mm:ss"), timeZone = "Europe/Istanbul" },
-                end = new { dateTime = end.ToString("yyyy-MM-ddTHH:mm:ss"), timeZone = "Europe/Istanbul" }
+                start = new { dateTime = BusinessClock.ToIstanbul(start).ToString("yyyy-MM-ddTHH:mm:ss"), timeZone = "Europe/Istanbul" },
+                end = new { dateTime = BusinessClock.ToIstanbul(end).ToString("yyyy-MM-ddTHH:mm:ss"), timeZone = "Europe/Istanbul" }
             };
 
             var content = new StringContent(JsonSerializer.Serialize(eventBody), Encoding.UTF8, "application/json");
@@ -127,8 +129,8 @@ public class GoogleCalendarManager : IGoogleCalendarService
             {
                 summary,
                 description,
-                start = new { dateTime = start.ToString("yyyy-MM-ddTHH:mm:ss"), timeZone = "Europe/Istanbul" },
-                end = new { dateTime = end.ToString("yyyy-MM-ddTHH:mm:ss"), timeZone = "Europe/Istanbul" }
+                start = new { dateTime = BusinessClock.ToIstanbul(start).ToString("yyyy-MM-ddTHH:mm:ss"), timeZone = "Europe/Istanbul" },
+                end = new { dateTime = BusinessClock.ToIstanbul(end).ToString("yyyy-MM-ddTHH:mm:ss"), timeZone = "Europe/Istanbul" }
             };
 
             var content = new StringContent(JsonSerializer.Serialize(eventBody), Encoding.UTF8, "application/json");

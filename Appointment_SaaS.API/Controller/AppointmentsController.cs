@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Appointment_SaaS.API.Controllers;
 
 [Authorize]
+[RequireActiveTenant]
 [Route("api/[controller]")]
 [ApiController]
 public class AppointmentsController : ControllerBase
@@ -32,6 +33,16 @@ public class AppointmentsController : ControllerBase
         _logger = logger;
     }
 
+    /// <summary>ModelState (FluentValidation) hatalarından kullanıcıya gösterilecek ilk mesajı döndürür.</summary>
+    private string FirstValidationError()
+    {
+        var msg = ModelState.Values
+            .SelectMany(v => v.Errors)
+            .Select(e => e.ErrorMessage)
+            .FirstOrDefault(m => !string.IsNullOrWhiteSpace(m));
+        return string.IsNullOrWhiteSpace(msg) ? "Geçersiz veya eksik randevu bilgisi." : msg;
+    }
+
     // ─── Randevu Oluşturma ────────────────────────────────────────────────────
     [AllowAnonymous]
     [HttpPost]
@@ -39,6 +50,11 @@ public class AppointmentsController : ControllerBase
     {
         try
         {
+            // FluentValidation (AppointmentValidator) sonuçları: XSS/injection/format kontrolü.
+            // SuppressModelStateInvalidFilter=true olduğu için burada AÇIKÇA kontrol edilmeli.
+            if (!ModelState.IsValid)
+                return BadRequest(new { Message = FirstValidationError() });
+
             var tenant = await _tenantService.GetContextByInstanceAsync(dto.BusinessPhone)
                       ?? await _tenantService.GetByPhoneNumberAsync(dto.BusinessPhone);
 
@@ -61,6 +77,13 @@ public class AppointmentsController : ControllerBase
                 if (!smartStaffId.HasValue)
                     return BadRequest(new { Message = "Randevu oluşturmak için önce işletmeye bağlı en az bir personel tanımlanmalı." });
                 dto.AppUserID = smartStaffId.Value;
+            }
+            else
+            {
+                // IDOR / mass-assignment: verilen personel bu işletmeye ait olmalı.
+                var staff = await _appUserService.GetByIdAsync(dto.AppUserID.Value);
+                if (staff == null || staff.TenantID != tenant.TenantID)
+                    return BadRequest(new { Message = $"Personel bulunamadı veya bu işletmeye ait değil (AppUserID={dto.AppUserID.Value})." });
             }
 
             var orderedServiceIds = new List<int>();
@@ -236,6 +259,9 @@ public class AppointmentsController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+                return BadRequest(new { Message = FirstValidationError() });
+
             var appointment = await _appointmentService.GetByIdAsync(id);
             if (appointment == null)
                 return NotFound(new { Message = "Randevu bulunamadı." });
@@ -282,7 +308,13 @@ public class AppointmentsController : ControllerBase
             appointment.Note = dto.Note ?? appointment.Note;
 
             if (dto.AppUserID.HasValue && dto.AppUserID.Value > 0)
+            {
+                // IDOR / mass-assignment: verilen personel bu işletmeye ait olmalı.
+                var staff = await _appUserService.GetByIdAsync(dto.AppUserID.Value);
+                if (staff == null || staff.TenantID != tenant.TenantID)
+                    return BadRequest(new { Message = $"Personel bulunamadı veya bu işletmeye ait değil (AppUserID={dto.AppUserID.Value})." });
                 appointment.AppUserID = dto.AppUserID.Value;
+            }
 
             await _appointmentService.UpdateAsync(appointment, previousAppUserID, orderedServiceIds);
             return Ok(new
@@ -462,7 +494,7 @@ public class AppointmentsController : ControllerBase
                 AppointmentID = a.AppointmentID,
                 CustomerName = a.CustomerName,
                 CustomerPhone = a.CustomerPhone,
-                StartDate = a.StartDate.ToString("dd.MM.yyyy HH:mm"),
+                StartDate = BusinessClock.ToIstanbul(a.StartDate).ToString("dd.MM.yyyy HH:mm"),
                 ServiceName = a.Service?.Name ?? "Bilinmiyor"
             });
 
@@ -497,12 +529,16 @@ public class AppointmentsController : ControllerBase
             if (scopeDenied != null)
                 return scopeDenied;
 
-            if (!DateTime.TryParse(date, out var targetDate))
+            if (!DateOnly.TryParse(date, out var dateOnly))
                 return BadRequest(new { Message = "Geçersiz tarih formatı. YYYY-MM-DD kullanın." });
 
+            var targetDate = dateOnly.ToDateTime(TimeOnly.MinValue);
+
             // 🔴 TATİL KONTROLÜ
-            var dateOnly = DateOnly.FromDateTime(targetDate);
-            var holiday = tenant.Holidays.FirstOrDefault(h => h.Date == dateOnly);
+            var holiday = TenantHolidayHelper.FindHolidayForAppointment(
+                tenant.Holidays,
+                targetDate,
+                targetDate.AddDays(1).AddTicks(-1));
             if (holiday != null)
                 return Ok(new
                 {

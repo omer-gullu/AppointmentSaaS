@@ -10,7 +10,6 @@ using Appointment_SaaS.DataAccess.Abstract;
 using FluentValidation.AspNetCore;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
-using Appointment_SaaS.Business.Mapping;
 using Appointment_SaaS.API.Authorization;
 using Appointment_SaaS.API.Middleware;
 using Appointment_SaaS.Core.Utilities.Security.JWT;
@@ -21,6 +20,9 @@ using Appointment_SaaS.Core.Utilities.Security;
 using Appointment_SaaS.Core.Services;
 using Appointment_SaaS.API.Services;
 using AspNetCoreRateLimit;
+using Appointment_SaaS.API.Security;
+using Microsoft.AspNetCore.HttpOverrides;
+using System.Net;
 using System.Security.Claims;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
@@ -46,7 +48,9 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddMemoryCache();
 builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
 builder.Services.AddInMemoryRateLimiting();
-builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+// İstemci X-Real-IP / X-Forwarded-For başlıklarına güvenmeyen, yalnızca gerçek bağlantı
+// IP'siyle anahtarlayan konfigürasyon (başlık spoof ile rate-limit bypass'ı engellenir).
+builder.Services.AddSingleton<IRateLimitConfiguration, ConnectionIpRateLimitConfiguration>();
 
 // --- CORS ---
 var allowedOrigins = builder.Configuration.GetSection("CorsSettings:AllowedOrigins").Get<string[]>() ?? new[] { "http://localhost:3000", "http://localhost:5678" };
@@ -114,7 +118,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // --- DIGER SERVISLER ---
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<AppointmentValidator>();
-builder.Services.AddAutoMapper(typeof(MappingProfile));
 
 // --- REPOSITORY KAYITLARI ---
 builder.Services.AddScoped<ITenantRepository, EfTenantRepository>();
@@ -187,6 +190,18 @@ SubscriptionAccessPolicy.Configure(subscriptionBilling);
 
 // --- MIDDLEWARE PIPELINE ---
 
+// Gerçek istemci IP'si: yalnızca loopback nginx reverse-proxy'sine güven.
+// Rate-limit ve audit log doğru IP'yi görsün diye pipeline'ın EN başında olmalı.
+var forwardedHeadersOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+};
+forwardedHeadersOptions.KnownNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+forwardedHeadersOptions.KnownProxies.Add(IPAddress.Loopback);      // 127.0.0.1 (nginx)
+forwardedHeadersOptions.KnownProxies.Add(IPAddress.IPv6Loopback);  // ::1
+app.UseForwardedHeaders(forwardedHeadersOptions);
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -199,7 +214,7 @@ app.UseSecurityHeaders();
 
 if (!app.Environment.IsDevelopment())
 {
-    app.UseHsts();
+    // HSTS nginx kenarında set edilir (deploy/nginx) — çift header / ZAP uyarısı olmasın.
     app.UseHttpsRedirection();
 }
 

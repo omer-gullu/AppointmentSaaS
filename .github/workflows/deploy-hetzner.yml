@@ -94,8 +94,8 @@ jobs:
           dotnet restore Appointment_SaaS.sln
           dotnet build Appointment_SaaS.sln -c Release --no-restore
 
-     # - name: Unit tests
-     #  run: dotnet test Appointment_SaaS.Test/Appointment_SaaS.Test.csproj -c Release --no-build --verbosity normal
+      - name: Unit tests (deploy gate)
+        run: dotnet test Appointment_SaaS.Test/Appointment_SaaS.Test.csproj -c Release --no-build --verbosity normal
 
   deploy-api:
     needs: [validate, changes]

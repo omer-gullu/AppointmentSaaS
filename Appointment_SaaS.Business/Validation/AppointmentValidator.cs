@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using Appointment_SaaS.Core.DTOs;
+using Appointment_SaaS.Core.Utilities;
 
 namespace Appointment_SaaS.Business.Validation;
 
@@ -28,9 +29,9 @@ public class AppointmentValidator : AbstractValidator<AppointmentCreateDto>
             .Must(phone => !WhatsAppInputSanitizer.ContainsSqlInjection(phone))
                 .WithMessage("Telefon numarasında güvenlik ihlali tespit edildi.");
 
-        // Başlangıç tarihi: geçmiş olmamalı
+        // Başlangıç tarihi: geçmiş olmamalı (n8n Unspecified = İstanbul duvar saati)
         RuleFor(x => x.StartDate)
-            .GreaterThan(DateTime.Now.AddMinutes(-5))
+            .Must(start => BusinessClock.ToUtc(start) > DateTime.UtcNow.AddMinutes(-5))
                 .WithMessage("Geçmiş bir tarihe randevu veremezsiniz!");
 
         // Bitiş tarihi: başlangıçtan sonra olmalı

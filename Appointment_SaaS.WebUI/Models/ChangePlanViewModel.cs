@@ -13,13 +13,15 @@ public class ChangePlanViewModel
     public DateTime? SubscriptionEndDate { get; set; }
     public int CurrentStaffCount { get; set; }
 
+    public bool PaymentsEnabled { get; set; }
+
     /// <summary>Plan seçimi için önce Iyzico yenilemesinin iptal edilmesi gerekir (deneme hariç).</summary>
     public bool RequiresCancelBeforePlanChange =>
         !IsTrial && IsSubscriptionActive && !CancelAtPeriodEnd;
 
-    public bool ShowCancelButton => RequiresCancelBeforePlanChange;
+    public bool ShowCancelButton => PaymentsEnabled && RequiresCancelBeforePlanChange;
 
-    public bool CanSelectPlan => !RequiresCancelBeforePlanChange;
+    public bool CanSelectPlan => PaymentsEnabled && !RequiresCancelBeforePlanChange;
 
     public List<ChangePlanCardViewModel> Plans { get; set; } = new()
     {

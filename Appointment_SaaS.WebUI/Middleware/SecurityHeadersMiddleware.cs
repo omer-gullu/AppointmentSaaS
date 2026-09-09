@@ -23,12 +23,13 @@ public class SecurityHeadersMiddleware
 
         if (!_env.IsDevelopment())
         {
+            // img-src: https: wildcard kaldırıldı (ZAP CSP Wildcard). QR/CDN için data + bilinen CDN.
             headers["Content-Security-Policy"] =
                 "default-src 'self'; " +
                 "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; " +
                 "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net data:; " +
-                "img-src 'self' data: https:; " +
+                "img-src 'self' data: blob: https://cdn.jsdelivr.net; " +
                 "connect-src 'self'; " +
                 "frame-ancestors 'none'; " +
                 "base-uri 'self'; " +

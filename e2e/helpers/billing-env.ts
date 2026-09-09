@@ -1,10 +1,13 @@
 import { dbConfigured } from './db';
-import { panelTestsEnabled } from './e2e-config';
+import { iyzicoTestsEnabled, panelTestsEnabled } from './e2e-config';
 import { isReadonlyEnv } from './env';
 
 /** API webhook billing testleri için eksik .env anahtarları. */
 export function missingBillingApiEnv(): string[] {
   const missing: string[] = [];
+  if (!iyzicoTestsEnabled()) {
+    missing.push('E2E_RUN_IYZICO=true (canlı İyzico / ödeme webhook mutasyonu)');
+  }
   if (isReadonlyEnv()) missing.push('PLAYWRIGHT_ENV≠production (readonly)');
   if (!dbConfigured()) missing.push('E2E_DB_SERVER veya E2E_DATABASE_URL');
   if (!process.env.IYZICO_WEBHOOK_SECRET?.trim()) {

@@ -2,14 +2,12 @@ using Appointment_SaaS.WebUI.Diagnostics;
 using Appointment_SaaS.WebUI.Middlewares;
 using Appointment_SaaS.Business.Abstract;
 using Appointment_SaaS.Business.Concrete;
-using Appointment_SaaS.Business.Mapping;
 using Appointment_SaaS.Core.Utilities;
 using Appointment_SaaS.Data.Abstract;
 using Appointment_SaaS.Data.Concrete;
 using Appointment_SaaS.Data.Context;
 using Appointment_SaaS.Data.Extensions;
 using Appointment_SaaS.DataAccess.Abstract;
-using AutoMapper;
 using Appointment_SaaS.WebUI.Middleware;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
@@ -72,16 +70,9 @@ builder.Services.Configure<GzipCompressionProviderOptions>(options =>
 builder.Services.AddDbContextPool<AppDbContext>(options =>
     options.UseAppointmentPostgreSql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// AutoMapper
-var mapperConfig = new MapperConfiguration(mc =>
-{
-    mc.AddProfile(new MappingProfile());
-});
-IMapper mapper = mapperConfig.CreateMapper();
-builder.Services.AddSingleton(mapper);
-
 // Evolution API Settings
 builder.Services.Configure<EvolutionApiSettings>(builder.Configuration.GetSection("EvolutionApi"));
+builder.Services.Configure<IyzicoSettings>(builder.Configuration.GetSection("IyzicoSettings"));
 builder.Services.Configure<SubscriptionBillingOptions>(
     builder.Configuration.GetSection(SubscriptionBillingOptions.SectionName));
 
@@ -136,11 +127,6 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
             ? CookieSecurePolicy.SameAsRequest
             : CookieSecurePolicy.Always;
     });
-builder.Services.AddHsts(options =>
-{
-    options.MaxAge = TimeSpan.FromDays(365);
-    options.IncludeSubDomains = true;
-});
 
 var app = builder.Build();
 
@@ -148,11 +134,6 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
-
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHsts();
-}
 
 PerfProbeLog.Configure(Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, "..", "debug-4e7483.log")));
 
@@ -165,7 +146,7 @@ SubscriptionAccessPolicy.Configure(subscriptionBilling);
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    app.UseHsts();
+    // HSTS nginx kenarında set edilir (deploy/nginx) — çift header / ZAP uyarısı olmasın.
     app.UseHttpsRedirection();
 }
 

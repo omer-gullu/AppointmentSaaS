@@ -8,7 +8,6 @@ using Appointment_SaaS.Core.Entities;
 using Appointment_SaaS.Core.Utilities;
 using Appointment_SaaS.Core.Utilities.Security.JWT;
 using Appointment_SaaS.Core.Utilities.Security;
-using AutoMapper;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -25,7 +24,6 @@ namespace Appointment_SaaS.Test
         private readonly Mock<IAppUserService> _mockUserService;
         private readonly Mock<ITenantService> _mockTenantService;
         private readonly Mock<ITokenHelper> _mockTokenHelper;
-        private readonly Mock<IMapper> _mockMapper;
         private readonly Mock<IEvolutionApiService> _mockEvolutionApiService;
         private readonly Mock<IUserOperationClaimService> _mockUserOpClaimService;
         private readonly Mock<IOptions<EvolutionApiSettings>> _mockEvoOptions;
@@ -40,7 +38,6 @@ namespace Appointment_SaaS.Test
             _mockUserService = new Mock<IAppUserService>();
             _mockTenantService = new Mock<ITenantService>();
             _mockTokenHelper = new Mock<ITokenHelper>();
-            _mockMapper = new Mock<IMapper>();
             _mockEvolutionApiService = new Mock<IEvolutionApiService>();
             _mockUserOpClaimService = new Mock<IUserOperationClaimService>();
 
@@ -184,20 +181,31 @@ namespace Appointment_SaaS.Test
         [Fact]
         public async Task GenerateOtpForLoginAsync_ShouldUpdateUserAndSendSms_WhenValid()
         {
-            var dto = new OtpLoginDto { PhoneNumber = "555" };
-            var user = new AppUser { TenantID = 1, LastOtpRequestDate = DateTime.Now.AddMinutes(-5) }; // 5 dk gecmis (Uygun)
-            _mockUserService.Setup(x => x.GetByPhoneNumberAsync(dto.PhoneNumber)).ReturnsAsync(user);
+            var phone = OtpTestHelper.Normalize("5551234567");
+            var dto = new OtpLoginDto { PhoneNumber = phone };
+            var user = new AppUser { TenantID = 1, LastOtpRequestDate = DateTime.UtcNow.AddMinutes(-5) };
+            _mockUserService.Setup(x => x.GetByPhoneNumberAsync(phone)).ReturnsAsync(user);
 
-            var tenant = new Tenant { TenantID = 1, InstanceName = "TestInstance", IsActive = true, IsSubscriptionActive = true, SubscriptionEndDate = DateTime.Now.AddDays(10) };
+            var tenant = new Tenant
+            {
+                TenantID = 1,
+                InstanceName = "TestInstance",
+                IsActive = true,
+                IsSubscriptionActive = true,
+                IsTrial = true,
+                SubscriptionEndDate = DateTime.UtcNow.AddDays(10)
+            };
             _mockTenantService.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(tenant);
-            
-            _mockEvolutionApiService.Setup(x => x.SendOtpMessageAsync("TestInstance", dto.PhoneNumber, It.IsAny<string>())).ReturnsAsync(true);
+
+            _mockEvolutionApiService
+                .Setup(x => x.SendOtpMessageAsync("TestInstance", phone, It.IsAny<string>()))
+                .ReturnsAsync(true);
 
             var result = await _authManager.GenerateOtpForLoginAsync(dto);
 
             result.Should().BeTrue();
             user.OtpCode.Should().NotBeNullOrEmpty();
-            user.OtpExpiry.Should().BeAfter(DateTime.Now);
+            user.OtpExpiry.Should().BeAfter(DateTime.UtcNow.AddSeconds(-1));
             _mockUserService.Verify(x => x.UpdateAsync(user), Times.Once);
         }
 
@@ -210,7 +218,7 @@ namespace Appointment_SaaS.Test
         {
             var phone = OtpTestHelper.Normalize("5360001122");
             var dto = new OtpLoginDto { PhoneNumber = phone };
-            var user = new AppUser { TenantID = 1, LastOtpRequestDate = DateTime.Now.AddMinutes(-5) };
+            var user = new AppUser { TenantID = 1, LastOtpRequestDate = DateTime.UtcNow.AddMinutes(-5) };
             _mockUserService.Setup(x => x.GetByPhoneNumberAsync(phone)).ReturnsAsync(user);
 
             var tenant = new Tenant
@@ -219,7 +227,8 @@ namespace Appointment_SaaS.Test
                 InstanceName = "FirmaXYZ_ab12",
                 IsActive = true,
                 IsSubscriptionActive = true,
-                SubscriptionEndDate = DateTime.Now.AddDays(10)
+                IsTrial = true,
+                SubscriptionEndDate = DateTime.UtcNow.AddDays(10)
             };
             _mockTenantService.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(tenant);
 
@@ -253,12 +262,25 @@ namespace Appointment_SaaS.Test
         [Fact]
         public async Task VerifyOtpAndLoginAsync_ShouldThrowException_WhenOtpIsExpired()
         {
-            var dto = new OtpVerifyDto { PhoneNumber = "555", OtpCode = "123456" };
-            var user = new AppUser { TenantID = 1, OtpCode = "123456", OtpExpiry = DateTime.Now.AddMinutes(-1), TrialEndDate = DateTime.Now.AddDays(10) }; // Suresi dolmus
-            _mockUserService.Setup(x => x.GetByPhoneNumberAsync(dto.PhoneNumber)).ReturnsAsync(user);
+            var phone = OtpTestHelper.Normalize("5551234567");
+            var dto = new OtpVerifyDto { PhoneNumber = phone, OtpCode = "123456" };
+            var user = new AppUser
+            {
+                TenantID = 1,
+                OtpCode = "123456",
+                OtpExpiry = DateTime.UtcNow.AddMinutes(-1),
+                TrialEndDate = DateTime.UtcNow.AddDays(10)
+            };
+            _mockUserService.Setup(x => x.GetByPhoneNumberAsync(phone)).ReturnsAsync(user);
 
-            // Tenant kontrolü OTP'den önce yapılıyor — aktif tenant mock lazım
-            var tenant = new Tenant { TenantID = 1, IsActive = true, IsSubscriptionActive = true, SubscriptionEndDate = DateTime.Now.AddDays(10) };
+            var tenant = new Tenant
+            {
+                TenantID = 1,
+                IsActive = true,
+                IsSubscriptionActive = true,
+                IsTrial = true,
+                SubscriptionEndDate = DateTime.UtcNow.AddDays(10)
+            };
             _mockTenantService.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(tenant);
 
             Func<Task> act = async () => await _authManager.VerifyOtpAndLoginAsync(dto);

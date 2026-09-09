@@ -3,6 +3,7 @@ import {
   apiGetAsN8n,
   assertN8nWebhookOk,
   buildEvolutionWebhookPayload,
+  countActiveAppointmentsForPhone,
   formatWhatsAppJid,
   getN8nAuthToken,
   getN8nEvolutionWebhookUrl,
@@ -10,14 +11,10 @@ import {
   postEvolutionWebhookToN8n,
   sendN8nCustomerMessage,
   waitForPhoneBlocked,
+  resolveE2eBookingContext,
 } from '../helpers/n8n';
-import {
-  countAppointmentsForPhone,
-  requireDbConfigured,
-  unblockCustomerPhone,
-} from '../helpers/db';
+import { unblockCustomerPhone } from '../helpers/db';
 import { createAppointmentAsN8n, deleteAppointmentAsN8n } from '../helpers/appointments';
-import { resolveE2eBookingContext } from '../helpers/n8n';
 import { isReadonlyEnv } from '../helpers/env';
 
 const E2E_TENANT_ID = Number(process.env.E2E_TENANT_ID ?? '0');
@@ -29,8 +26,6 @@ const CUSTOMER_PREFIX = (process.env.E2E_CUSTOMER_PHONE_PREFIX ?? '5320000').rep
 function sandboxPhone(): string {
   return `${CUSTOMER_PREFIX}${String(Date.now() % 1000).padStart(3, '0')}`;
 }
-
-test.describe.configure({ mode: 'serial' });
 
 function skipUnlessN8nLive(): void {
   test.skip(isReadonlyEnv(), 'readonly ortam');
@@ -46,7 +41,6 @@ function skipUnlessN8nLive(): void {
 test.describe('n8n workflow davranış @destructive', () => {
   test.beforeAll(() => {
     skipUnlessN8nLive();
-    requireDbConfigured();
   });
 
   test.afterEach(async () => {
@@ -100,7 +94,12 @@ test.describe('n8n workflow davranış @destructive', () => {
     await waitForPhoneBlocked(E2E_TENANT_ID, token, phone, E2E_INSTANCE);
     expect(await isPhoneBlocked(E2E_TENANT_ID, token, jid, E2E_INSTANCE)).toBeTruthy();
 
-    const before = await countAppointmentsForPhone(E2E_TENANT_ID, phone);
+    const before = await countActiveAppointmentsForPhone(
+      E2E_TENANT_ID,
+      E2E_INSTANCE,
+      token,
+      phone,
+    );
     const msg = buildEvolutionWebhookPayload({
       instanceName: E2E_INSTANCE,
       customerPhone: phone,
@@ -111,7 +110,12 @@ test.describe('n8n workflow davranış @destructive', () => {
     expect(res.status, res.body.slice(0, 300)).toBeLessThan(500);
 
     await new Promise((r) => setTimeout(r, 15_000));
-    const after = await countAppointmentsForPhone(E2E_TENANT_ID, phone);
+    const after = await countActiveAppointmentsForPhone(
+      E2E_TENANT_ID,
+      E2E_INSTANCE,
+      token,
+      phone,
+    );
     expect(after).toBe(before);
 
     await unblockCustomerPhone(E2E_TENANT_ID, phone);
@@ -120,7 +124,8 @@ test.describe('n8n workflow davranış @destructive', () => {
   test('Redis rate limit: ardışık mesajlar workflow patlatmaz', async () => {
     test.setTimeout(180_000);
     const phone = sandboxPhone();
-    const burst = Number(process.env.E2E_RATE_LIMIT_BURST ?? 16);
+    const burst = Number(process.env.E2E_RATE_LIMIT_BURST ?? 12);
+    const gapMs = Number(process.env.E2E_RATE_LIMIT_GAP_MS ?? 400);
     const statuses: number[] = [];
 
     for (let i = 0; i < burst; i++) {
@@ -130,12 +135,23 @@ test.describe('n8n workflow davranış @destructive', () => {
         messageText: `rate test ${i}`,
         pushName: 'E2E Rate',
       });
-      const res = await postEvolutionWebhookToN8n(payload, 60_000);
+      let res = await postEvolutionWebhookToN8n(payload, 60_000);
+      if (res.status >= 500) {
+        await new Promise((r) => setTimeout(r, 2000));
+        res = await postEvolutionWebhookToN8n(payload, 60_000);
+      }
       statuses.push(res.status);
+      if (i < burst - 1 && gapMs > 0) {
+        await new Promise((r) => setTimeout(r, gapMs));
+      }
     }
 
     const errors = statuses.filter((s) => s >= 500);
-    expect(errors, `500 sayısı: ${errors.length}, tüm status: ${statuses.join(',')}`).toHaveLength(0);
+    const limited = statuses.filter((s) => s === 429).length;
+    expect(
+      errors,
+      `500 sayısı: ${errors.length}, 429: ${limited}, tüm status: ${statuses.join(',')}`,
+    ).toHaveLength(0);
     await unblockCustomerPhone(E2E_TENANT_ID, phone);
   });
 

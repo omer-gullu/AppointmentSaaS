@@ -4,7 +4,6 @@ using Appointment_SaaS.Core.Entities;
 using Appointment_SaaS.Core.Services;
 using Appointment_SaaS.Data.Abstract;
 using Appointment_SaaS.Data.Context;
-using AutoMapper;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -31,7 +30,6 @@ public class MyActiveAppointmentsTests
         _mockAppointmentRepo = new Mock<IAppointmentRepository>();
         var mockTenantRepo = new Mock<ITenantRepository>();
         var mockEvolution = new Mock<IEvolutionApiService>();
-        var mockMapper = new Mock<IMapper>();
         var mockTenantProvider = new Mock<ITenantProvider>();
         mockTenantProvider.Setup(x => x.GetTenantId()).Returns((int?)null);
         var mockLogger = new Mock<ILogger<AppointmentManager>>();
@@ -40,7 +38,6 @@ public class MyActiveAppointmentsTests
 
         _manager = new AppointmentManager(
             _mockAppointmentRepo.Object,
-            mockMapper.Object,
             mockTenantRepo.Object,
             mockEvolution.Object,
             _db,
@@ -152,7 +149,6 @@ public class MyActiveAppointmentsTests
     {
         int capturedTenantId = 0;
         DateTime capturedNow = default;
-        var before = DateTime.Now.AddSeconds(-2);
 
         _mockAppointmentRepo
             .Setup(x => x.GetActiveByPhoneAsync(It.IsAny<int>(), It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<DateTime>()))
@@ -166,8 +162,8 @@ public class MyActiveAppointmentsTests
         await _manager.GetActiveAppointmentsForCustomerAsync(42, "905078283441");
 
         capturedTenantId.Should().Be(42);
-        capturedNow.Should().BeOnOrAfter(before);
-        capturedNow.Should().BeOnOrBefore(DateTime.Now.AddSeconds(2));
+        capturedNow.Kind.Should().Be(DateTimeKind.Utc);
+        capturedNow.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
     }
 
     [Fact]

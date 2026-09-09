@@ -164,6 +164,91 @@ export function formatWhatsAppJid(phone: string): string {
   return `${digits}@s.whatsapp.net`;
 }
 
+/** İstanbul takvim günü (YYYY-MM-DD). Hetzner/UTC makinede Date#toISOString kaydırmaz. */
+export function istanbulYmdPlusDays(days: number, from: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Istanbul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(from);
+  const y = Number(parts.find((p) => p.type === 'year')?.value);
+  const m = Number(parts.find((p) => p.type === 'month')?.value);
+  const d = Number(parts.find((p) => p.type === 'day')?.value);
+  return new Date(Date.UTC(y, m - 1, d + days, 12, 0, 0)).toISOString().slice(0, 10);
+}
+
+/** YYYY-MM-DD için JS weekday (0=Pazar). Öğlen UTC ile DST kayması yok. */
+export function weekdayOfYmd(ymd: string): number {
+  const [y, m, d] = ymd.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 12, 0, 0)).getUTCDay();
+}
+
+export function canPlanUseReminders(planType: unknown): boolean {
+  const plan = String(planType ?? 'Trial').toLowerCase();
+  return plan === 'pro' || plan === 'business';
+}
+
+export type MyActiveAppointment = {
+  appointmentId?: number;
+  AppointmentId?: number;
+  customerName?: string;
+  CustomerName?: string;
+  startTime?: string;
+  StartTime?: string;
+  serviceName?: string;
+  ServiceName?: string;
+  staffName?: string;
+  StaffName?: string;
+  status?: string;
+  Status?: string;
+};
+
+type MyActiveBody = {
+  hasActiveAppointment?: boolean;
+  totalCount?: number;
+  appointments?: MyActiveAppointment[];
+};
+
+export async function fetchMyActiveAppointments(
+  tenantId: number,
+  instanceName: string,
+  token: string,
+  phone: string,
+): Promise<{ status: number; body: MyActiveBody }> {
+  const res = await apiGetAsN8n('/api/Appointments/my-active-appointments', tenantId, token, {
+    instanceName,
+    phone,
+  });
+  return { status: res.status, body: (res.json ?? {}) as MyActiveBody };
+}
+
+export function activeAppointmentIds(body: MyActiveBody): number[] {
+  return (body.appointments ?? [])
+    .map((a) => Number(a.appointmentId ?? a.AppointmentId ?? 0))
+    .filter((id) => id > 0);
+}
+
+export function findActiveAppointment(
+  body: MyActiveBody,
+  appointmentId: number,
+): MyActiveAppointment | undefined {
+  return (body.appointments ?? []).find(
+    (a) => Number(a.appointmentId ?? a.AppointmentId) === appointmentId,
+  );
+}
+
+export async function countActiveAppointmentsForPhone(
+  tenantId: number,
+  instanceName: string,
+  token: string,
+  phone: string,
+): Promise<number> {
+  const mine = await fetchMyActiveAppointments(tenantId, instanceName, token, phone);
+  if (mine.status !== 200) return 0;
+  return (mine.body.appointments ?? []).length;
+}
+
 /**
  * Evolution → n8n webhook POST gövdesi (MESSAGES_UPSERT).
  * n8n'de: $('Evolution Webhook').item.json.body → bu obje.
@@ -390,16 +475,9 @@ export async function resolveE2eBookingContext(
   const serviceName = service.name ?? service.Name ?? `Service ${serviceId}`;
   const staffName = staff.fullName ?? staff.FullName ?? `Staff ${staffId}`;
 
-  const pad2 = (n: number) => String(n).padStart(2, '0');
-  const localYmd = (d: Date) =>
-    `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-
   for (let dayOffset = 14; dayOffset < 90; dayOffset++) {
-    const d = new Date();
-    d.setDate(d.getDate() + dayOffset);
-    if (d.getDay() === 0) continue;
-
-    const slotDate = localYmd(d);
+    const slotDate = istanbulYmdPlusDays(dayOffset);
+    if (weekdayOfYmd(slotDate) === 0) continue;
     if (holidays.has(slotDate)) continue;
 
     const slotsRes = await apiGetAsN8n('/api/Appointments/available-slots', tenantId, token, {
@@ -408,6 +486,11 @@ export async function resolveE2eBookingContext(
       date: slotDate,
       durationMinutes: '30',
     });
+    if (slotsRes.status >= 500) {
+      throw new Error(
+        `available-slots HTTP ${slotsRes.status} (${slotDate}): ${JSON.stringify(slotsRes.json)}`,
+      );
+    }
     if (slotsRes.status !== 200) continue;
 
     const body = slotsRes.json as Record<string, unknown>;
@@ -426,6 +509,54 @@ export async function resolveE2eBookingContext(
   }
 
   throw new Error('No available slot found in next 90 days for Gemini E2E');
+}
+
+function slotTimesFromBody(json: unknown): string[] {
+  const body = (json ?? {}) as Record<string, unknown>;
+  const raw = body.availableSlots ?? body.AvailableSlots;
+  if (!Array.isArray(raw)) return [];
+  return raw.map((t) => String(t).trim().slice(0, 5)).filter(Boolean);
+}
+
+/** Aynı gün içinde current'dan sonraki ilk müsait saat; yoksa sonraki açık günlerin ilki. */
+export async function resolveLaterSlotIso(
+  tenantId: number,
+  instanceName: string,
+  token: string,
+  staffId: number,
+  current: E2eBookingContext,
+): Promise<string> {
+  const sameDay = await apiGetAsN8n('/api/Appointments/available-slots', tenantId, token, {
+    instanceName,
+    staffId: String(staffId),
+    date: current.slotDate,
+    durationMinutes: '30',
+  });
+  if (sameDay.status === 200) {
+    const next = slotTimesFromBody(sameDay.json).find((t) => t > current.slotTime);
+    if (next) return `${current.slotDate}T${next}:00`;
+  }
+
+  for (let dayOffset = 14; dayOffset < 90; dayOffset++) {
+    const slotDate = istanbulYmdPlusDays(dayOffset);
+    if (slotDate <= current.slotDate) continue;
+    if (weekdayOfYmd(slotDate) === 0) continue;
+
+    const slotsRes = await apiGetAsN8n('/api/Appointments/available-slots', tenantId, token, {
+      instanceName,
+      staffId: String(staffId),
+      date: slotDate,
+      durationMinutes: '30',
+    });
+    if (slotsRes.status !== 200) continue;
+    const body = slotsRes.json as Record<string, unknown>;
+    if (body.isHoliday === true) continue;
+    const times = slotTimesFromBody(slotsRes.json);
+    if (times.length === 0) continue;
+    return `${slotDate}T${times[0]}:00`;
+  }
+
+  throw new Error(`İkinci müsait slot bulunamadı (${current.slotDate} ${current.slotTime})`);
 }
 
 export async function sendN8nCustomerMessage(options: {
