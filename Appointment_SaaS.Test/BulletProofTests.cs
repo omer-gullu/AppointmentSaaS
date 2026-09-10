@@ -8,6 +8,7 @@ using Appointment_SaaS.Core.Services;
 using Appointment_SaaS.Core.Utilities;
 using Appointment_SaaS.Data.Abstract;
 using Appointment_SaaS.Data.Context;
+using Appointment_SaaS.Test.TestHelpers;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -53,7 +54,7 @@ namespace Appointment_SaaS.Test
         [Fact]
         public async Task GetStaffWithFewest_ShouldAssignToIdleStaff_WhenOneHasMoreAppointments()
         {
-            var today = DateTime.Today.AddHours(10);
+            var today = TestTime.IstanbulWall(0, 10);
             int tenantId = 100;
 
             var tenant = new Tenant
@@ -78,7 +79,7 @@ namespace Appointment_SaaS.Test
                 {
                     TenantID = tenantId, AppUserID = 1, ServiceID = 1,
                     CustomerName = $"Müşteri{i}", CustomerPhone = "555",
-                    StartDate = today.AddHours(i), EndDate = today.AddHours(i + 1),
+                    StartDate = BusinessClock.ToUtc(today.AddHours(i)), EndDate = BusinessClock.ToUtc(today.AddHours(i + 1)),
                     Status = "Beklemede", Note = ""
                 });
             }
@@ -87,7 +88,7 @@ namespace Appointment_SaaS.Test
             {
                 TenantID = tenantId, AppUserID = 2, ServiceID = 1,
                 CustomerName = "MüşteriX", CustomerPhone = "555",
-                StartDate = today, EndDate = today.AddHours(1),
+                StartDate = BusinessClock.ToUtc(today), EndDate = BusinessClock.ToUtc(today.AddHours(1)),
                 Status = "Beklemede", Note = ""
             });
             await _db.SaveChangesAsync();
@@ -100,7 +101,7 @@ namespace Appointment_SaaS.Test
         [Fact]
         public async Task GetStaffWithFewest_ShouldAssignToFirstById_WhenLoadIsEqual()
         {
-            var today = DateTime.Today.AddHours(9);
+            var today = TestTime.IstanbulWall(0, 9);
             int tenantId = 101;
 
             var tenant = new Tenant

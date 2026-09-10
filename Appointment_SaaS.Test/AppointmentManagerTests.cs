@@ -18,6 +18,7 @@ using Moq.EntityFrameworkCore;
 using MockQueryable.Moq;
 using Appointment_SaaS.Data.Context;
 using Appointment_SaaS.Test.TestHelpers;
+using static Appointment_SaaS.Test.TestHelpers.TestTime;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -78,8 +79,8 @@ namespace Appointment_SaaS.Test
             {
                 TenantID = 1,
                 AppUserID = _staffId,
-                StartDate = DateTime.Now.AddDays(1).Date.AddHours(10), // Yarın 10:00
-                EndDate = DateTime.Now.AddDays(1).Date.AddHours(11),   // Yarın 11:00
+                StartDate = IstanbulWall(1, 10), // Yarın 10:00 (İstanbul)
+                EndDate = IstanbulWall(1, 11),   // Yarın 11:00
             };
 
             // Tenant Repo - Sadece BusinessHour taklidi (çalışma saati kısıtlamasına takılmamak için)
@@ -132,7 +133,7 @@ namespace Appointment_SaaS.Test
         [Fact]
         public async Task AddAppointmentAsync_ShouldThrowException_WhenDateIsHoliday()
         {
-            var start = DateTime.Now.AddDays(30).Date;
+            var start = IstanbulWall(30, 0);
             while (start.DayOfWeek == DayOfWeek.Sunday)
                 start = start.AddDays(1);
             start = start.AddHours(10);
@@ -186,8 +187,8 @@ namespace Appointment_SaaS.Test
             {
                 TenantID = 1,
                 AppUserID = _staffId,
-                StartDate = DateTime.Now.AddDays(1).Date.AddHours(10),
-                EndDate = DateTime.Now.AddDays(1).Date.AddHours(11),
+                StartDate = IstanbulWall(1, 10),
+                EndDate = IstanbulWall(1, 11),
                 Note = "Test Randevu",
                 CustomerPhone = "05551234567",
                 CustomerName = "Ali"
@@ -243,7 +244,7 @@ namespace Appointment_SaaS.Test
             _db.Services.Add(new Service { ServiceID = 2, TenantID = 1, Name = "Sakal", DurationInMinutes = 15, Price = 50 });
             await _db.SaveChangesAsync();
 
-            var start = DateTime.Now.AddDays(1).Date.AddHours(10);
+            var start = IstanbulWall(1, 10);
             var dto = new AppointmentCreateDto
             {
                 TenantID = 1,
@@ -378,15 +379,14 @@ namespace Appointment_SaaS.Test
         [Fact]
         public async Task GetAvailableSlotsAsync_ShouldReturnCorrectCalculatedSlots()
         {
-            // Arrange
+            // Arrange — İstanbul takvimi (CI UTC'de DateTime.Now.Date gün kayması yapmasın)
             int tenantId = 1;
-            // Test için yarına bir tarih ayarlıyoruz ve start/end of day için mantıklı bir saat seçiyoruz
-            var targetDate = DateTime.Now.AddDays(1).Date; 
-            
+            var targetDate = IstanbulWall(2, 0);
+
             var existingAppointments = new List<Appointment>
             {
-                // 09:00 - 10:15 (09:00 ile 09:30 dahil dolu)
-                new Appointment { TenantID = 1, StartDate = BusinessClock.ToUtc(targetDate.AddHours(9).AddMinutes(30)), EndDate = BusinessClock.ToUtc(targetDate.AddHours(10).AddMinutes(15)) }, 
+                // 09:30 - 10:15 dolu
+                new Appointment { TenantID = 1, StartDate = BusinessClock.ToUtc(targetDate.AddHours(9).AddMinutes(30)), EndDate = BusinessClock.ToUtc(targetDate.AddHours(10).AddMinutes(15)) },
                 // 11:00 - 12:00
                 new Appointment { TenantID = 1, StartDate = BusinessClock.ToUtc(targetDate.AddHours(11)), EndDate = BusinessClock.ToUtc(targetDate.AddHours(12)) }
             };
@@ -401,17 +401,17 @@ namespace Appointment_SaaS.Test
             });
             await _db.SaveChangesAsync();
 
+            // Where filtresini atla: slot algoritmasını test ediyoruz (UTC Kind karşılaştırması MockQueryable'da kırılgan)
             _mockAppointmentRepo.Setup(x => x.Where(It.IsAny<Expression<Func<Appointment, bool>>>()))
-                                .Returns((Expression<Func<Appointment, bool>> predicate) => existingAppointments.AsQueryable().Where(predicate).BuildMock());
+                                .Returns(existingAppointments.AsQueryable().BuildMock());
 
             // Act
-            // 45 dakikalık süre ve 3 boşluk önerisi istiyoruz.
             var result = await _manager.GetAvailableSlotsAsync(tenantId, targetDate, 45, count: 3);
 
             // Assert
             result.Should().HaveCount(3);
-            result[0].Should().Be("10:15"); // 09:00'dan başlar 09:45'te bitmek ister, çakışma var(10:15). Sonra 10:15'ten 11:00'e (uygun).
-            result[1].Should().Be("12:00"); // Bir the sonraki uygun boşluk 12:00'dan sonraki.
+            result[0].Should().Be("10:15");
+            result[1].Should().Be("12:00");
             result[2].Should().Be("12:45");
         }
 
@@ -460,8 +460,8 @@ namespace Appointment_SaaS.Test
             await _db.SaveChangesAsync();
             var serviceId = service.ServiceID;
 
-            var t1 = DateTime.Now.AddHours(2);
-            var t2 = DateTime.Now.AddHours(3);
+            var t1 = DateTime.UtcNow.AddHours(2);
+            var t2 = DateTime.UtcNow.AddHours(3);
             _db.Appointments.Add(new Appointment
             {
                 TenantID = tenantId,
@@ -535,7 +535,7 @@ namespace Appointment_SaaS.Test
             _db.Services.Add(service);
             await _db.SaveChangesAsync();
 
-            var start = DateTime.Now.AddHours(1);
+            var start = DateTime.UtcNow.AddHours(1);
             _db.Appointments.Add(new Appointment
             {
                 TenantID = tenant.TenantID,
@@ -558,7 +558,7 @@ namespace Appointment_SaaS.Test
         [Fact]
         public async Task UpdateAsync_ShouldThrow_WhenNewSlotConflictsWithAnotherAppointment()
         {
-            var future = DateTime.Now.AddDays(1).Date.AddHours(10);
+            var future = IstanbulWall(1, 10);
             var appointment = new Appointment
             {
                 AppointmentID = 100,
@@ -614,7 +614,7 @@ namespace Appointment_SaaS.Test
         [Fact]
         public async Task UpdateAsync_ShouldNotThrow_WhenOnlyConflictIsItself()
         {
-            var future = DateTime.Now.AddDays(1).Date.AddHours(10);
+            var future = IstanbulWall(1, 10);
             var appointment = new Appointment
             {
                 AppointmentID = 100,
@@ -669,7 +669,8 @@ namespace Appointment_SaaS.Test
         [Fact]
         public async Task UpdateAsync_WhenStaffChangedAndAddSucceeds_ShouldDeleteOldCalendarEvent()
         {
-            var future = DateTime.Now.AddDays(1).Date.AddHours(10);
+            var future = IstanbulWall(1, 10);
+            var wallEnd = future.AddMinutes(30);
             var appointment = new Appointment
             {
                 AppointmentID = 50,
@@ -679,7 +680,7 @@ namespace Appointment_SaaS.Test
                 CustomerName = "Ali",
                 CustomerPhone = "05551234567",
                 StartDate = future,
-                EndDate = future.AddMinutes(30),
+                EndDate = wallEnd,
                 Status = "Beklemede",
                 Note = "",
                 GoogleEventID = "old-event-id"
@@ -703,9 +704,10 @@ namespace Appointment_SaaS.Test
                 .Returns((Expression<Func<Tenant, bool>> predicate) => new List<Tenant> { tenant }.AsQueryable().Where(predicate).BuildMock());
             _mockAppointmentRepo.Setup(x => x.Where(It.IsAny<Expression<Func<Appointment, bool>>>()))
                 .Returns((Expression<Func<Appointment, bool>> predicate) => new List<Appointment>().AsQueryable().Where(predicate).BuildMock());
+            _mockAppointmentRepo.Setup(x => x.SaveAsync()).ReturnsAsync(1);
 
             var mockGoogle = new Mock<IGoogleCalendarService>();
-            mockGoogle.Setup(x => x.AddEventAsync(2, It.IsAny<string>(), It.IsAny<string>(), future, future.AddMinutes(30)))
+            mockGoogle.Setup(x => x.AddEventAsync(2, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()))
                 .ReturnsAsync("new-event-id");
             mockGoogle.Setup(x => x.DeleteEventAsync(1, "old-event-id"))
                 .Returns(Task.CompletedTask);
@@ -723,14 +725,14 @@ namespace Appointment_SaaS.Test
             await manager.UpdateAsync(appointment, previousAppUserID: 1);
 
             appointment.GoogleEventID.Should().Be("new-event-id");
-            mockGoogle.Verify(x => x.AddEventAsync(2, It.IsAny<string>(), It.IsAny<string>(), future, future.AddMinutes(30)), Times.Once);
+            mockGoogle.Verify(x => x.AddEventAsync(2, It.IsAny<string>(), It.IsAny<string>(), future, wallEnd), Times.Once);
             mockGoogle.Verify(x => x.DeleteEventAsync(1, "old-event-id"), Times.Once);
         }
 
         [Fact]
         public async Task UpdateAsync_ShouldThrow_WhenStartDateIsInPast()
         {
-            var past = DateTime.Now.AddHours(-1);
+            var past = DateTime.UtcNow.AddHours(-1);
             var appointment = new Appointment
             {
                 AppointmentID = 100,

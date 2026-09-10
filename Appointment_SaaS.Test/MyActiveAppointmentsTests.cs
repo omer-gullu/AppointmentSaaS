@@ -2,8 +2,10 @@ using Appointment_SaaS.Business.Abstract;
 using Appointment_SaaS.Business.Concrete;
 using Appointment_SaaS.Core.Entities;
 using Appointment_SaaS.Core.Services;
+using Appointment_SaaS.Core.Utilities;
 using Appointment_SaaS.Data.Abstract;
 using Appointment_SaaS.Data.Context;
+using Appointment_SaaS.Test.TestHelpers;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -99,7 +101,7 @@ public class MyActiveAppointmentsTests
     [Fact]
     public async Task FiltersOutCancelledStatus()
     {
-        var future = DateTime.Now.AddDays(1);
+        var future = TestTime.IstanbulWallUtc(1, 10);
         var data = new List<Appointment>
         {
             BuildAppointment(1, 1, "905078283441", future, status: "Beklemede"),
@@ -169,8 +171,8 @@ public class MyActiveAppointmentsTests
     [Fact]
     public async Task MapsStaffAndServiceNamesCorrectly()
     {
-        var future = DateTime.Now.AddDays(1);
-        var appointment = BuildAppointment(7, 1, "905078283441", future,
+        var futureUtc = TestTime.IstanbulWallUtc(1, 10);
+        var appointment = BuildAppointment(7, 1, "905078283441", futureUtc,
             firstName: "Ayşe", lastName: "Demir", serviceName: "Manikür");
         _mockAppointmentRepo
             .Setup(x => x.GetActiveByPhoneAsync(1, It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<DateTime>()))
@@ -183,8 +185,8 @@ public class MyActiveAppointmentsTests
         dto.AppointmentId.Should().Be(7);
         dto.CustomerName.Should().Be("Test Müşteri");
         dto.CustomerPhone.Should().Be("905078283441");
-        dto.StartTime.Should().Be(future);
-        dto.EndTime.Should().Be(future.AddMinutes(30));
+        dto.StartTime.Should().Be(BusinessClock.ToIstanbul(futureUtc));
+        dto.EndTime.Should().Be(BusinessClock.ToIstanbul(futureUtc.AddMinutes(30)));
         dto.StaffName.Should().Be("Ayşe Demir");
         dto.ServiceName.Should().Be("Manikür");
         dto.Status.Should().Be("Beklemede");
@@ -193,7 +195,7 @@ public class MyActiveAppointmentsTests
     [Fact]
     public async Task UsesMultiServiceLinks_WhenPresent()
     {
-        var future = DateTime.Now.AddDays(1);
+        var future = TestTime.IstanbulWallUtc(1, 10);
         var appointment = BuildAppointment(8, 1, "905078283441", future, serviceName: "Saç");
         appointment.AppointmentServiceLinks = new List<AppointmentServiceLink>
         {
@@ -223,7 +225,7 @@ public class MyActiveAppointmentsTests
         // Repo katmanı tenant filtresini SQL'de uyguladığı için manager katmanına yalnızca
         // doğru tenant'a ait satırlar gelir. Burada repo'nun farklı tenant göndermediğini
         // doğruluyoruz: manager, repo'dan dönen listeyi olduğu gibi haritalar.
-        var future = DateTime.Now.AddDays(1);
+        var future = TestTime.IstanbulWallUtc(1, 10);
         _mockAppointmentRepo
             .Setup(x => x.GetActiveByPhoneAsync(1, It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<DateTime>()))
             .ReturnsAsync(new List<Appointment>

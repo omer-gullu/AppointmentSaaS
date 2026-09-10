@@ -20,6 +20,7 @@ using MockQueryable.Moq;
 using Moq;
 using Xunit;
 using Appointment_SaaS.Test.TestHelpers;
+using static Appointment_SaaS.Test.TestHelpers.TestTime;
 
 namespace Appointment_SaaS.Test
 {
@@ -82,8 +83,8 @@ namespace Appointment_SaaS.Test
                 TenantID = 1,
                 AppUserID = _staffId,
                 ServiceID = 1,
-                StartDate = DateTime.Now.AddDays(1).Date.AddHours(10),
-                EndDate = DateTime.Now.AddDays(1).Date.AddHours(11),
+                StartDate = IstanbulWall(1, 10),
+                EndDate = IstanbulWall(1, 11),
                 CustomerName = "Test Müşteri",
                 CustomerPhone = "5551112233",
                 Note = "Resilience Test"
@@ -174,7 +175,9 @@ namespace Appointment_SaaS.Test
         [Fact]
         public async Task UpdateAppointment_ShouldSucceed_WhenGoogleCalendarThrowsException()
         {
-            // Arrange: DB'de mevcut randevu
+            // Arrange: DB'de mevcut randevu (İstanbul duvar saati — CI UTC'de Kind=Local tuzağı yok)
+            var start = IstanbulWall(1, 14);
+            var end = IstanbulWall(1, 15);
             var appointment = new Appointment
             {
                 AppointmentID = 10,
@@ -183,8 +186,8 @@ namespace Appointment_SaaS.Test
                 ServiceID = 1,
                 CustomerName = "Mevcut Müşteri",
                 CustomerPhone = "5559998877",
-                StartDate = DateTime.Now.AddDays(1).Date.AddHours(14),
-                EndDate = DateTime.Now.AddDays(1).Date.AddHours(15),
+                StartDate = start,
+                EndDate = end,
                 Status = "Beklemede",
                 Note = "Test",
                 GoogleEventID = "existing_google_event"
@@ -197,7 +200,7 @@ namespace Appointment_SaaS.Test
                 {
                     new BusinessHour
                     {
-                        DayOfWeek = (int)appointment.StartDate.DayOfWeek,
+                        DayOfWeek = (int)start.DayOfWeek,
                         IsClosed = false,
                         OpenTime = TimeSpan.FromHours(9),
                         CloseTime = TimeSpan.FromHours(18)
@@ -213,15 +216,16 @@ namespace Appointment_SaaS.Test
             _mockAppointmentRepo.Setup(x => x.Where(It.IsAny<Expression<Func<Appointment, bool>>>()))
                 .Returns((Expression<Func<Appointment, bool>> predicate) =>
                     new List<Appointment>().AsQueryable().Where(predicate).BuildMock());
+            _mockAppointmentRepo.Setup(x => x.SaveAsync()).ReturnsAsync(1);
 
             // Google Calendar güncelleme çöksün
             _mockGoogleService
                 .Setup(x => x.UpdateEventAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()))
                 .ThrowsAsync(new Exception("Google API: Rate limit exceeded"));
 
-            // Act: Randevu saatini değiştir
-            appointment.StartDate = appointment.StartDate.AddHours(1);
-            appointment.EndDate = appointment.EndDate.AddHours(1);
+            // Act: Randevu saatini değiştir (aynı gün, çalışma saatleri içinde)
+            appointment.StartDate = IstanbulWall(1, 15);
+            appointment.EndDate = IstanbulWall(1, 16);
 
             Func<Task> act = async () => await _manager.UpdateAsync(appointment);
 
@@ -247,8 +251,8 @@ namespace Appointment_SaaS.Test
                 ServiceID = 1,
                 CustomerName = "Silinecek Müşteri",
                 CustomerPhone = "5550001122",
-                StartDate = DateTime.Now.AddDays(2).Date.AddHours(10),
-                EndDate = DateTime.Now.AddDays(2).Date.AddHours(11),
+                StartDate = IstanbulWall(2, 10),
+                EndDate = IstanbulWall(2, 11),
                 Status = "Beklemede",
                 Note = "",
                 GoogleEventID = "google_event_to_delete"
@@ -284,8 +288,8 @@ namespace Appointment_SaaS.Test
                 ServiceID = 1,
                 CustomerName = "Transfer Müşteri",
                 CustomerPhone = "5553334455",
-                StartDate = DateTime.Now.AddDays(1).Date.AddHours(11),
-                EndDate = DateTime.Now.AddDays(1).Date.AddHours(12),
+                StartDate = IstanbulWall(1, 11),
+                EndDate = IstanbulWall(1, 12),
                 Status = "Beklemede",
                 Note = "",
                 GoogleEventID = "old_staff_event"
