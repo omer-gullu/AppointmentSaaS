@@ -301,13 +301,15 @@
     .form-foot a { color:#6366f1; text-decoration:none; font-weight:600; }
     .form-foot a:hover { text-decoration:underline; }
 
+    /* Opacity-only: transform on an ancestor mispositions Chromium native <select> popups (Sektör). */
     @@keyframes fadeUp {
-        from { opacity:0; transform:translateY(14px); }
-        to { opacity:1; transform:translateY(0); }
+        from { opacity:0; }
+        to { opacity:1; }
     }
-    .au { animation:fadeUp 0.45s ease both; }
+    .au { animation:fadeUp 0.45s ease both; transform:none; }
     .d1 { animation-delay:0.08s; }
     .d2 { animation-delay:0.16s; }
+    select.f-input { transform:none; }
 </style>
 
 <div class="reg-page">

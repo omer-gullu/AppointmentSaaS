@@ -12,6 +12,7 @@ on:
       - 'Appointment_SaaS.Data/**'
       - 'deploy/api/**'
       - 'deploy/webui/**'
+      - 'deploy/ensure-env.sh'
       - '.github/workflows/deploy-hetzner.yml'
   workflow_dispatch:
     inputs:
@@ -48,13 +49,16 @@ jobs:
             api:
               - 'Appointment_SaaS.API/**'
               - 'deploy/api/**'
+              - 'deploy/ensure-env.sh'
             webui:
               - 'Appointment_SaaS.WebUI/**'
               - 'deploy/webui/**'
+              - 'deploy/ensure-env.sh'
             shared:
               - 'Appointment_SaaS.Business/**'
               - 'Appointment_SaaS.Core/**'
               - 'Appointment_SaaS.Data/**'
+              - 'deploy/ensure-env.sh'
               - '.github/workflows/deploy-hetzner.yml'
 
       - id: result
@@ -141,6 +145,20 @@ jobs:
           rsync -avz --delete -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes" \
             ./publish/api/ "${USER}@${DEPLOY_HOST}:${{ env.API_DEPLOY_PATH }}/"
 
+      - name: Upload API env template
+        env:
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER }}
+        run: |
+          USER="${DEPLOY_USER:-root}"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "${USER}@${DEPLOY_HOST}" "mkdir -p /opt/appointmentsaas"
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            deploy/ensure-env.sh "${USER}@${DEPLOY_HOST}:/tmp/appointmentsaas-ensure-env.sh"
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            deploy/api/env.example "${USER}@${DEPLOY_HOST}:/tmp/appointmentsaas-api.env.example"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "${USER}@${DEPLOY_HOST}" \
+            "install -m 755 /tmp/appointmentsaas-ensure-env.sh /opt/appointmentsaas/ensure-env.sh && install -m 644 /tmp/appointmentsaas-api.env.example /opt/appointmentsaas/api.env.example && rm -f /tmp/appointmentsaas-ensure-env.sh /tmp/appointmentsaas-api.env.example"
+
       - name: Restart API
         env:
           DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
@@ -173,6 +191,7 @@ jobs:
             systemctl enable appointmentsaas-api
           fi
           chown -R www-data:www-data /opt/appointmentsaas/api
+          bash /opt/appointmentsaas/ensure-env.sh api /opt/appointmentsaas/api.env.example
           systemctl restart appointmentsaas-api
           systemctl is-active appointmentsaas-api
           REMOTE
@@ -221,6 +240,20 @@ jobs:
           rsync -avz --delete -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes" \
             ./publish/webui/ "${USER}@${DEPLOY_HOST}:${{ env.WEBUI_DEPLOY_PATH }}/"
 
+      - name: Upload WebUI env template
+        env:
+          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
+          DEPLOY_USER: ${{ secrets.HETZNER_USER }}
+        run: |
+          USER="${DEPLOY_USER:-root}"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "${USER}@${DEPLOY_HOST}" "mkdir -p /opt/appointmentsaas"
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            deploy/ensure-env.sh "${USER}@${DEPLOY_HOST}:/tmp/appointmentsaas-ensure-env.sh"
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            deploy/webui/env.example "${USER}@${DEPLOY_HOST}:/tmp/appointmentsaas-webui.env.example"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "${USER}@${DEPLOY_HOST}" \
+            "install -m 755 /tmp/appointmentsaas-ensure-env.sh /opt/appointmentsaas/ensure-env.sh && install -m 644 /tmp/appointmentsaas-webui.env.example /opt/appointmentsaas/webui.env.example && rm -f /tmp/appointmentsaas-ensure-env.sh /tmp/appointmentsaas-webui.env.example"
+
       - name: Restart WebUI
         env:
           DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
@@ -253,6 +286,7 @@ jobs:
             systemctl enable appointmentsaas-webui
           fi
           chown -R www-data:www-data /opt/appointmentsaas/webui
+          bash /opt/appointmentsaas/ensure-env.sh webui /opt/appointmentsaas/webui.env.example
           systemctl restart appointmentsaas-webui
           systemctl is-active appointmentsaas-webui
           REMOTE

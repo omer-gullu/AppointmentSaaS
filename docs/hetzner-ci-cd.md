@@ -76,7 +76,9 @@ Infra deploy **`.env` dosyalarını üzerine yazmaz**.
    # deploy/postgres/docker-compose.yml ve .env (sunucuda oluşturun, repoya commit etmeyin)
    docker compose up -d
    ```
-3. `api.env` / `webui.env` — şablonlar: `deploy/api/`, `deploy/webui/` (Postgres connection string)
+3. `api.env` / `webui.env` — şablonlar: `deploy/api/env.example`, `deploy/webui/env.example`.
+   Deploy dosya yoksa şablondan oluşturur; mevcut sırları **ezmez**.
+   WebUI `ApiBaseUrl` her deploy'da `http://127.0.0.1:5294` olarak sabitlenir (public hostname login'i bozar).
 4. Veritabanı şeması (ilk deploy sonrası veya deploy öncesi):
    ```bash
    cd /opt/appointmentsaas/api
