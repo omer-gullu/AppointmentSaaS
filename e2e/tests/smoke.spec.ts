@@ -44,3 +44,29 @@ test.describe('Pricing sayfası smoke @smoke', () => {
     await expect(starterPrice).toHaveText(monthlyText);
   });
 });
+
+/**
+ * WebUI→API bağlantı smoke'u — secret/DB/OTP gerektirmez.
+ * Register (GET) sektör listesini API'den (api/Sector, ApiBaseUrl HttpClient) çeker.
+ * Liste boşsa WebUI API'ye ulaşamıyor demektir — "login 400 / ApiBaseUrl bozuk"
+ * sınıfındaki kesintiyi OTP göndermeden yakalar.
+ */
+test.describe('Register WebUI→API bağlantısı @smoke', () => {
+  test('Sektör dropdown API listesiyle dolu', async ({ page }) => {
+    await page.goto('/Auth/Register');
+
+    const sector = page.locator('#fieldSector');
+    await expect(sector).toBeVisible();
+
+    // Placeholder ("Sektör seçin...") + en az bir gerçek sektör (API'den geldi).
+    const optionCount = await sector.locator('option').count();
+    expect(
+      optionCount,
+      'Sektör listesi boş → WebUI API/Sector çağrısı başarısız (ApiBaseUrl/API bağlantısı?)',
+    ).toBeGreaterThan(1);
+
+    // Placeholder dışında değeri olan gerçek bir option bulunmalı.
+    const realOptionValues = await sector.locator('option[value]:not([value=""])').count();
+    expect(realOptionValues).toBeGreaterThan(0);
+  });
+});

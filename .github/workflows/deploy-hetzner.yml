@@ -153,11 +153,11 @@ jobs:
           USER="${DEPLOY_USER:-root}"
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "${USER}@${DEPLOY_HOST}" "mkdir -p /opt/appointmentsaas"
           scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
-            deploy/ensure-env.sh "${USER}@${DEPLOY_HOST}:/tmp/appointmentsaas-ensure-env.sh"
+            deploy/ensure-env.sh "${USER}@${DEPLOY_HOST}:/tmp/appointmentsaas-api-ensure-env.sh"
           scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
             deploy/api/env.example "${USER}@${DEPLOY_HOST}:/tmp/appointmentsaas-api.env.example"
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "${USER}@${DEPLOY_HOST}" \
-            "install -m 755 /tmp/appointmentsaas-ensure-env.sh /opt/appointmentsaas/ensure-env.sh && install -m 644 /tmp/appointmentsaas-api.env.example /opt/appointmentsaas/api.env.example && rm -f /tmp/appointmentsaas-ensure-env.sh /tmp/appointmentsaas-api.env.example"
+            "install -m 755 /tmp/appointmentsaas-api-ensure-env.sh /opt/appointmentsaas/ensure-env.sh && install -m 644 /tmp/appointmentsaas-api.env.example /opt/appointmentsaas/api.env.example && rm -f /tmp/appointmentsaas-api-ensure-env.sh /tmp/appointmentsaas-api.env.example"
 
       - name: Restart API
         env:
@@ -248,11 +248,11 @@ jobs:
           USER="${DEPLOY_USER:-root}"
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "${USER}@${DEPLOY_HOST}" "mkdir -p /opt/appointmentsaas"
           scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
-            deploy/ensure-env.sh "${USER}@${DEPLOY_HOST}:/tmp/appointmentsaas-ensure-env.sh"
+            deploy/ensure-env.sh "${USER}@${DEPLOY_HOST}:/tmp/appointmentsaas-webui-ensure-env.sh"
           scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
             deploy/webui/env.example "${USER}@${DEPLOY_HOST}:/tmp/appointmentsaas-webui.env.example"
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "${USER}@${DEPLOY_HOST}" \
-            "install -m 755 /tmp/appointmentsaas-ensure-env.sh /opt/appointmentsaas/ensure-env.sh && install -m 644 /tmp/appointmentsaas-webui.env.example /opt/appointmentsaas/webui.env.example && rm -f /tmp/appointmentsaas-ensure-env.sh /tmp/appointmentsaas-webui.env.example"
+            "install -m 755 /tmp/appointmentsaas-webui-ensure-env.sh /opt/appointmentsaas/ensure-env.sh && install -m 644 /tmp/appointmentsaas-webui.env.example /opt/appointmentsaas/webui.env.example && rm -f /tmp/appointmentsaas-webui-ensure-env.sh /tmp/appointmentsaas-webui.env.example"
 
       - name: Restart WebUI
         env:
@@ -290,3 +290,45 @@ jobs:
           systemctl restart appointmentsaas-webui
           systemctl is-active appointmentsaas-webui
           REMOTE
+
+  # Deploy sonrası canlı duman testi — secret gerektirmez, salt-okunur sayfa kontrolleri.
+  # Pricing render + Register/Sektör (WebUI→API bağlantısı) doğrulanır.
+  smoke:
+    needs: [deploy-api, deploy-webui]
+    if: always() && (needs.deploy-api.result == 'success' || needs.deploy-webui.result == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PLAYWRIGHT_ENV: production
+      E2E_WEB_UI_URL: https://akillirandevu.net
+      E2E_API_URL: https://akillirandevu.net
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install Playwright deps
+        working-directory: e2e
+        run: |
+          npm ci || npm install
+          npx playwright install --with-deps chromium
+
+      - name: Run live smoke
+        working-directory: e2e
+        run: npm run test:smoke
+
+      - name: Upload smoke report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-report
+          path: |
+            e2e/playwright-report-smoke/
+            e2e/test-results-smoke/
+          retention-days: 7
