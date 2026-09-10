@@ -18,9 +18,11 @@ test.describe('Pricing sayfası smoke @smoke', () => {
     await expect(planCards.first()).toBeVisible();
     expect(await planCards.count()).toBeGreaterThan(0);
 
-    const buyButton = page.locator('a.pcard-btn').first();
+    // Ödeme açıkken <a>...Bu Planı Seç, kapalıyken <button disabled>Ödeme yakında.
+    // Ortamdan bağımsız: CTA render olsun ve iki durumdan birinin metnini taşısın.
+    const buyButton = page.locator('.pcard-btn').first();
     await expect(buyButton).toBeVisible();
-    await expect(buyButton).toContainText(/planı seç/i);
+    await expect(buyButton).toContainText(/planı seç|ödeme yakında/i);
   });
 
   test('aylık / yıllık fiyat toggle çalışır', async ({ page }) => {
