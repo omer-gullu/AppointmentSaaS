@@ -30,8 +30,26 @@ env:
   NODE_VERSION: '20'
 
 jobs:
+  # secrets context is NOT allowed in job-level if:. Evaluate it inside a step
+  # (secrets ARE available in steps) and gate the e2e job via needs output.
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - id: decide
+        env:
+          E2E_DB: ${{ secrets.E2E_DATABASE_URL }}
+        run: |
+          if [ -n "$E2E_DB" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
   e2e:
-    if: ${{ secrets.E2E_DATABASE_URL != '' || github.event_name == 'workflow_dispatch' }}
+    needs: gate
+    if: ${{ needs.gate.outputs.run == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
 

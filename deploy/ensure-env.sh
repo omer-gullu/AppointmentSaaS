@@ -16,7 +16,7 @@ LOOPBACK_API='ApiBaseUrl=http://127.0.0.1:5294'
 
 mkdir -p "$DIR"
 
-if [[ -n "$EXAMPLE_SRC" && -f "$EXAMPLE_SRC" ]]; then
+if [[ -n "$EXAMPLE_SRC" && -f "$EXAMPLE_SRC" && ! "$EXAMPLE_SRC" -ef "$DIR/${ROLE}.env.example" ]]; then
   install -m 644 "$EXAMPLE_SRC" "$DIR/${ROLE}.env.example"
 fi
 
