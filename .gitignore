@@ -440,7 +440,9 @@ autom4te.cache/
 *.tar.gz
 tarballs/
 test-results/
+test-results-smoke/
 playwright-report/
+playwright-report-smoke/
 blob-report/
 .playwright/
 

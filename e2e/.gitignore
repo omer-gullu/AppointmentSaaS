@@ -1,7 +1,9 @@
 node_modules/
 playwright-report/
+playwright-report-smoke/
 playwright/.auth/
 test-results/
+test-results-smoke/
 .env
 fixtures/load-tenants.json
 *.log
