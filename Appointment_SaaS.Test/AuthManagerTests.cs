@@ -162,6 +162,32 @@ namespace Appointment_SaaS.Test
         }
 
         [Fact]
+        public async Task GenerateOtpForLoginAsync_ShouldThrow_WhenPaidSubscriptionExpiredAndNotQueued()
+        {
+            var phone = OtpTestHelper.Normalize("5551234567");
+            var dto = new OtpLoginDto { PhoneNumber = phone };
+            var user = new AppUser { TenantID = 1, LastOtpRequestDate = DateTime.UtcNow.AddMinutes(-5) };
+            _mockUserService.Setup(x => x.GetByPhoneNumberAsync(phone)).ReturnsAsync(user);
+
+            var tenant = new Tenant
+            {
+                TenantID = 1,
+                IsActive = true,
+                IsSubscriptionActive = true,
+                IsTrial = false,
+                SubscriptionEndDate = DateTime.Now.AddDays(-2)
+            };
+            _mockTenantService.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(tenant);
+            _mockTenantService.Setup(x => x.UpdateAsync(It.IsAny<Tenant>())).Returns(Task.CompletedTask);
+
+            Func<Task> act = async () => await _authManager.GenerateOtpForLoginAsync(dto);
+            await act.Should().ThrowAsync<BadHttpRequestException>()
+                .Where(ex => ex.Message.Contains("aboneliği") && ex.StatusCode == 402);
+            tenant.IsActive.Should().BeFalse();
+            tenant.IsSubscriptionActive.Should().BeFalse();
+        }
+
+        [Fact]
         public async Task VerifyOtpAndLoginAsync_ShouldThrowException_WhenTenantIsPassive()
         {
             var phone = OtpTestHelper.Normalize("5551234567");

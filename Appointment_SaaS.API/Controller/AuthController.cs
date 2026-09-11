@@ -120,6 +120,7 @@ namespace Appointment_SaaS.API.Controller
                 return StatusCode(StatusCodes.Status403Forbidden, new { Message = "İşletme bulunamadı." });
 
             await _tenantPlanService.TryReconcileFromIyzicoAsync(tenant);
+            await _tenantPlanService.TryActivateDueScheduledPlanAsync(tenant);
 
             var evaluation = _tenantAccessEvaluator.Evaluate(tenant, user);
             if (evaluation.IsAllowed)
@@ -128,6 +129,7 @@ namespace Appointment_SaaS.API.Controller
             if (evaluation.ShouldDeactivateTenantForExpiredSubscription && tenant.IsActive)
             {
                 tenant.IsActive = false;
+                tenant.IsSubscriptionActive = false;
                 await _tenantService.UpdateAsync(tenant);
             }
 

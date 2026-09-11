@@ -13,4 +13,7 @@ public interface ITenantPlanService
 
     /// <summary>PendingPlanEffectiveDate gelmiş ücretli plan geçişlerini uygular.</summary>
     Task<int> ApplyDueScheduledPlanChangesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Bu tenant için aktivasyon tarihi gelmiş kuyruktaki planı uygular.</summary>
+    Task<bool> TryActivateDueScheduledPlanAsync(Tenant tenant, CancellationToken cancellationToken = default);
 }

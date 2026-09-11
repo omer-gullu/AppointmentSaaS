@@ -68,4 +68,36 @@ public class SubscriptionAccessPolicyTests
 
         SubscriptionAccessPolicy.ShouldAttemptIyzicoReconcile(tenant, now).Should().BeFalse();
     }
+
+    [Fact]
+    public void IsAccessPeriodOpen_ShouldBeFalse_WhenUnpaidCheckoutAndEndPassed()
+    {
+        var now = new DateTime(2026, 5, 21, 10, 0, 0);
+        var tenant = new Tenant
+        {
+            IsTrial = false,
+            SubscriptionEndDate = now.AddHours(-1),
+            PendingPlanType = "Pro",
+            PendingCheckoutToken = "checkout"
+        };
+
+        SubscriptionAccessPolicy.IsAccessPeriodOpen(tenant, now).Should().BeFalse();
+        SubscriptionAccessPolicy.HasPaidQueuedSubscription(tenant).Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsAccessPeriodOpen_ShouldBeTrue_WhenPaidQueuedAfterEnd()
+    {
+        var now = new DateTime(2026, 5, 21, 10, 0, 0);
+        var tenant = new Tenant
+        {
+            IsTrial = false,
+            SubscriptionEndDate = now.AddDays(-1),
+            PendingPlanType = "Pro",
+            PendingCheckoutToken = null
+        };
+
+        SubscriptionAccessPolicy.IsAccessPeriodOpen(tenant, now).Should().BeTrue();
+        SubscriptionAccessPolicy.HasPaidQueuedSubscription(tenant).Should().BeTrue();
+    }
 }

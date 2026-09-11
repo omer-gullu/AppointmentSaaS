@@ -22,6 +22,13 @@ public static class SubscriptionAccessPolicy
         return tenant.SubscriptionEndDate.AddHours(_renewalGraceHours);
     }
 
+    /// <summary>
+    /// Ödeme tamamlanmış, aktivasyonu bekleyen plan. Checkout token varsa form açılmış ama ödenmemiş — kuyruk sayılmaz.
+    /// </summary>
+    public static bool HasPaidQueuedSubscription(Tenant tenant) =>
+        !string.IsNullOrWhiteSpace(tenant.PendingPlanType)
+        && string.IsNullOrWhiteSpace(tenant.PendingCheckoutToken);
+
     public static bool IsPaidSubscriptionOpen(Tenant tenant, DateTime? now = null)
     {
         var reference = now ?? DateTime.Now;
@@ -30,6 +37,26 @@ public static class SubscriptionAccessPolicy
 
         if (tenant.SubscriptionEndDate == DateTime.MinValue)
             return true;
+
+        return reference < GetAccessUntil(tenant);
+    }
+
+    /// <summary>
+    /// Panel/API erişimi: bitiş geçmişse yalnızca ödenmiş kuyruk veya ücretli otomatik-yenileme grace'i açık tutar.
+    /// Deneme, ödenmemiş checkout ve dönem-sonu iptal grace kullanmaz.
+    /// </summary>
+    public static bool IsAccessPeriodOpen(Tenant tenant, DateTime? now = null)
+    {
+        var reference = now ?? DateTime.Now;
+        if (tenant.SubscriptionEndDate == DateTime.MinValue || tenant.SubscriptionEndDate.Year <= 2000)
+            return true;
+
+        if (HasPaidQueuedSubscription(tenant))
+            return true;
+
+        var unpaidCheckout = !string.IsNullOrWhiteSpace(tenant.PendingCheckoutToken);
+        if (tenant.IsTrial || unpaidCheckout || tenant.CancelAtPeriodEnd)
+            return reference < tenant.SubscriptionEndDate;
 
         return reference < GetAccessUntil(tenant);
     }

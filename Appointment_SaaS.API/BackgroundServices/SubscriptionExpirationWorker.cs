@@ -67,10 +67,9 @@ public class SubscriptionExpirationWorker : BackgroundService
 
             foreach (var tenant in expiredTenants)
             {
-                if (!string.IsNullOrWhiteSpace(tenant.PendingPlanType)
-                    || !string.IsNullOrWhiteSpace(tenant.PendingCheckoutToken))
+                if (SubscriptionAccessPolicy.HasPaidQueuedSubscription(tenant))
                 {
-                    AgentDebugLog.Write("H4", "SubscriptionExpirationWorker.CheckExpirations", "skip_pending_plan_change", new
+                    AgentDebugLog.Write("H4", "SubscriptionExpirationWorker.CheckExpirations", "skip_paid_queued_plan", new
                     {
                         tenant.TenantID,
                         tenant.PlanType,
@@ -125,8 +124,9 @@ public class SubscriptionExpirationWorker : BackgroundService
         }
 
         var expiredTrials = await dbContext.Tenants
-            .Where(t => t.IsTrial && t.IsActive && t.AppUsers.Any(u =>
-                u.TrialEndDate.HasValue && u.TrialEndDate.Value < now))
+            .Where(t => t.IsTrial && t.IsActive
+                        && t.SubscriptionEndDate.Year > 2000
+                        && t.SubscriptionEndDate < now)
             .ToListAsync(cancellationToken);
 
         if (expiredTrials.Any())

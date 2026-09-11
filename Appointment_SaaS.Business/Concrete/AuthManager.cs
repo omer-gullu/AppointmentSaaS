@@ -347,6 +347,7 @@ namespace Appointment_SaaS.Business.Concrete
             if (evaluation.ShouldDeactivateTenantForExpiredSubscription)
             {
                 tenant.IsActive = false;
+                tenant.IsSubscriptionActive = false;
                 await _tenantService.UpdateAsync(tenant);
             }
 
@@ -377,6 +378,7 @@ namespace Appointment_SaaS.Business.Concrete
                 throw new BadHttpRequestException("İşletme bulunamadı.", StatusCodes.Status404NotFound);
 
             await TryReconcileSuspendedTenantAsync(tenant);
+            await _tenantPlanService.TryActivateDueScheduledPlanAsync(tenant);
             await EnforceTenantAccessOrThrowAsync(tenant, user);
 
             if (user.LastOtpRequestDate.HasValue
@@ -445,6 +447,8 @@ namespace Appointment_SaaS.Business.Concrete
             if (tenant == null)
                 throw new BadHttpRequestException("İşletme bulunamadı.");
 
+            await TryReconcileSuspendedTenantAsync(tenant);
+            await _tenantPlanService.TryActivateDueScheduledPlanAsync(tenant);
             await EnforceTenantAccessOrThrowAsync(tenant, user);
 
             // 3. OTP doğrulama + brute-force koruması

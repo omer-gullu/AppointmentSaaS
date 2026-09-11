@@ -77,7 +77,7 @@ public class TenantAccessEvaluatorTests
     }
 
     [Fact]
-    public void Evaluate_ShouldIgnoreSubscriptionDate_WhenTrialTenant()
+    public void Evaluate_ShouldDenyTrial_WhenTenantSubscriptionEnded()
     {
         var tenant = new Tenant
         {
@@ -85,17 +85,18 @@ public class TenantAccessEvaluatorTests
             IsActive = true,
             IsSubscriptionActive = true,
             IsTrial = true,
-            SubscriptionEndDate = DateTime.Now.AddDays(-30)
+            SubscriptionEndDate = DateTime.Now.AddDays(-1)
         };
-        var user = new AppUser { TrialEndDate = DateTime.Now.AddDays(2) };
 
-        var r = _evaluator.Evaluate(tenant, user);
+        var r = _evaluator.Evaluate(tenant, new AppUser { TrialEndDate = DateTime.Now.AddDays(2) });
 
-        r.IsAllowed.Should().BeTrue();
+        r.IsAllowed.Should().BeFalse();
+        r.DenialKind.Should().Be(TenantAccessDenialKind.TrialExpired);
+        r.ShouldDeactivateTenantForExpiredSubscription.Should().BeTrue();
     }
 
     [Fact]
-    public void Evaluate_ShouldDenyTrial_WhenUserTrialEnded()
+    public void Evaluate_ShouldAllowTrial_WhenTenantSubscriptionStillOpen()
     {
         var tenant = new Tenant
         {
@@ -105,12 +106,50 @@ public class TenantAccessEvaluatorTests
             IsTrial = true,
             SubscriptionEndDate = DateTime.Now.AddDays(5)
         };
-        var user = new AppUser { TrialEndDate = DateTime.Now.AddDays(-1) };
 
-        var r = _evaluator.Evaluate(tenant, user);
+        var r = _evaluator.Evaluate(tenant, new AppUser { TrialEndDate = DateTime.Now.AddDays(-1) });
+
+        r.IsAllowed.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Evaluate_ShouldDeny_WhenExpiredAndUnpaidCheckoutPending()
+    {
+        var tenant = new Tenant
+        {
+            IsBlacklisted = false,
+            IsActive = true,
+            IsSubscriptionActive = true,
+            IsTrial = false,
+            SubscriptionEndDate = DateTime.Now.AddDays(-1),
+            PendingPlanType = "Pro",
+            PendingCheckoutToken = "unpaid-token"
+        };
+
+        var r = _evaluator.Evaluate(tenant, new AppUser());
 
         r.IsAllowed.Should().BeFalse();
-        r.DenialKind.Should().Be(TenantAccessDenialKind.TrialExpired);
+        r.DenialKind.Should().Be(TenantAccessDenialKind.SubscriptionExpired);
+    }
+
+    [Fact]
+    public void Evaluate_ShouldAllow_WhenExpiredButPaidPlanQueued()
+    {
+        var tenant = new Tenant
+        {
+            IsBlacklisted = false,
+            IsActive = true,
+            IsSubscriptionActive = true,
+            IsTrial = false,
+            SubscriptionEndDate = DateTime.Now.AddDays(-1),
+            PendingPlanType = "Pro",
+            PendingCheckoutToken = null,
+            PendingPlanEffectiveDate = DateTime.Now.AddDays(-1)
+        };
+
+        var r = _evaluator.Evaluate(tenant, new AppUser());
+
+        r.IsAllowed.Should().BeTrue();
     }
 
     [Fact]

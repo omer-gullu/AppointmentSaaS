@@ -90,6 +90,8 @@ public class TenantResponseDto
     {
         if (!tenant.IsSubscriptionActive && !tenant.IsActive)
             return "Askıda";
+        if (!SubscriptionAccessPolicy.IsAccessPeriodOpen(tenant))
+            return tenant.IsTrial ? "Deneme süresi doldu" : "Süresi doldu";
         if (tenant.IsTrial)
             return "Deneme";
         if (!string.IsNullOrWhiteSpace(tenant.PendingCheckoutToken))

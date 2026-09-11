@@ -30,6 +30,7 @@ public sealed class TenantAccessEvaluator : ITenantAccessEvaluator
                 tenant.PlanType,
                 tenant.BillingCycle,
                 hasPending = !string.IsNullOrWhiteSpace(tenant.PendingPlanType),
+                unpaidCheckout = !string.IsNullOrWhiteSpace(tenant.PendingCheckoutToken),
                 endDate = tenant.SubscriptionEndDate.ToString("o")
             });
 
@@ -41,38 +42,26 @@ public sealed class TenantAccessEvaluator : ITenantAccessEvaluator
                 false);
         }
 
-        if (!string.IsNullOrWhiteSpace(tenant.PendingPlanType)
-            || !string.IsNullOrWhiteSpace(tenant.PendingCheckoutToken))
-        {
+        if (SubscriptionAccessPolicy.IsAccessPeriodOpen(tenant))
             return new TenantAccessEvaluation(true, TenantAccessDenialKind.None, null, StatusCodes.Status200OK, false);
-        }
 
-        if (!tenant.IsTrial
-            && tenant.SubscriptionEndDate != DateTime.MinValue
-            && !SubscriptionAccessPolicy.IsPaidSubscriptionOpen(tenant))
-        {
-            var msg =
-                $"İşletmenizin aboneliği {tenant.SubscriptionEndDate:dd.MM.yyyy HH:mm} tarihinde sona ermiştir.";
-            return new TenantAccessEvaluation(
-                false,
-                TenantAccessDenialKind.SubscriptionExpired,
-                msg,
-                StatusCodes.Status402PaymentRequired,
-                tenant.IsActive);
-        }
-
-        if (tenant.IsTrial
-            && user.TrialEndDate.HasValue
-            && user.TrialEndDate.Value < DateTime.Now)
+        if (tenant.IsTrial)
         {
             return new TenantAccessEvaluation(
                 false,
                 TenantAccessDenialKind.TrialExpired,
                 "İşletmenizin deneme süresi dolmuştur. Lütfen aboneliğinizi yükseltin.",
                 StatusCodes.Status402PaymentRequired,
-                false);
+                tenant.IsActive);
         }
 
-        return new TenantAccessEvaluation(true, TenantAccessDenialKind.None, null, StatusCodes.Status200OK, false);
+        var msg =
+            $"İşletmenizin aboneliği {tenant.SubscriptionEndDate:dd.MM.yyyy HH:mm} tarihinde sona ermiştir.";
+        return new TenantAccessEvaluation(
+            false,
+            TenantAccessDenialKind.SubscriptionExpired,
+            msg,
+            StatusCodes.Status402PaymentRequired,
+            tenant.IsActive);
     }
 }

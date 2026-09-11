@@ -293,6 +293,9 @@ public class TenantPlanManager : ITenantPlanService
         return count;
     }
 
+    public Task<bool> TryActivateDueScheduledPlanAsync(Tenant tenant, CancellationToken cancellationToken = default) =>
+        TryActivateScheduledPlanAsync(tenant, cancellationToken);
+
     private async Task<bool> TryActivateScheduledPlanAsync(Tenant tenant, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(tenant.PendingPlanType)
