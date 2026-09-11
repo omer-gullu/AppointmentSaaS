@@ -1500,7 +1500,7 @@ main {
 .alert-warning{background:#fffbeb;border:1px solid #fde68a;color:#92400e}
 .alert-danger{background:#fef2f2;border:1px solid #fca5a5;color:#b91c1c}
 .badge{display:inline-block;padding:.35em .65em;font-size:.75em;font-weight:700;border-radius:50rem;line-height:1}
-.bg-light{background:#f8fafc!important}.bg-danger{background:#ef4444!important}
+.bg-light{background:#f8fafc!important}.bg-danger{background-color:rgba(239,68,68,var(--bs-bg-opacity,1))!important}
 .bg-opacity-10{--bs-bg-opacity:.1}
 .card{background:#fff;border:1px solid #e2e8f0;border-radius:.5rem}
 .card-body{padding:1.25rem}
