@@ -1477,10 +1477,14 @@ main {
 .p-2{padding:.5rem}.p-3{padding:1rem}.p-4{padding:1.5rem}.p-5{padding:3rem}
 .position-relative{position:relative}
 .btn{display:inline-block;padding:.375rem .75rem;font-size:.875rem;font-weight:500;line-height:1.5;
-  text-align:center;text-decoration:none;border:1px solid transparent;border-radius:.375rem;cursor:pointer;background:transparent;font-family:inherit}
+  text-align:center;text-decoration:none;border:1px solid transparent;border-radius:.375rem;cursor:pointer;font-family:inherit}
 .btn-sm{padding:.25rem .5rem;font-size:.8125rem}
 .btn-primary{color:#fff;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:0}
 .btn-primary:hover,.btn-primary:focus{filter:brightness(1.06);color:#fff}
+.btn-success{color:#fff;background:#16a34a;border:0}
+.btn-success:hover,.btn-success:focus{filter:brightness(1.06);color:#fff}
+.btn-warning{color:#0f172a;background:#fbbf24;border:0}
+.btn-warning:hover,.btn-warning:focus{filter:brightness(1.06);color:#0f172a}
 .btn-outline-secondary{color:#64748b;border:1.5px solid #cbd5e1;background:#fff}
 .btn-outline-secondary:hover,.btn-outline-secondary:focus{background:#f8fafc;border-color:#94a3b8;color:#475569}
 .btn-outline-primary{color:#4f46e5;border:2px solid #4f46e5;background:transparent}
@@ -1500,7 +1504,13 @@ main {
 .alert-warning{background:#fffbeb;border:1px solid #fde68a;color:#92400e}
 .alert-danger{background:#fef2f2;border:1px solid #fca5a5;color:#b91c1c}
 .badge{display:inline-block;padding:.35em .65em;font-size:.75em;font-weight:700;border-radius:50rem;line-height:1}
-.bg-light{background:#f8fafc!important}.bg-danger{background-color:rgba(239,68,68,var(--bs-bg-opacity,1))!important}
+.bg-light{background:#f8fafc!important}
+.bg-danger{background-color:rgba(239,68,68,var(--bs-bg-opacity,1))!important}
+.bg-success{background-color:rgba(22,163,74,var(--bs-bg-opacity,1))!important}
+.bg-warning{background-color:rgba(245,158,11,var(--bs-bg-opacity,1))!important}
+.bg-primary{background-color:rgba(79,70,229,var(--bs-bg-opacity,1))!important}
+.bg-secondary{background-color:rgba(100,116,139,var(--bs-bg-opacity,1))!important}
+.bg-info{background-color:rgba(14,165,233,var(--bs-bg-opacity,1))!important}
 .bg-opacity-10{--bs-bg-opacity:.1}
 .card{background:#fff;border:1px solid #e2e8f0;border-radius:.5rem}
 .card-body{padding:1.25rem}

@@ -6,8 +6,6 @@
 
     var requireSweetAlert = ViewData["RequireSweetAlert"] as bool? ?? false;
 
-    var requireBootstrapIcons = ViewData["RequireBootstrapIcons"] as bool? ?? false;
-
     var requireScopedStyles = ViewData["RequireScopedStyles"] as bool? ?? false;
 
     var requireGoogleFonts = ViewData["RequireGoogleFonts"] as bool? ?? false;
@@ -68,15 +66,7 @@
 
 
 
-    @if (requireBootstrapIcons)
-
-    {
-
-        <link rel="preload" href="~/fonts/bootstrap-icons.woff2" as="font" type="font/woff2" crossorigin="anonymous" asp-append-version="true" />
-
-        <link rel="stylesheet" href="~/css/bootstrap-icons.css" asp-append-version="true" />
-
-    }
+    <link rel="stylesheet" href="~/css/bootstrap-icons.css" asp-append-version="true" />
 
 
 

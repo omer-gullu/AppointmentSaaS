@@ -99,9 +99,9 @@
     .status-paid     { background: #e0e7ff; color: #3730a3; }
 
     .action-btn {
-        background: transparent;
-        border: 1px solid var(--border-color);
-        color: var(--text-secondary);
+        background: #fff;
+        border: 1px solid #d1d5db;
+        color: #4f46e5;
         width: 36px;
         height: 36px;
         border-radius: 8px;
@@ -111,7 +111,9 @@
         transition: all 0.2s;
         text-decoration: none;
     }
-    .action-btn:hover { background: #f3f4f6; color: var(--primary-color); }
+    .action-btn.log { color: #0284c7; }
+    .action-btn.delete { color: #dc2626; border-color: #fecaca; }
+    .action-btn:hover { background: #eef2ff; color: var(--primary-color); border-color: #a5b4fc; }
     .action-btn.delete:hover { color: #dc2626; border-color: #fca5a5; background: #fff5f5; }
 
     .empty-state { text-align: center; padding: 5rem 2rem; }
