@@ -11,7 +11,7 @@ namespace Appointment_SaaS.Core.Utilities.Security.Jwt
     {
         public string Audience { get; set; } = string.Empty;
         public string Issuer { get; set; } = string.Empty;
-        public int AccessTokenExpiration { get; set; }
+        public int AccessTokenExpiration { get; set; } = 600;
         public string SecurityKey { get; set; } = string.Empty;
     }
 

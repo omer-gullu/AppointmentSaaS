@@ -45,6 +45,37 @@
 
     var countdownInterval = null;
 
+    function parseCooldownSeconds(message) {
+        var match = String(message || '').match(/(\d+)\s*saniye/i);
+        if (!match) return 45;
+        var seconds = parseInt(match[1], 10);
+        return isNaN(seconds) ? 45 : Math.max(1, seconds);
+    }
+
+    var requestCooldownTimer = null;
+
+    function startRequestCooldown(seconds) {
+        var btn = document.getElementById('btnRequestOtp');
+        if (!btn) return;
+        clearInterval(requestCooldownTimer);
+        var left = Math.max(1, seconds || 45);
+        var text = btn.querySelector('.btn-text');
+        var original = (text && text.getAttribute('data-original')) || (text && text.textContent) || 'Devam Et';
+        if (text && !text.getAttribute('data-original')) text.setAttribute('data-original', original);
+        btn.disabled = true;
+        if (text) text.textContent = left + ' sn bekleyin';
+        requestCooldownTimer = setInterval(function () {
+            left--;
+            if (left <= 0) {
+                clearInterval(requestCooldownTimer);
+                btn.disabled = false;
+                if (text) text.textContent = original;
+            } else if (text) {
+                text.textContent = left + ' sn bekleyin';
+            }
+        }, 1000);
+    }
+
     function startCountdown(seconds) {
         clearInterval(countdownInterval);
         var remaining = seconds;
@@ -125,8 +156,13 @@
                 startCountdown(otpValiditySeconds);
             } else {
                 showError(data.message || 'Mesaj gönderilemedi. Lütfen numarayı kontrol edin.');
-                if (response.status === 429 || response.status === 403) {
+                var msg = data.message || '';
+                if (/kilitlendi/i.test(msg)) {
                     btn.disabled = true;
+                    document.getElementById('phoneNumber').disabled = true;
+                } else {
+                    btn.disabled = false;
+                    startRequestCooldown(parseCooldownSeconds(msg));
                 }
             }
         } catch {

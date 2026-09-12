@@ -8,7 +8,7 @@
   "TokenOptions": {
     "Audience": "www.appointment-saas.com",
     "Issuer": "www.appointment-saas.com",
-    "AccessTokenExpiration": 480,
+    "AccessTokenExpiration": 600,
     "SecurityKey": "EN_AZ_32_KARAKTER_UZUNLUGUNDA_GUCLU_BIR_ANAHTAR_GIRIN"
   },
   "EvolutionApi": {

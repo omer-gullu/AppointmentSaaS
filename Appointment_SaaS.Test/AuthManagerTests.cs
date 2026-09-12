@@ -134,14 +134,15 @@ namespace Appointment_SaaS.Test
         public async Task GenerateOtpForLoginAsync_ShouldThrowException_WhenSpamLimitHit()
         {
             var dto = new OtpLoginDto { PhoneNumber = "555" };
-            var user = new AppUser { TenantID = 1, LastOtpRequestDate = DateTime.Now.AddSeconds(-30) }; // 30 sn once istemis
+            var user = new AppUser { TenantID = 1, LastOtpRequestDate = DateTime.UtcNow.AddSeconds(-30) };
             _mockUserService.Setup(x => x.GetByPhoneNumberAsync(dto.PhoneNumber)).ReturnsAsync(user);
 
             var tenant = new Tenant { TenantID = 1, IsActive = true, IsSubscriptionActive = true, SubscriptionEndDate = DateTime.Now.AddDays(10) };
             _mockTenantService.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(tenant);
 
             Func<Task> act = async () => await _authManager.GenerateOtpForLoginAsync(dto);
-            (await act.Should().ThrowAsync<BadHttpRequestException>()).WithMessage("Lütfen yeni bir kod istemeden önce 45 saniye bekleyin.");
+            (await act.Should().ThrowAsync<BadHttpRequestException>())
+                .Which.Message.Should().Contain("saniye bekleyin");
         }
 
         [Fact]

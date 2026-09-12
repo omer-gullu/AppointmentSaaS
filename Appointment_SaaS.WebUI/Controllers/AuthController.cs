@@ -23,6 +23,11 @@ namespace Appointment_SaaS.WebUI.Controllers
         [HttpGet]
         public IActionResult Login()
         {
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                var isAdmin = User.IsInRole("Admin");
+                return Redirect(isAdmin ? "/Business/Index" : "/Dashboard/Index");
+            }
             return View();
         }
 
@@ -289,7 +294,14 @@ namespace Appointment_SaaS.WebUI.Controllers
 
                 var claims = BuildClaimsFromAccessToken(token);
                 var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-                var authProperties = new AuthenticationProperties { IsPersistent = true };
+                var sessionLifetime = TimeSpan.FromHours(10);
+                var authProperties = new AuthenticationProperties
+                {
+                    IsPersistent = true,
+                    IssuedUtc = DateTimeOffset.UtcNow,
+                    ExpiresUtc = DateTimeOffset.UtcNow.Add(sessionLifetime),
+                    AllowRefresh = false
+                };
                 authProperties.StoreTokens(new[]
                 {
                     new AuthenticationToken { Name = "access_token", Value = token }

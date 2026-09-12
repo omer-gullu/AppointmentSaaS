@@ -381,11 +381,22 @@ namespace Appointment_SaaS.Business.Concrete
             await _tenantPlanService.TryActivateDueScheduledPlanAsync(tenant);
             await EnforceTenantAccessOrThrowAsync(tenant, user);
 
-            if (user.LastOtpRequestDate.HasValue
-                && (DateTime.UtcNow - user.LastOtpRequestDate.Value).TotalSeconds < OtpLoginSettings.ResendCooldownSeconds)
-                throw new BadHttpRequestException(
-                    $"Lütfen yeni bir kod istemeden önce {OtpLoginSettings.ResendCooldownSeconds} saniye bekleyin.",
-                    StatusCodes.Status429TooManyRequests);
+            if (user.LastOtpRequestDate.HasValue)
+            {
+                var lastOtpAt = user.LastOtpRequestDate.Value;
+                if (lastOtpAt.Kind == DateTimeKind.Unspecified)
+                    lastOtpAt = DateTime.SpecifyKind(lastOtpAt, DateTimeKind.Utc);
+
+                var elapsedSeconds = (DateTime.UtcNow - lastOtpAt).TotalSeconds;
+                // Gelecekteki tarih (saat dilimi sapması) cooldown'u sonsuza kilitlemesin.
+                if (elapsedSeconds >= 0 && elapsedSeconds < OtpLoginSettings.ResendCooldownSeconds)
+                {
+                    var remaining = Math.Max(1, (int)Math.Ceiling(OtpLoginSettings.ResendCooldownSeconds - elapsedSeconds));
+                    throw new BadHttpRequestException(
+                        $"Lütfen yeni bir kod istemeden önce {remaining} saniye bekleyin.",
+                        StatusCodes.Status429TooManyRequests);
+                }
+            }
 
             var otpCode = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
 
