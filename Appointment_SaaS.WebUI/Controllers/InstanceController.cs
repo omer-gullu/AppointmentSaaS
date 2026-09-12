@@ -41,8 +41,7 @@ namespace Appointment_SaaS.WebUI.Controllers
                         var tenantObj = JsonSerializer.Deserialize<JsonElement>(tenantJson);
                         string instanceName = tenantObj.GetProperty("instanceName").GetString();
 
-                        // 2. Evolution API üzerinden QR kod al
-                        ViewBag.InstanceName = instanceName;
+                        // 2. Evolution API üzerinden QR kod al (işletme panelinde instance adı gösterilmez)
                         var qrCodeBase64 = await _evolutionApiService.GetQrCodeAsync(instanceName);
                         
                         if (!string.IsNullOrEmpty(qrCodeBase64))
@@ -51,7 +50,7 @@ namespace Appointment_SaaS.WebUI.Controllers
                         }
                         else
                         {
-                            ViewBag.Info = "Instance şu an bağlı veya QR kod üretilemedi. Eğer zaten bağlıysa işlem yapmanıza gerek yoktur.";
+                            ViewBag.Info = "WhatsApp hesabınız zaten bağlı veya QR kod şu an üretilemedi. Bağlıysa işlem yapmanıza gerek yoktur.";
                         }
                     }
                 }

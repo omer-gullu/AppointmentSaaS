@@ -213,9 +213,24 @@
 
     /* Inputs */
     .f-label {
-        display:block; font-size:0.79rem; font-weight:600;
+        display:flex; align-items:center; gap:6px;
+        font-size:0.79rem; font-weight:600;
         color:#475569; margin-bottom:5px; letter-spacing:0.01em;
     }
+    .f-tip { position:relative; display:inline-flex; }
+    .f-tip-btn {
+        width:16px; height:16px; padding:0; border:0; border-radius:50%;
+        background:#e2e8f0; color:#64748b; font-size:0.68rem; font-weight:700;
+        line-height:16px; cursor:help; font-family:inherit;
+    }
+    .f-tip-box {
+        display:none; position:absolute; left:0; top:calc(100% + 6px); z-index:5;
+        width:220px; padding:8px 10px; border-radius:8px;
+        background:#0f172a; color:#f8fafc; font-size:0.72rem; font-weight:500;
+        line-height:1.4; box-shadow:0 8px 20px rgba(15,23,42,.18);
+    }
+    .f-tip:hover .f-tip-box,
+    .f-tip:focus-within .f-tip-box { display:block; }
 
     .f-input {
         width:100%; padding:11px 14px;
@@ -340,15 +355,15 @@
                         <partial name="_BrandIcon" />
                     </div>
                     <div>
-                        <div class="feat-title">Anında WhatsApp Entegrasyonu</div>
-                        <div class="feat-desc">Kayıt olur olmaz WhatsApp API arkaplanda otomatik olarak kurulur.</div>
+                        <div class="feat-title">WhatsApp ile bağlanın</div>
+                        <div class="feat-desc">Kayıttan sonra çıkan QR kodu işletme telefonunuzdan okutunca asistan devreye girer.</div>
                     </div>
                 </li>
                 <li class="feat-item">
                     <div class="feat-icon"><i class="bi bi-robot"></i></div>
                     <div>
-                        <div class="feat-title">Yapay Zeka Hazır</div>
-                        <div class="feat-desc">Asistanınız sizin yerinize müşteri randevularını ayarlamaya başlasın.</div>
+                        <div class="feat-title">Yapay zeka asistanı</div>
+                        <div class="feat-desc">WhatsApp bağlandıktan sonra müşteri randevularını sizin yerinize ayarlar.</div>
                     </div>
                 </li>
                 <li class="feat-item">
@@ -437,7 +452,13 @@
                                placeholder="ornek@isletme.com" value="@Model.UserEmail" autocomplete="email" required>
                     </div>
                     <div class="col-md-8">
-                        <label class="f-label">T.C. Kimlik / Vergi No *</label>
+                        <label class="f-label" for="fieldIdentity">
+                            T.C. Kimlik / Vergi No *
+                            <span class="f-tip">
+                                <button type="button" class="f-tip-btn" aria-describedby="identityTip" aria-label="Neden isteniyor?">i</button>
+                                <span class="f-tip-box" id="identityTip" role="tooltip">Ödeme doğrulaması için istenir. Sistemimizde saklanmaz.</span>
+                            </span>
+                        </label>
                         <input type="text" name="IdentityNumber" class="f-input" id="fieldIdentity"
                                placeholder="11 Haneli TC No" value="@Model.IdentityNumber" maxlength="11" required>
                     </div>

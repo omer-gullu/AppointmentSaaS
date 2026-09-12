@@ -65,7 +65,7 @@ namespace Appointment_SaaS.WebUI.Controllers
                 string? instanceName = viewModel.InstanceName;
 
                 if (string.IsNullOrEmpty(instanceName))
-                    return Json(new { success = false, message = "Dükkan bilgisi bulunamadı veya Instance adı atanmamış." });
+                    return Json(new { success = false, message = "WhatsApp bağlantısı henüz hazır değil. Lütfen birkaç saniye bekleyip tekrar deneyin." });
 
                 // ── OTOMATİK DÜZELTME: Türkçe karakter kontrolü ──
                 var turkishChars = "çÇğĞıİöÖşŞüÜ";
@@ -101,7 +101,7 @@ namespace Appointment_SaaS.WebUI.Controllers
                 if (string.IsNullOrEmpty(qrCodeBase64))
                     return Json(new { success = false, message = "QR kod üretilemedi. Lütfen birkaç saniye bekleyip tekrar deneyin." });
 
-                return Json(new { success = true, qrCode = qrCodeBase64, instanceName });
+                return Json(new { success = true, qrCode = qrCodeBase64 });
             }
             catch (Exception ex)
             {
