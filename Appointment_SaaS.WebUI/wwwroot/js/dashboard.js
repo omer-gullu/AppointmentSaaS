@@ -203,7 +203,7 @@
             qrLoading.style.display = 'block';
             qrContainer.style.display = 'none';
             qrError.style.display = 'block';
-            document.getElementById('qrErrorMessage').innerText = 'Instance hazırlanıyor. QR kod için 5 saniye bekleniyor...';
+            document.getElementById('qrErrorMessage').innerText = 'WhatsApp bağlantısı hazırlanıyor. QR kod için birkaç saniye bekleyin...';
             modal.show();
 
             fetch('/Dashboard/GetWhatsAppQr')
@@ -213,7 +213,6 @@
                     if (data.success) {
                         qrError.style.display = 'none';
                         qrImage.src = data.qrCode;
-                        document.getElementById('modalInstanceName').innerText = data.instanceName;
                         qrContainer.style.display = 'block';
                     } else {
                         qrError.style.display = 'block';

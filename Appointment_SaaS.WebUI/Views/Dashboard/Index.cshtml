@@ -239,7 +239,7 @@
                                 }
                             </div>
                             <button type="button" class="btn btn-outline-success w-100 rounded-pill fw-bold btn-sm" onclick="loadWhatsAppQr()" id="connectInstanceBtn">
-                                <i class="bi bi-qr-code-scan me-2"></i>@(Model.IsWhatsAppConnected ? "QR Yenile" : "Cihaz Bağla")
+                                <i class="bi bi-qr-code-scan me-2"></i>@(Model.IsWhatsAppConnected ? "WhatsApp bağlantısını yenileyin" : "Yapay zeka randevu asistanını başlatın")
                             </button>
                         </div>
 
@@ -730,17 +730,18 @@
                 <h5 class="fw-bold d-flex align-items-center gap-2">
                     @{ ViewData["BrandIconName"] = "whatsapp"; ViewData["BrandIconSize"] = 22; ViewData["BrandIconClass"] = "brand-icon"; }
                     <partial name="_BrandIcon" />
-                    WhatsApp Senkronizasyonu
+                    <span id="waModalTitle">@(Model.IsWhatsAppConnected ? "WhatsApp bağlantısını yenileyin" : "Yapay zeka randevu asistanını başlatın")</span>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center p-4 p-md-5">
                 <div id="qrLoading">
                     <div class="spinner-border text-success mb-3" role="status" style="width:3rem;height:3rem;"></div>
-                    <p class="text-muted">QR Kod Hazırlanıyor, lütfen bekleyin...</p>
+                    <p class="text-muted">WhatsApp bağlantısı hazırlanıyor. QR kod için birkaç saniye bekleyin...</p>
                 </div>
                 <div id="qrContainer" style="display:none;">
-                    <p class="small text-muted mb-4">Aşağıdaki QR kodu telefonunuzdan okutarak <strong id="modalInstanceName"></strong> dükkanını bağlayın.</p>
+                    <p class="small text-muted mb-2">İşletmenizin WhatsApp numarasını bağlayın.</p>
+                    <p class="small text-muted mb-4">Bu QR yalnızca sizin işletmenize aittir.</p>
                     <div class="bg-white p-2 shadow-sm border rounded-4 d-inline-block mb-4">
                         <img id="qrImage" src="" class="img-fluid" style="width:250px;height:250px;" alt="WhatsApp QR">
                     </div>
@@ -752,7 +753,7 @@
                         </ol>
                     </div>
                     <button onclick="loadWhatsAppQr()" class="btn btn-outline-primary rounded-pill w-100 fw-bold">
-                        <i class="bi bi-arrow-repeat me-2"></i> Kodu Yenile
+                        <i class="bi bi-arrow-repeat me-2"></i> WhatsApp bağlantısını yenileyin
                     </button>
                 </div>
                 <div id="qrError" style="display:none;" class="alert alert-warning border-0 small">

@@ -8,12 +8,13 @@
             <div class="card border-0 shadow-lg" style="border-radius: 25px; overflow: hidden;">
                 <div class="card-header bg-success text-white py-4 border-0">
                     <i class="bi bi-whatsapp fs-1 mb-2"></i>
-                    <h3 class="fw-bold mb-0">WhatsApp Bağla</h3>
+                    <h3 class="fw-bold mb-0">Yapay zeka randevu asistanını başlatın</h3>
                 </div>
                 <div class="card-body p-4 p-lg-5">
                     @if (ViewBag.QrCode != null)
                     {
-                        <p class="text-muted mb-4">Aşağıdaki QR kodu telefonunuzdaki WhatsApp uygulamasından okutarak senkronizasyonu tamamlayın.</p>
+                        <p class="text-muted mb-2">İşletmenizin WhatsApp numarasını bağlayın.</p>
+                        <p class="text-muted mb-4">Bu QR yalnızca sizin işletmenize aittir.</p>
                         
                         <div class="qr-container bg-white p-3 shadow-sm border rounded-4 d-inline-block mb-4">
                             <!-- Evolution API returns base64 which includes data:image/png;base64,... normally -->
@@ -30,7 +31,7 @@
 
                         <div class="d-grid gap-2">
                             <button onclick="window.location.reload();" class="btn btn-outline-success rounded-pill fw-bold">
-                                <i class="bi bi-arrow-repeat me-2"></i> Kodu Yenile
+                                <i class="bi bi-arrow-repeat me-2"></i> WhatsApp bağlantısını yenileyin
                             </button>
                             <a href="/Dashboard" class="btn btn-primary rounded-pill fw-bold">
                                 Panele Geri Dön
@@ -41,7 +42,7 @@
                     {
                         <div class="alert alert-info border-0 shadow-sm py-4">
                             <i class="bi bi-check-circle-fill fs-2 d-block mb-3 text-success"></i>
-                            <h5 class="fw-bold mb-3">@ViewBag.InstanceName Bağlı</h5>
+                            <h5 class="fw-bold mb-3">WhatsApp bağlı</h5>
                             <p class="mb-0 text-muted">WhatsApp hesabınız zaten senkronize durumda. AI asistanınız mesajlarınıza cevap vermeye hazır!</p>
                         </div>
                         <a href="/Dashboard" class="btn btn-success w-100 rounded-pill fw-bold py-2 mt-2">
