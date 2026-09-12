@@ -282,10 +282,10 @@ public class EvolutionApiManager : IEvolutionApiService
 
             if (!IsAllowedWhatsAppRecipient(formattedNumber))
             {
-                _logger.LogInformation(
+                _logger.LogWarning(
                     "[EvolutionApi] İzin listesi dışı numara — WhatsApp gönderilmedi. Instance={Instance} To={To}",
                     instanceName, formattedNumber);
-                return true;
+                return false;
             }
 
             var payload = new
@@ -304,11 +304,19 @@ public class EvolutionApiManager : IEvolutionApiService
 
             var response = await _httpClient.PostAsync($"/message/sendText/{Uri.EscapeDataString(instanceName)}", content);
 
+            var responseBody = await response.Content.ReadAsStringAsync();
             if (!response.IsSuccessStatusCode)
             {
-                var errorBody = await response.Content.ReadAsStringAsync();
                 _logger.LogWarning("[EvolutionApi] Mesaj gönderilemedi. Instance={Instance} To={To} Status={Status} Body={Body}",
-                    instanceName, formattedNumber, response.StatusCode, errorBody);
+                    instanceName, formattedNumber, response.StatusCode, responseBody);
+                return false;
+            }
+
+            if (EvolutionSendLooksFailed(responseBody))
+            {
+                _logger.LogWarning(
+                    "[EvolutionApi] HTTP başarılı ama mesaj kabul edilmedi. Instance={Instance} To={To} Body={Body}",
+                    instanceName, formattedNumber, responseBody);
                 return false;
             }
 
@@ -319,6 +327,45 @@ public class EvolutionApiManager : IEvolutionApiService
             _logger.LogError(ex, "[EvolutionApi] SendWhatsAppMessageAsync exception. Instance={Instance}", instanceName);
             return false;
         }
+    }
+
+    private static bool EvolutionSendLooksFailed(string responseBody)
+    {
+        if (string.IsNullOrWhiteSpace(responseBody))
+            return false;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(responseBody);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("error", out var errorEl) && errorEl.ValueKind != JsonValueKind.Null)
+            {
+                if (errorEl.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(errorEl.GetString()))
+                    return true;
+                if (errorEl.ValueKind is JsonValueKind.Object or JsonValueKind.True)
+                    return true;
+            }
+
+            if (root.TryGetProperty("status", out var statusEl) && statusEl.ValueKind == JsonValueKind.String)
+            {
+                var status = statusEl.GetString() ?? "";
+                if (status.Equals("ERROR", StringComparison.OrdinalIgnoreCase)
+                    || status.Equals("FAILED", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            if (root.TryGetProperty("message", out var messageEl)
+                && messageEl.ValueKind == JsonValueKind.String
+                && messageEl.GetString()?.Contains("exist", StringComparison.OrdinalIgnoreCase) == true)
+                return true;
+        }
+        catch (JsonException)
+        {
+            // Evolution bazen düz metin döner; HTTP 2xx ise gönderildi say.
+        }
+
+        return false;
     }
 
     private static string FormatPhoneForWhatsApp(string toPhoneNumber)
@@ -467,6 +514,17 @@ public class EvolutionApiManager : IEvolutionApiService
 
     public async Task<bool> SendOtpMessageAsync(string instanceName, string toPhoneNumber, string otpCode)
     {
+        if (string.IsNullOrWhiteSpace(instanceName))
+            return false;
+
+        if (!await IsInstanceConnectedAsync(instanceName))
+        {
+            _logger.LogWarning(
+                "[EvolutionApi] OTP atılmadı — instance bağlı değil. Instance={Instance}",
+                instanceName);
+            return false;
+        }
+
         var messageBody = $"*Akıllı Randevu Doğrulama*\n\nGiriş kodunuz: *{otpCode}*\n\nBu kod *{OtpLoginSettings.ValidityDisplayText}* geçerlidir. Kimseyle paylaşmayınız.";
         return await SendWhatsAppMessageAsync(instanceName, toPhoneNumber, messageBody);
     }

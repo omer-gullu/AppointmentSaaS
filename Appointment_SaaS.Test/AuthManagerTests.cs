@@ -225,7 +225,7 @@ namespace Appointment_SaaS.Test
             _mockTenantService.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(tenant);
 
             _mockEvolutionApiService
-                .Setup(x => x.SendOtpMessageAsync("TestInstance", phone, It.IsAny<string>()))
+                .Setup(x => x.SendOtpMessageAsync("defaultConfig", phone, It.IsAny<string>()))
                 .ReturnsAsync(true);
 
             var result = await _authManager.GenerateOtpForLoginAsync(dto);
@@ -234,14 +234,19 @@ namespace Appointment_SaaS.Test
             user.OtpCode.Should().NotBeNullOrEmpty();
             user.OtpExpiry.Should().BeAfter(DateTime.UtcNow.AddSeconds(-1));
             _mockUserService.Verify(x => x.UpdateAsync(user), Times.Once);
+            _mockEvolutionApiService.Verify(
+                x => x.SendOtpMessageAsync("defaultConfig", phone, It.IsAny<string>()),
+                Times.Once);
+            _mockEvolutionApiService.Verify(
+                x => x.SendOtpMessageAsync("TestInstance", phone, It.IsAny<string>()),
+                Times.Never);
         }
 
         /// <summary>
-        /// Personel veya farklı numara ile giriş: tenant işletme hattından bulunamaz olsa bile
-        /// kullanıcı.TenantID üzerinden InstanceName kullanılmalı (regression: OTP hiç gönderilmiyordu).
+        /// Sistem hattı başarısızsa işletme instance'ına düşülmez — sahte 200 + 45 sn kilidi olmasın.
         /// </summary>
         [Fact]
-        public async Task GenerateOtpForLoginAsync_ShouldUseTenantInstance_WhenGetByTenantPhoneFails()
+        public async Task GenerateOtpForLoginAsync_ShouldNotUseTenantInstance_WhenDefaultFails()
         {
             var phone = OtpTestHelper.Normalize("5360001122");
             var dto = new OtpLoginDto { PhoneNumber = phone };
@@ -260,15 +265,17 @@ namespace Appointment_SaaS.Test
             _mockTenantService.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(tenant);
 
             _mockEvolutionApiService
-                .Setup(x => x.SendOtpMessageAsync("FirmaXYZ_ab12", phone, It.IsAny<string>()))
-                .ReturnsAsync(true);
+                .Setup(x => x.SendOtpMessageAsync("defaultConfig", phone, It.IsAny<string>()))
+                .ReturnsAsync(false);
 
-            var result = await _authManager.GenerateOtpForLoginAsync(dto);
+            Func<Task> act = async () => await _authManager.GenerateOtpForLoginAsync(dto);
 
-            result.Should().BeTrue();
+            (await act.Should().ThrowAsync<BadHttpRequestException>())
+                .Which.Message.Should().Contain("gönderilemedi");
             _mockEvolutionApiService.Verify(
                 x => x.SendOtpMessageAsync("FirmaXYZ_ab12", phone, It.IsAny<string>()),
-                Times.Once);
+                Times.Never);
+            _mockUserService.Verify(x => x.UpdateAsync(user), Times.Never);
         }
 
         [Fact]

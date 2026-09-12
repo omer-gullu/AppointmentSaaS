@@ -400,17 +400,10 @@ namespace Appointment_SaaS.Business.Concrete
 
             var otpCode = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
 
-            // OTP'yi bağlı olduğu işletmenin Evolution instance'ından gönder.
-            // Süre, mesaj gönderildikten sonra başlar (WhatsApp gecikmesi süreyi yemesin).
-            bool isSent = false;
-
-            if (!string.IsNullOrEmpty(tenant.InstanceName))
-                isSent = await _evolutionApiService.SendOtpMessageAsync(
-                    tenant.InstanceName, dto.PhoneNumber, otpCode);
-
-            if (!isSent)
-                isSent = await _evolutionApiService.SendOtpMessageAsync(
-                    _evoSettings.DefaultInstance, dto.PhoneNumber, otpCode);
+            // Login OTP yalnızca sistem hattından (DefaultInstance) gider.
+            // İşletme instance'ı 200 dönüp mesajı düşürmeyince fallback hiç çalışmaz,
+            // panel "gönderildi" der ve 45 sn kilitlenir — bu yüzden "kendi kendine bozuluyor" gibi durur.
+            bool isSent = await TrySendLoginOtpAsync(_evoSettings.DefaultInstance, dto.PhoneNumber, otpCode);
 
             if (!isSent)
             {
@@ -434,6 +427,14 @@ namespace Appointment_SaaS.Business.Concrete
             await _userService.UpdateAsync(user);
 
             return true;
+        }
+
+        private async Task<bool> TrySendLoginOtpAsync(string? instanceName, string phoneNumber, string otpCode)
+        {
+            if (string.IsNullOrWhiteSpace(instanceName))
+                return false;
+
+            return await _evolutionApiService.SendOtpMessageAsync(instanceName, phoneNumber, otpCode);
         }
 
         public async Task<AccessToken> VerifyOtpAndLoginAsync(OtpVerifyDto dto)
