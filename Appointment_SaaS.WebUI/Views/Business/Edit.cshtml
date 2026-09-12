@@ -134,6 +134,7 @@
                     <label asp-for="SubscriptionEndDate" class="form-label">Abonelik Bitiş</label>
                     <input asp-for="SubscriptionEndDate" type="date" class="form-control"
                            value="@Model.SubscriptionEndDate.ToString("yyyy-MM-dd")" />
+                    <div class="form-text">Bugün veya sonrası aktif, önceki gün pasif kaydedilir.</div>
                 </div>
                 <div class="col-md-4">
                     <div class="toggle-card h-100">

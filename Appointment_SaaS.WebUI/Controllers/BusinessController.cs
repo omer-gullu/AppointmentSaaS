@@ -1,6 +1,7 @@
 using Appointment_SaaS.WebUI.Models;
 using Microsoft.AspNetCore.Mvc;
 using Appointment_SaaS.Business.Abstract;
+using Appointment_SaaS.Core.Utilities;
 using Microsoft.AspNetCore.Authorization;
 
 namespace Appointment_SaaS.WebUI.Controllers
@@ -70,11 +71,13 @@ namespace Appointment_SaaS.WebUI.Controllers
             tenant.PhoneNumber = model.PhoneNumber;
             tenant.Address = model.Address;
             tenant.InstanceName = model.InstanceName;
-            tenant.IsActive = model.IsActive;
             tenant.IsTrial = model.IsTrial;
-            tenant.SubscriptionEndDate = model.SubscriptionEndDate;
+            tenant.SubscriptionEndDate = model.SubscriptionEndDate.Date;
 
+            var shouldBeActive = SubscriptionAccessPolicy.ShouldBeActiveFromEndDate(tenant.SubscriptionEndDate);
             await _tenantService.UpdateAsync(tenant);
+            if (tenant.IsActive != shouldBeActive || tenant.IsSubscriptionActive != shouldBeActive)
+                await _tenantService.UpdateSubscriptionStatusAsync(tenant, shouldBeActive);
 
             TempData["Success"] = $"'{model.Name}' işletmesi başarıyla güncellendi.";
             return RedirectToAction(nameof(Index));

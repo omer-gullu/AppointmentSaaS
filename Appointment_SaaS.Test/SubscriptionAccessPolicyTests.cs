@@ -100,4 +100,19 @@ public class SubscriptionAccessPolicyTests
         SubscriptionAccessPolicy.IsAccessPeriodOpen(tenant, now).Should().BeTrue();
         SubscriptionAccessPolicy.HasPaidQueuedSubscription(tenant).Should().BeTrue();
     }
+
+    [Fact]
+    public void ShouldBeActiveFromEndDate_ShouldBeFalse_WhenBeforeToday()
+    {
+        var today = new DateOnly(2026, 9, 12);
+        SubscriptionAccessPolicy.ShouldBeActiveFromEndDate(new DateTime(2026, 9, 11), today).Should().BeFalse();
+    }
+
+    [Fact]
+    public void ShouldBeActiveFromEndDate_ShouldBeTrue_WhenTodayOrLater()
+    {
+        var today = new DateOnly(2026, 9, 12);
+        SubscriptionAccessPolicy.ShouldBeActiveFromEndDate(new DateTime(2026, 9, 12), today).Should().BeTrue();
+        SubscriptionAccessPolicy.ShouldBeActiveFromEndDate(new DateTime(2026, 9, 13), today).Should().BeTrue();
+    }
 }

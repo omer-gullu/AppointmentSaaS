@@ -61,6 +61,19 @@ public static class SubscriptionAccessPolicy
         return reference < GetAccessUntil(tenant);
     }
 
+    /// <summary>
+    /// Admin bitiş tarihi: bugünden önce → pasif, bugün veya sonrası → aktif.
+    /// Karşılaştırma İstanbul takvim gününe göredir.
+    /// </summary>
+    public static bool ShouldBeActiveFromEndDate(DateTime subscriptionEndDate, DateOnly? today = null)
+    {
+        if (subscriptionEndDate.Year <= 2000)
+            return false;
+
+        var reference = today ?? BusinessClock.IstanbulToday;
+        return DateOnly.FromDateTime(subscriptionEndDate) >= reference;
+    }
+
     /// <summary>Grace penceresinde İyzico'dan güncel dönem bitişi çekilmeli mi?</summary>
     public static bool ShouldAttemptIyzicoReconcile(Tenant tenant, DateTime? now = null)
     {

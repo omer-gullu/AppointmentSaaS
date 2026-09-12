@@ -110,9 +110,13 @@ public class TenantsController : ControllerBase
         // IsActive, IsTrial ve SubscriptionEndDate yalnızca Admin tarafından değiştirilebilir
         if (IsAdmin())
         {
-            tenant.IsActive = dto.IsActive;
             tenant.IsTrial = dto.IsTrial;
-            tenant.SubscriptionEndDate = dto.SubscriptionEndDate;
+            tenant.SubscriptionEndDate = dto.SubscriptionEndDate.Date;
+            var shouldBeActive = SubscriptionAccessPolicy.ShouldBeActiveFromEndDate(tenant.SubscriptionEndDate);
+            await _tenantService.UpdateAsync(tenant);
+            if (tenant.IsActive != shouldBeActive || tenant.IsSubscriptionActive != shouldBeActive)
+                await _tenantService.UpdateSubscriptionStatusAsync(tenant, shouldBeActive);
+            return Ok(new { Status = "Güncellendi" });
         }
 
         await _tenantService.UpdateAsync(tenant);
