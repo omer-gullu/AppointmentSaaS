@@ -482,7 +482,9 @@
                                                     string sName = "";
                                                     try
                                                     {
-                                                        if (item.TryGetProperty("serviceName", out var svcNameProp) && svcNameProp.ValueKind == System.Text.Json.JsonValueKind.String)
+                                                        var appEl = (System.Text.Json.JsonElement)item;
+                                                        if (appEl.TryGetProperty("serviceName", out System.Text.Json.JsonElement svcNameProp)
+                                                            && svcNameProp.ValueKind == System.Text.Json.JsonValueKind.String)
                                                             sName = svcNameProp.GetString() ?? "";
                                                     }
                                                     catch { }
