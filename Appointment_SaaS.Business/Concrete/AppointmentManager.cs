@@ -420,6 +420,13 @@ public class AppointmentManager : IAppointmentService
                 EndDate = a.EndDate,
                 Status = a.Status,
                 ServiceID = a.ServiceID,
+                ServiceIds = a.AppointmentServiceLinks
+                    .OrderBy(l => l.SortOrder)
+                    .Select(l => l.ServiceID)
+                    .ToList(),
+                ServiceName = a.AppointmentServiceLinks.Any()
+                    ? string.Join(", ", a.AppointmentServiceLinks.OrderBy(l => l.SortOrder).Select(l => l.Service.Name))
+                    : (a.Service != null ? a.Service.Name : string.Empty),
                 AppUserID = a.AppUserID,
                 GoogleEventID = a.GoogleEventID,
                 IsConfirmed = a.IsConfirmed

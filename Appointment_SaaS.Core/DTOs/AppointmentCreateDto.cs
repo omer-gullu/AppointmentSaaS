@@ -1,8 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Text.Json.Serialization;
+using Appointment_SaaS.Core.Utilities;
 
 namespace Appointment_SaaS.Core.DTOs
 {
@@ -14,7 +11,9 @@ namespace Appointment_SaaS.Core.DTOs
         public int ServiceID { get; set; }
         /// <summary>
         /// Aynı randevuda birden fazla hizmet (sıra korunur). Boş veya null ise yalnızca ServiceID kullanılır.
+        /// n8n [20,18] veya "20,18" gönderebilir.
         /// </summary>
+        [JsonConverter(typeof(FlexibleIntListJsonConverter))]
         public List<int>? ServiceIds { get; set; }
         public int? AppUserID { get; set; } // (Usta seçildiyse)
         public string CustomerName { get; set; } = string.Empty;

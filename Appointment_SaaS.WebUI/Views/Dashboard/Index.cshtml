@@ -479,22 +479,32 @@
                                             </td>
                                             <td>
                                                 @{
-                                                    int svcIdVal = 0;
-                                                    try { svcIdVal = item.GetProperty("serviceID").GetInt32(); } catch { }
-                                                    string sName = "#" + svcIdVal;
-                                                    if (Model.Services != null)
+                                                    string sName = "";
+                                                    try
                                                     {
-                                                        foreach (var svcEl in Model.Services)
+                                                        if (item.TryGetProperty("serviceName", out var svcNameProp) && svcNameProp.ValueKind == System.Text.Json.JsonValueKind.String)
+                                                            sName = svcNameProp.GetString() ?? "";
+                                                    }
+                                                    catch { }
+                                                    if (string.IsNullOrWhiteSpace(sName))
+                                                    {
+                                                        int svcIdVal = 0;
+                                                        try { svcIdVal = item.GetProperty("serviceID").GetInt32(); } catch { }
+                                                        sName = "#" + svcIdVal;
+                                                        if (Model.Services != null)
                                                         {
-                                                            try
+                                                            foreach (var svcEl in Model.Services)
                                                             {
-                                                                if (svcEl.GetProperty("serviceID").GetInt32() == svcIdVal)
+                                                                try
                                                                 {
-                                                                    sName = svcEl.GetProperty("name").GetString() ?? sName;
-                                                                    break;
+                                                                    if (svcEl.GetProperty("serviceID").GetInt32() == svcIdVal)
+                                                                    {
+                                                                        sName = svcEl.GetProperty("name").GetString() ?? sName;
+                                                                        break;
+                                                                    }
                                                                 }
+                                                                catch { }
                                                             }
-                                                            catch { }
                                                         }
                                                     }
                                                 }
