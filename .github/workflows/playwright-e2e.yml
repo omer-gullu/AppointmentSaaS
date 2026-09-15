@@ -1,5 +1,8 @@
 name: Playwright E2E
 
+# Isolated Postgres + API CRUD. No live n8n / Evolution / WhatsApp.
+# Missing GitHub secrets must NOT skip-pass (that was the 5s green check).
+
 on:
   push:
     branches: [main, master, develop]
@@ -7,69 +10,43 @@ on:
       - 'e2e/**'
       - 'Appointment_SaaS.WebUI/**'
       - 'Appointment_SaaS.API/**'
+      - 'Appointment_SaaS.Business/**'
+      - 'Appointment_SaaS.Core/**'
+      - 'Appointment_SaaS.Data/**'
       - '.github/workflows/playwright-e2e.yml'
   pull_request:
     paths:
       - 'e2e/**'
       - 'Appointment_SaaS.WebUI/**'
       - 'Appointment_SaaS.API/**'
+      - 'Appointment_SaaS.Business/**'
+      - 'Appointment_SaaS.Core/**'
+      - 'Appointment_SaaS.Data/**'
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'PLAYWRIGHT_ENV'
-        required: true
-        default: development
-        type: choice
-        options:
-          - development
-          - staging
-          - production
 
 env:
   DOTNET_VERSION: '8.0.x'
   NODE_VERSION: '20'
 
 jobs:
-  # secrets context is NOT allowed in job-level if:. Evaluate it inside a step
-  # (secrets ARE available in steps) and gate the e2e job via needs output.
-  # Sayfa smoke (Pricing/Login) CI + deploy validate içinde secret'sız çalışır.
-  gate:
-    runs-on: ubuntu-latest
-    outputs:
-      run: ${{ steps.decide.outputs.run }}
-    steps:
-      - id: decide
-        env:
-          E2E_DB: ${{ secrets.E2E_DATABASE_URL }}
-        run: |
-          if [ -n "$E2E_DB" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          fi
-
-  e2e:
-    needs: gate
-    if: ${{ needs.gate.outputs.run == 'true' }}
+  appointment-crud-gate:
+    name: Isolated API CRUD
     runs-on: ubuntu-latest
     timeout-minutes: 45
-
-    env:
-      PLAYWRIGHT_ENV: ${{ github.event.inputs.environment || 'development' }}
-      E2E_WEB_UI_URL: ${{ secrets.E2E_WEB_UI_URL || 'https://localhost:7140' }}
-      E2E_API_URL: ${{ secrets.E2E_API_URL || 'http://localhost:5294' }}
-      E2E_DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
-      E2E_MANAGER_PHONE: ${{ secrets.E2E_MANAGER_PHONE }}
-      E2E_TENANT_ID: ${{ secrets.E2E_TENANT_ID }}
-      E2E_INSTANCE_NAME: ${{ secrets.E2E_INSTANCE_NAME }}
-      E2E_SERVICE_ID: ${{ secrets.E2E_SERVICE_ID }}
-      E2E_STAFF_ID: ${{ secrets.E2E_STAFF_ID }}
-      E2E_N8N_TOKEN: ${{ secrets.E2E_N8N_TOKEN }}
-      IYZICO_WEBHOOK_SECRET: ${{ secrets.IYZICO_WEBHOOK_SECRET }}
-      E2E_SUBSCRIPTION_REF: ${{ secrets.E2E_SUBSCRIPTION_REF }}
-      ConnectionStrings__DefaultConnection: ${{ secrets.E2E_DATABASE_URL }}
-      ASPNETCORE_ENVIRONMENT: Development
-      CI: true
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v4
@@ -79,6 +56,11 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
+      - name: Restore & build API
+        run: |
+          dotnet restore Appointment_SaaS.API/Appointment_SaaS.API.csproj
+          dotnet build Appointment_SaaS.API/Appointment_SaaS.API.csproj -c Release --no-restore
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -86,61 +68,82 @@ jobs:
           cache: npm
           cache-dependency-path: e2e/package-lock.json
 
-      - name: Restore & build API
-        run: |
-          dotnet restore Appointment_SaaS.API/Appointment_SaaS.API.csproj
-          dotnet build Appointment_SaaS.API/Appointment_SaaS.API.csproj -c Release --no-restore
-
-      - name: Restore & build WebUI
-        run: dotnet build Appointment_SaaS.WebUI/Appointment_SaaS.WebUI.csproj -c Release --no-restore
-
-      - name: Install Playwright npm deps
+      - name: Install Playwright
         working-directory: e2e
         run: |
           npm ci || npm install
           npx playwright install --with-deps chromium
 
-      - name: Start API (background)
+      - name: Install API gate tools
         run: |
-          dotnet run --project Appointment_SaaS.API/Appointment_SaaS.API.csproj -c Release --no-build --urls "http://localhost:5294" &
-          echo $! > api.pid
-        env:
-          ConnectionStrings__DefaultConnection: ${{ secrets.E2E_DATABASE_URL }}
-          WebhookSecurity__N8nAuthToken: ${{ secrets.E2E_N8N_TOKEN }}
-          IyzicoSettings__WebhookSecret: ${{ secrets.IYZICO_WEBHOOK_SECRET }}
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          dotnet tool install --global dotnet-ef --version 8.0.23 || true
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
 
-      - name: Start WebUI (background)
-        run: |
-          dotnet run --project Appointment_SaaS.WebUI/Appointment_SaaS.WebUI.csproj -c Release --no-build --urls "https://localhost:7140;http://localhost:5259" &
-          echo $! > webui.pid
+      - name: Migrate and seed isolated Postgres
         env:
-          ConnectionStrings__DefaultConnection: ${{ secrets.E2E_DATABASE_URL }}
-          ApiBaseUrl: http://localhost:5294
-
-      - name: Wait for health
+          ConnectionStrings__DefaultConnection: Host=127.0.0.1;Port=5432;Database=e2e;Username=postgres;Password=postgres
         run: |
-          for i in {1..60}; do
-            curl -sk -o /dev/null -w "%{http_code}" https://localhost:7140/Pricing | grep -qE '200|302' && break
+          for i in {1..30}; do
+            pg_isready -h 127.0.0.1 -p 5432 -U postgres && break
             sleep 2
           done
-          curl -sf http://localhost:5294/swagger/index.html > /dev/null || curl -sf http://localhost:5294/ > /dev/null
+          dotnet ef database update \
+            --project Appointment_SaaS.Data/Appointment_SaaS.Data.csproj \
+            --startup-project Appointment_SaaS.API/Appointment_SaaS.API.csproj
+          PGPASSWORD=postgres psql -h 127.0.0.1 -U postgres -d e2e -v ON_ERROR_STOP=1 -f e2e/scripts/ci-seed.sql
 
-      - name: Run Playwright tests
+      - name: Start API
+        run: |
+          dotnet run --project Appointment_SaaS.API/Appointment_SaaS.API.csproj -c Release --no-build --urls "http://127.0.0.1:5294" &
+          echo $! > api-gate.pid
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+          ConnectionStrings__DefaultConnection: Host=127.0.0.1;Port=5432;Database=e2e;Username=postgres;Password=postgres
+          TokenOptions__SecurityKey: CI_ONLY_JWT_KEY_32_CHARS_MIN_OK_1234
+          EncryptionSettings__AesKey: 0123456789abcdef0123456789abcdef
+          Google__SkipEventSync: true
+          WebhookSecurity__N8nAuthToken: CI-N8N-SYSTEM-TOKEN-UNUSED
+          EvolutionApi__BaseUrl: http://127.0.0.1:9
+          IyzicoSettings__Enabled: false
+
+      - name: Wait for API
+        run: |
+          for i in {1..60}; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:5294/api/Tenants/GetContextByInstance?instanceName=ci-janti" || true)
+            if [ "$code" = "401" ] || [ "$code" = "200" ] || [ "$code" = "404" ]; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API gate health failed"
+          exit 1
+
+      - name: Appointment create/update/delete
         working-directory: e2e
-        run: npx playwright test
+        env:
+          CI: true
+          PLAYWRIGHT_ENV: development
+          E2E_WEB_UI_URL: http://127.0.0.1:5259
+          E2E_API_URL: http://127.0.0.1:5294
+          E2E_N8N_TOKEN: JNT-123-ABC
+          E2E_TENANT_ID: '1'
+          E2E_INSTANCE_NAME: ci-janti
+          E2E_SERVICE_ID: '1'
+          E2E_STAFF_ID: '101'
+        run: npm run test:gate
 
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-${{ env.PLAYWRIGHT_ENV }}
+          name: playwright-report-gate
           path: |
-            e2e/playwright-report/
-            e2e/test-results/
+            e2e/playwright-report-gate/
+            e2e/test-results-gate/
           retention-days: 14
 
-      - name: Stop apps
+      - name: Stop API
         if: always()
-        run: |
-          kill $(cat api.pid 2>/dev/null) 2>/dev/null || true
-          kill $(cat webui.pid 2>/dev/null) 2>/dev/null || true
+        run: kill $(cat api-gate.pid 2>/dev/null) 2>/dev/null || true
