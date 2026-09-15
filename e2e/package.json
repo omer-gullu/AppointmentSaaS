@@ -8,6 +8,7 @@
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
     "test:smoke": "playwright test --config=playwright.smoke.config.ts",
+    "test:gate": "playwright test --config=playwright.gate.config.ts",
     "test:appointment": "playwright test tests/appointment.spec.ts",
     "test:payment": "cross-env E2E_RUN_IYZICO=true playwright test tests/payment.spec.ts",
     "test:security": "playwright test tests/security.spec.ts",

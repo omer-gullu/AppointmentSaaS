@@ -10,26 +10,47 @@ namespace Appointment_SaaS.Data.Context
     {
         public AppDbContext CreateDbContext(string[] args)
         {
-            // API projesindeki appsettings.json dosyasını okumak için yolu ayarlıyoruz
-            var basePath = Path.Combine(Directory.GetCurrentDirectory(), "../Appointment_SaaS.API");
-            
+            var apiPath = FindApiPath();
             var configuration = new ConfigurationBuilder()
-                .SetBasePath(basePath)
-                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                .AddJsonFile($"appsettings.Development.json", optional: true)
+                .SetBasePath(apiPath ?? Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: true)
+                .AddJsonFile("appsettings.Development.json", optional: true)
+                .AddEnvironmentVariables()
                 .Build();
 
-            var builder = new DbContextOptionsBuilder<AppDbContext>();
-            var connectionString = configuration.GetConnectionString("DefaultConnection");
+            var connectionString =
+                Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
+                ?? configuration.GetConnectionString("DefaultConnection");
+
             if (string.IsNullOrWhiteSpace(connectionString) || connectionString.Contains("__CONNECTION_STRING"))
             {
                 connectionString = "Host=127.0.0.1;Port=5432;Database=appointmentsaas;Username=appointmentsaas;Password=devpassword";
             }
 
+            var builder = new DbContextOptionsBuilder<AppDbContext>();
             builder.UseAppointmentPostgreSql(connectionString);
 
-            // Sadece IDesignTimeDbContextFactory'den çağrıldığında bu constructor tetiklenir
             return new AppDbContext(builder.Options, null, null);
+        }
+
+        private static string? FindApiPath()
+        {
+            var cwd = Directory.GetCurrentDirectory();
+            var candidates = new[]
+            {
+                Path.Combine(cwd, "Appointment_SaaS.API"),
+                Path.Combine(cwd, "../Appointment_SaaS.API"),
+                cwd
+            };
+
+            foreach (var candidate in candidates)
+            {
+                var full = Path.GetFullPath(candidate);
+                if (File.Exists(Path.Combine(full, "appsettings.json")))
+                    return full;
+            }
+
+            return null;
         }
     }
 }

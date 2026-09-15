@@ -156,7 +156,11 @@ builder.Services.AddScoped<WebhookAuthValidator>();
 builder.Services.AddScoped<IAuthService, AuthManager>();
 builder.Services.AddScoped<IIyzicoPaymentService, IyzicoPaymentManager>();
 builder.Services.AddScoped<ITenantPlanService, TenantPlanManager>();
-builder.Services.AddScoped<IGoogleCalendarService, GoogleCalendarManager>();
+if (builder.Configuration.GetValue("Google:SkipEventSync", false))
+    builder.Services.AddScoped<IGoogleCalendarService, NoOpGoogleCalendarService>();
+else
+    builder.Services.AddScoped<IGoogleCalendarService, GoogleCalendarManager>();
+
 builder.Services.AddScoped<IFeedbackService, FeedbackManager>();
 builder.Services.AddScoped<ITenantBlockedPhoneService, TenantBlockedPhoneManager>();
 builder.Services.AddScoped<IDashboardService, DashboardManager>();

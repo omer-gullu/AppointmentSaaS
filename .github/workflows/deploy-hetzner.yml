@@ -10,6 +10,7 @@ on:
       - 'Appointment_SaaS.Business/**'
       - 'Appointment_SaaS.Core/**'
       - 'Appointment_SaaS.Data/**'
+      - 'e2e/**'
       - 'deploy/api/**'
       - 'deploy/webui/**'
       - 'deploy/ensure-env.sh'
@@ -84,7 +85,21 @@ jobs:
 
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -144,6 +159,70 @@ jobs:
       - name: Stop WebUI smoke
         if: always()
         run: kill $(cat webui-smoke.pid 2>/dev/null) 2>/dev/null || true
+
+      - name: Install API gate tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          dotnet tool install --global dotnet-ef --version 8.0.23 || true
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Migrate and seed isolated Postgres
+        env:
+          ConnectionStrings__DefaultConnection: Host=127.0.0.1;Port=5432;Database=e2e;Username=postgres;Password=postgres
+        run: |
+          for i in {1..30}; do
+            pg_isready -h 127.0.0.1 -p 5432 -U postgres && break
+            sleep 2
+          done
+          dotnet ef database update \
+            --project Appointment_SaaS.Data/Appointment_SaaS.Data.csproj \
+            --startup-project Appointment_SaaS.API/Appointment_SaaS.API.csproj
+          PGPASSWORD=postgres psql -h 127.0.0.1 -U postgres -d e2e -v ON_ERROR_STOP=1 -f e2e/scripts/ci-seed.sql
+
+      - name: Start API (appointment CRUD gate)
+        run: |
+          dotnet run --project Appointment_SaaS.API/Appointment_SaaS.API.csproj -c Release --no-build --urls "http://127.0.0.1:5294" &
+          echo $! > api-gate.pid
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+          ConnectionStrings__DefaultConnection: Host=127.0.0.1;Port=5432;Database=e2e;Username=postgres;Password=postgres
+          TokenOptions__SecurityKey: CI_ONLY_JWT_KEY_32_CHARS_MIN_OK_1234
+          EncryptionSettings__AesKey: 0123456789abcdef0123456789abcdef
+          Google__SkipEventSync: true
+          WebhookSecurity__N8nAuthToken: CI-N8N-SYSTEM-TOKEN-UNUSED
+          EvolutionApi__BaseUrl: http://127.0.0.1:9
+          IyzicoSettings__Enabled: false
+
+      - name: Wait for API
+        run: |
+          for i in {1..60}; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:5294/api/Tenants/GetContextByInstance?instanceName=ci-janti" || true)
+            if [ "$code" = "401" ] || [ "$code" = "200" ] || [ "$code" = "404" ]; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API gate health failed"
+          exit 1
+
+      - name: Playwright appointment CRUD gate
+        working-directory: e2e
+        env:
+          CI: true
+          PLAYWRIGHT_ENV: development
+          E2E_WEB_UI_URL: http://127.0.0.1:5259
+          E2E_API_URL: http://127.0.0.1:5294
+          E2E_N8N_TOKEN: JNT-123-ABC
+          E2E_TENANT_ID: '1'
+          E2E_INSTANCE_NAME: ci-janti
+          E2E_SERVICE_ID: '1'
+          E2E_STAFF_ID: '101'
+        run: npm run test:gate
+
+      - name: Stop API gate
+        if: always()
+        run: kill $(cat api-gate.pid 2>/dev/null) 2>/dev/null || true
 
   deploy-api:
     needs: [validate, changes]
