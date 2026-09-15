@@ -228,25 +228,33 @@ namespace Appointment_SaaS.WebUI.Controllers
 [ValidateAntiForgeryToken]
         public async Task<IActionResult> GenerateOtp([FromBody] OtpRequestModel request)
         {
-            request.PhoneNumber = OtpPhoneNormalizer.Normalize(request.PhoneNumber);
-            var payload = new { phoneNumber = request.PhoneNumber };
-            var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-            var res = await _httpClient.PostAsync("api/Auth/generate-otp", content);
-
-            var body = await res.Content.ReadAsStringAsync();
-            string message = body;
             try
             {
-                var json = JsonDocument.Parse(body);
-                if (json.RootElement.TryGetProperty("message", out var mp))
-                    message = mp.GetString() ?? body;
+                request.PhoneNumber = OtpPhoneNormalizer.Normalize(request.PhoneNumber);
+                var payload = new { phoneNumber = request.PhoneNumber };
+                var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+                var res = await _httpClient.PostAsync("api/Auth/generate-otp", content);
+
+                var body = await res.Content.ReadAsStringAsync();
+                var message = ReadApiErrorMessage(body, "Kod gönderilemedi. Lütfen tekrar deneyin.");
+
+                if (res.IsSuccessStatusCode)
+                    return Json(new { success = true });
+
+                return StatusCode((int)res.StatusCode, new { success = false, message });
             }
-            catch { }
-
-            if (res.IsSuccessStatusCode)
-                return Json(new { success = true });
-
-            return StatusCode((int)res.StatusCode, new { success = false, message });
+            catch (TaskCanceledException)
+            {
+                return StatusCode(503, new { success = false, message = "Doğrulama servisi yanıt vermedi. Lütfen tekrar deneyin." });
+            }
+            catch (HttpRequestException)
+            {
+                return StatusCode(503, new { success = false, message = "Doğrulama servisine ulaşılamadı. Lütfen tekrar deneyin." });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { success = false, message = "Kod gönderilirken bir hata oluştu. Lütfen tekrar deneyin." });
+            }
         }
 
         [HttpPost]
@@ -515,6 +523,32 @@ namespace Appointment_SaaS.WebUI.Controllers
                 TempData["RegisterError"] = "Ödeme işlemi onaylanamadı. Lütfen destek ekibi ile iletişime geçiniz.";
                 return RedirectToAction("Register");
             }
+        }
+
+        private static string ReadApiErrorMessage(string body, string fallback)
+        {
+            if (string.IsNullOrWhiteSpace(body) || body.TrimStart().StartsWith('<'))
+                return fallback;
+
+            try
+            {
+                using var json = JsonDocument.Parse(body);
+                foreach (var name in new[] { "message", "Message" })
+                {
+                    if (json.RootElement.TryGetProperty(name, out var mp) && mp.ValueKind == JsonValueKind.String)
+                    {
+                        var text = mp.GetString();
+                        if (!string.IsNullOrWhiteSpace(text))
+                            return text;
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+                // ham gövde kullanıcıya gösterilmez
+            }
+
+            return fallback;
         }
     }
 

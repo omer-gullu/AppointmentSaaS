@@ -47,14 +47,30 @@ test.describe('Pricing sayfası smoke @smoke', () => {
   });
 });
 
+test.describe('Login sayfası smoke @smoke', () => {
+  test('telefon alanı ve devam butonu görünür', async ({ page }) => {
+    await page.goto('/Auth/Login');
+    await expect(page.locator('#phoneNumber')).toBeVisible();
+    await expect(page.locator('#btnRequestOtp')).toBeVisible();
+    await expect(page.locator('#btnRequestOtp')).toContainText(/devam et/i);
+  });
+});
+
 /**
  * WebUI→API bağlantı smoke'u — secret/DB/OTP gerektirmez.
  * Register (GET) sektör listesini API'den (api/Sector, ApiBaseUrl HttpClient) çeker.
  * Liste boşsa WebUI API'ye ulaşamıyor demektir — "login 400 / ApiBaseUrl bozuk"
  * sınıfındaki kesintiyi OTP göndermeden yakalar.
+ *
+ * CI/deploy öncesi (E2E_SMOKE_PAGES_ONLY=true): API/DB yok; bu testi atla.
+ * Canlı post-deploy smoke: API açık, sektör dolu olmalı.
  */
 test.describe('Register WebUI→API bağlantısı @smoke', () => {
   test('Sektör dropdown API listesiyle dolu', async ({ page }) => {
+    test.skip(
+      process.env.E2E_SMOKE_PAGES_ONLY === 'true',
+      'Sayfa smoke: API/DB yok, sektör listesi atlandı',
+    );
     await page.goto('/Auth/Register');
 
     const sector = page.locator('#fieldSector');

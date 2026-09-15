@@ -47,9 +47,9 @@
 
     function parseCooldownSeconds(message) {
         var match = String(message || '').match(/(\d+)\s*saniye/i);
-        if (!match) return 45;
+        if (!match) return null;
         var seconds = parseInt(match[1], 10);
-        return isNaN(seconds) ? 45 : Math.max(1, seconds);
+        return isNaN(seconds) ? null : Math.max(1, seconds);
     }
 
     var requestCooldownTimer = null;
@@ -162,7 +162,9 @@
                     document.getElementById('phoneNumber').disabled = true;
                 } else {
                     btn.disabled = false;
-                    startRequestCooldown(parseCooldownSeconds(msg));
+                    // Yalnızca gerçek 429 cooldown metni. 500/503 "Sistemsel hata"ya 45 sn kilit basma.
+                    var wait = response.status === 429 ? parseCooldownSeconds(msg) : null;
+                    if (wait) startRequestCooldown(wait);
                 }
             }
         } catch {

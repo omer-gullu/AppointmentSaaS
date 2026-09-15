@@ -157,7 +157,7 @@ namespace Appointment_SaaS.API.Controller
             catch (Exception ex)
             {
                 _logger.LogError(ex, "OTP oluşturulurken hata oluştu.");
-                return StatusCode(500, new { Message = "Sistemsel bir hata oluştu." });
+                return StatusCode(500, new { Message = "Doğrulama kodu şu an gönderilemedi. Lütfen tekrar deneyin." });
             }
         }
 

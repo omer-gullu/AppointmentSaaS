@@ -32,6 +32,7 @@ env:
 jobs:
   # secrets context is NOT allowed in job-level if:. Evaluate it inside a step
   # (secrets ARE available in steps) and gate the e2e job via needs output.
+  # Sayfa smoke (Pricing/Login) CI + deploy validate içinde secret'sız çalışır.
   gate:
     runs-on: ubuntu-latest
     outputs:

@@ -52,6 +52,9 @@ namespace Appointment_SaaS.Test
             _mockTenantPlanService
                 .Setup(x => x.TryReconcileFromIyzicoAsync(It.IsAny<Tenant>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(false);
+            _mockTenantPlanService
+                .Setup(x => x.TryActivateDueScheduledPlanAsync(It.IsAny<Tenant>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
 
             var lockoutOptions = new Mock<IOptions<LockoutSettings>>();
             lockoutOptions.Setup(x => x.Value).Returns(new LockoutSettings
@@ -276,6 +279,40 @@ namespace Appointment_SaaS.Test
                 x => x.SendOtpMessageAsync("FirmaXYZ_ab12", phone, It.IsAny<string>()),
                 Times.Never);
             _mockUserService.Verify(x => x.UpdateAsync(user), Times.Never);
+        }
+
+        [Fact]
+        public async Task GenerateOtpForLoginAsync_ShouldStillSend_WhenIyzicoReconcileThrows()
+        {
+            var phone = OtpTestHelper.Normalize("5551234567");
+            var dto = new OtpLoginDto { PhoneNumber = phone };
+            var user = new AppUser { TenantID = 1, LastOtpRequestDate = DateTime.UtcNow.AddMinutes(-5) };
+            _mockUserService.Setup(x => x.GetByPhoneNumberAsync(phone)).ReturnsAsync(user);
+
+            var tenant = new Tenant
+            {
+                TenantID = 1,
+                InstanceName = "TestInstance",
+                IsActive = true,
+                IsSubscriptionActive = true,
+                IsTrial = true,
+                SubscriptionEndDate = DateTime.UtcNow.AddDays(10)
+            };
+            _mockTenantService.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(tenant);
+            _mockTenantPlanService
+                .Setup(x => x.TryReconcileFromIyzicoAsync(It.IsAny<Tenant>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new HttpRequestException("iyzico timeout"));
+            _mockEvolutionApiService
+                .Setup(x => x.SendOtpMessageAsync("defaultConfig", phone, It.IsAny<string>()))
+                .ReturnsAsync(true);
+
+            var result = await _authManager.GenerateOtpForLoginAsync(dto);
+
+            result.Should().BeTrue();
+            user.OtpCode.Should().NotBeNullOrEmpty();
+            _mockEvolutionApiService.Verify(
+                x => x.SendOtpMessageAsync("defaultConfig", phone, It.IsAny<string>()),
+                Times.Once);
         }
 
         [Fact]

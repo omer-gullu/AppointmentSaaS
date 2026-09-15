@@ -84,7 +84,7 @@ jobs:
 
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
 
@@ -100,6 +100,50 @@ jobs:
 
       - name: Unit tests (deploy gate)
         run: dotnet test Appointment_SaaS.Test/Appointment_SaaS.Test.csproj -c Release --no-build --verbosity normal
+
+      - name: Setup Node (page smoke)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install Playwright
+        working-directory: e2e
+        run: |
+          npm ci || npm install
+          npx playwright install --with-deps chromium
+
+      - name: Start WebUI (page smoke)
+        run: |
+          dotnet run --project Appointment_SaaS.WebUI/Appointment_SaaS.WebUI.csproj -c Release --no-build --urls "http://127.0.0.1:5259" &
+          echo $! > webui-smoke.pid
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+          ApiBaseUrl: http://127.0.0.1:9
+
+      - name: Wait for WebUI
+        run: |
+          for i in {1..60}; do
+            curl -sf -o /dev/null http://127.0.0.1:5259/Pricing && exit 0
+            sleep 2
+          done
+          echo "WebUI smoke health failed"
+          exit 1
+
+      - name: Playwright page smoke (Pricing + Login)
+        working-directory: e2e
+        env:
+          CI: true
+          PLAYWRIGHT_ENV: development
+          E2E_WEB_UI_URL: http://127.0.0.1:5259
+          E2E_API_URL: http://127.0.0.1:5294
+          E2E_SMOKE_PAGES_ONLY: 'true'
+        run: npm run test:smoke
+
+      - name: Stop WebUI smoke
+        if: always()
+        run: kill $(cat webui-smoke.pid 2>/dev/null) 2>/dev/null || true
 
   deploy-api:
     needs: [validate, changes]

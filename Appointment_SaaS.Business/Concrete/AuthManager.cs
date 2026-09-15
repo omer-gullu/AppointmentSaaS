@@ -335,8 +335,30 @@ namespace Appointment_SaaS.Business.Concrete
             return await work;
         }
 
-        private Task<bool> TryReconcileSuspendedTenantAsync(Tenant tenant) =>
-            _tenantPlanService.TryReconcileFromIyzicoAsync(tenant);
+        private async Task<bool> TryReconcileSuspendedTenantAsync(Tenant tenant)
+        {
+            try
+            {
+                return await _tenantPlanService.TryReconcileFromIyzicoAsync(tenant);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Auth] Iyzico reconcile atlandı. TenantId={TenantId}", tenant.TenantID);
+                return false;
+            }
+        }
+
+        private async Task TryActivateScheduledPlanSafeAsync(Tenant tenant)
+        {
+            try
+            {
+                await _tenantPlanService.TryActivateDueScheduledPlanAsync(tenant);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Auth] Plan aktivasyonu atlandı. TenantId={TenantId}", tenant.TenantID);
+            }
+        }
 
         private async Task EnforceTenantAccessOrThrowAsync(Tenant tenant, AppUser user)
         {
@@ -378,7 +400,7 @@ namespace Appointment_SaaS.Business.Concrete
                 throw new BadHttpRequestException("İşletme bulunamadı.", StatusCodes.Status404NotFound);
 
             await TryReconcileSuspendedTenantAsync(tenant);
-            await _tenantPlanService.TryActivateDueScheduledPlanAsync(tenant);
+            await TryActivateScheduledPlanSafeAsync(tenant);
             await EnforceTenantAccessOrThrowAsync(tenant, user);
 
             if (user.LastOtpRequestDate.HasValue)
@@ -460,7 +482,7 @@ namespace Appointment_SaaS.Business.Concrete
                 throw new BadHttpRequestException("İşletme bulunamadı.");
 
             await TryReconcileSuspendedTenantAsync(tenant);
-            await _tenantPlanService.TryActivateDueScheduledPlanAsync(tenant);
+            await TryActivateScheduledPlanSafeAsync(tenant);
             await EnforceTenantAccessOrThrowAsync(tenant, user);
 
             // 3. OTP doğrulama + brute-force koruması
