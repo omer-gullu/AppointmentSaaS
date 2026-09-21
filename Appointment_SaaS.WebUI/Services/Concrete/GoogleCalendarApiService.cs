@@ -115,6 +115,13 @@ namespace Appointment_SaaS.WebUI.Services.Concrete
                 var tokenData = JsonSerializer.Deserialize<JsonElement>(await tokenResponse.Content.ReadAsStringAsync());
                 string accessToken = tokenData.GetProperty("access_token").GetString()!;
                 string? refreshToken = tokenData.TryGetProperty("refresh_token", out var rt) ? rt.GetString() : null;
+                if (string.IsNullOrWhiteSpace(refreshToken))
+                {
+                    _logger.LogWarning(
+                        "Google OAuth refresh_token gelmedi; access token kaydedilmedi. StaffId={StaffId} TenantId={TenantId}",
+                        staffId, tenantId);
+                    return (false, "Google yenileme anahtarı gelmedi; bağlantı kaydedilmedi. Google hesabından bu uygulamanın erişimini kaldırıp personeli tekrar bağlayın.");
+                }
 
                 var profileRequest = new HttpRequestMessage(HttpMethod.Get, "https://www.googleapis.com/oauth2/v2/userinfo");
                 profileRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
@@ -127,7 +134,7 @@ namespace Appointment_SaaS.WebUI.Services.Concrete
                     userEmail = profileData.GetProperty("email").GetString()!;
                 }
 
-                string tokenToSave = refreshToken ?? accessToken;
+                string tokenToSave = refreshToken;
                 var apiClient = await CreateAuthenticatedApiClientAsync();
 
                 if (staffId.HasValue)
