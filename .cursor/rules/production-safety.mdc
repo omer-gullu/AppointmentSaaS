@@ -1,0 +1,34 @@
+---
+description: Production-safe changes — callers, login/OTP/randevu/WhatsApp, DateTime, config, migrations
+alwaysApply: true
+---
+
+# Production safety
+
+This app is in production with real customer data. Do not treat edits as a sandbox.
+
+## Before every change
+
+State explicitly:
+
+- (a) Which other files/methods depend on this code (callers, controllers, n8n HTTP contract, other implementers of the same interface). Search and list them; do not guess.
+- (b) Whether the change can affect **login**, **OTP**, **appointment create/update/delete**, or **WhatsApp**.
+- (c) If it can, which test would catch it (unit in `Appointment_SaaS.Test`, `e2e` gate `appointment-gate.spec.ts`, smoke, or none — say so).
+
+Phrase it as: this change’s callers, whether it touches login / OTP / appointment create / WhatsApp, and which test would catch a break.
+
+## Critical classes
+
+Changes in `AuthManager`, `EvolutionApiManager`, or `AppointmentManager` affect those flows. Before editing, summarize which methods the three flows use (OTP generate/verify, `AddAppointmentAsync`/`UpdateAsync`/`DeleteAsync`, `SendWhatsAppMessageAsync`).
+
+## DateTime
+
+Do not change DateTime/Kind/offset/timezone handling unless the user first confirms UTC vs Istanbul/`DateTimeKind` behavior. This repo already had a 3-hour timezone bug.
+
+## Config
+
+If you add an `appsettings.json` key, add it in `appsettings.json` and the matching env (`.env` / deploy env). Call out any mismatch.
+
+## Migrations
+
+New migrations must be backward compatible: nullable or defaulted columns. Do not drop existing columns or change their type.

@@ -14,11 +14,14 @@ import {
 } from '../helpers/n8n';
 import { createAppointmentAsN8n, deleteAppointmentAsN8n } from '../helpers/appointments';
 import { requireE2eStaticConfig, type E2eStaticConfig } from '../helpers/e2e-config';
+import { resolveStaffIdWithGoogleToken, skipUnlessGoogleStaff } from '../helpers/google-e2e';
 
 let cfg: E2eStaticConfig;
 let n8nToken = '';
 let e2eInstance = '';
 let planType = '';
+let googleStaffId: number | null = null;
+let preferredStaffId = 0;
 
 type SlotBody = {
   isHoliday?: boolean;
@@ -60,6 +63,14 @@ test.describe('n8n API sözleşmesi', () => {
     expect(probe.status, JSON.stringify(probe.json)).toBe(200);
     const mega = probe.json as { planType?: string; PlanType?: string };
     planType = String(mega.planType ?? mega.PlanType ?? '');
+    preferredStaffId = cfg.staffId;
+    googleStaffId = await resolveStaffIdWithGoogleToken(
+      cfg.tenantId,
+      e2eInstance,
+      n8nToken,
+      preferredStaffId,
+    );
+    if (googleStaffId) cfg = { ...cfg, staffId: googleStaffId };
   });
 
   test('GetContextByInstance → işletme bağlamı', async () => {
@@ -113,6 +124,7 @@ test.describe('n8n API sözleşmesi', () => {
   });
 
   test('reminders/pending → yarın İstanbul penceresi ve plan kuralı', async () => {
+    skipUnlessGoogleStaff(googleStaffId, preferredStaffId);
     const token = getN8nSystemAuthToken();
     test.skip(!token, 'E2E_N8N_SYSTEM_TOKEN veya API WebhookSecurity:N8nAuthToken gerekli');
 
@@ -178,6 +190,7 @@ test.describe('n8n API sözleşmesi', () => {
   });
 
   test('PUT /api/Appointments/{id} → canlı slot değiştirir', async () => {
+    skipUnlessGoogleStaff(googleStaffId, preferredStaffId);
     const phone = `5320000${String(Date.now() % 1000).padStart(3, '0')}`;
     const booking = await resolveE2eBookingContext(
       cfg.tenantId,
@@ -231,6 +244,7 @@ test.describe('n8n API sözleşmesi', () => {
   });
 
   test('DELETE /api/Appointments/{id} → canlı kaydı siler', async () => {
+    skipUnlessGoogleStaff(googleStaffId, preferredStaffId);
     const phone = `5320000${String((Date.now() + 1) % 1000).padStart(3, '0')}`;
     const booking = await resolveE2eBookingContext(
       cfg.tenantId,
@@ -266,6 +280,7 @@ test.describe('n8n API sözleşmesi', () => {
   });
 
   test('my-active-appointments → oluştur, WhatsApp jid ile oku, sil', async () => {
+    skipUnlessGoogleStaff(googleStaffId, preferredStaffId);
     const phone = `5320000${String((Date.now() + 2) % 1000).padStart(3, '0')}`;
     const jid = formatWhatsAppJid(phone);
     const booking = await resolveE2eBookingContext(

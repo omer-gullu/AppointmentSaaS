@@ -437,5 +437,38 @@ namespace Appointment_SaaS.Test
             result.Should().BeOfType<BadRequestObjectResult>();
             mockAppUser.Verify(x => x.GetAllUsersAsync(), Times.Never);
         }
+
+        [Fact]
+        public async Task AppUsersController_RemoveStaff_ShouldNotDeleteLastManager()
+        {
+            var manager = new AppUser { AppUserID = 1, TenantID = 5, FirstName = "Akilli", LastName = "Personel" };
+            var extra = new AppUser { AppUserID = 2, TenantID = 5, FirstName = "Omer" };
+            var mockAppUser = new Mock<IAppUserService>();
+            mockAppUser.Setup(x => x.GetStaffByTenantAsync(5))
+                .ReturnsAsync(new List<AppUser> { manager, extra });
+            mockAppUser.Setup(x => x.GetClaims(manager))
+                .Returns(new List<OperationClaim> { new() { Id = 2, Name = "Manager" } });
+            mockAppUser.Setup(x => x.GetClaims(extra))
+                .Returns(new List<OperationClaim>());
+
+            var mockTenantProvider = new Mock<Appointment_SaaS.Core.Services.ITenantProvider>();
+            mockTenantProvider.Setup(x => x.GetTenantId()).Returns(5);
+
+            var controller = new AppUsersController(
+                mockAppUser.Object,
+                new Mock<IAuthService>().Object,
+                new Mock<ITenantService>().Object,
+                mockTenantProvider.Object,
+                new Mock<IUserOperationClaimService>().Object,
+                new Mock<IConfiguration>().Object,
+                new Mock<System.Net.Http.IHttpClientFactory>().Object);
+
+            controller.ControllerContext = CreateMockControllerContext(CreateMockUser("Manager", 5));
+
+            var result = await controller.RemoveStaff(1);
+
+            result.Should().BeOfType<BadRequestObjectResult>();
+            mockAppUser.Verify(x => x.DeleteAsync(It.IsAny<AppUser>()), Times.Never);
+        }
     }
 }

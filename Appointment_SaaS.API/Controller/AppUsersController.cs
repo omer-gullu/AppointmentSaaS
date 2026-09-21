@@ -226,15 +226,26 @@ public class AppUsersController : ControllerBase
         if (user.TenantID != tenantId.Value)
             return Forbid();
 
-        user.FirstName = dto.FirstName;
-        user.LastName = dto.LastName;
-        user.Email = dto.Email;
-        user.PhoneNumber = dto.PhoneNumber;
-        user.Specialization = dto.Specialization;
-        user.GoogleCalendarId = dto.GoogleCalendarId;
-        user.Status = dto.Status;
+        var freshUser = await _appUserService.GetByIdAsync(id);
+        if (freshUser == null || freshUser.TenantID != tenantId.Value)
+            return NotFound(new { Message = "Personel bulunamadı." });
 
-        await _appUserService.UpdateAsync(user);
+        if (!string.IsNullOrWhiteSpace(dto.PhoneNumber))
+        {
+            var otherByPhone = await _appUserService.GetByPhoneNumberAsync(dto.PhoneNumber);
+            if (otherByPhone != null && otherByPhone.AppUserID != id)
+                return BadRequest(new { Message = "Bu telefon numarası başka bir personelde kayıtlı." });
+        }
+
+        freshUser.FirstName = dto.FirstName?.Trim() ?? freshUser.FirstName;
+        freshUser.LastName = dto.LastName?.Trim() ?? "";
+        freshUser.PhoneNumber = string.IsNullOrWhiteSpace(dto.PhoneNumber) ? freshUser.PhoneNumber : dto.PhoneNumber.Trim();
+        if (dto.Specialization != null)
+            freshUser.Specialization = dto.Specialization.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Email))
+            freshUser.Email = dto.Email.Trim();
+
+        await _appUserService.UpdateAsync(freshUser);
         return Ok(new { Message = "Personel başarıyla güncellendi." });
     }
 
@@ -253,6 +264,24 @@ public class AppUsersController : ControllerBase
 
         if (user.TenantID != tenantId.Value)
             return Forbid();
+
+        var claims = _appUserService.GetClaims(user);
+        var isManager = claims.Any(c => string.Equals(c.Name, "Manager", StringComparison.OrdinalIgnoreCase));
+        if (isManager)
+        {
+            var otherManagers = 0;
+            foreach (var other in users.Where(u => u.AppUserID != id))
+            {
+                if (_appUserService.GetClaims(other).Any(c => string.Equals(c.Name, "Manager", StringComparison.OrdinalIgnoreCase)))
+                    otherManagers++;
+            }
+
+            if (otherManagers == 0)
+                return BadRequest(new
+                {
+                    Message = "Giriş hesabı olan yönetici personeli silemezsiniz. Adını, telefonunu veya uzmanlığını düzenleyebilirsiniz."
+                });
+        }
 
         await _appUserService.DeleteAsync(user);
         return Ok(new { Message = "Personel pasife alındı." });

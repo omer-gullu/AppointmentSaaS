@@ -95,6 +95,9 @@
                                                 <button type="button" class="btn btn-google-refresh btn-sm rounded-pill px-2 py-0" onclick="refreshStaffGoogle(@uid)">
                                                     <i class="bi bi-arrow-clockwise"></i> Yenile
                                                 </button>
+                                                <a href="/Dashboard/ConnectStaffGoogle?staffId=@uid" class="btn btn-google-refresh btn-sm rounded-pill px-2 py-0">
+                                                    Yeniden bağla
+                                                </a>
                                             </div>
                                         }
                                         else
@@ -111,6 +114,17 @@
                                         }
                                     </td>
                                     <td class="text-end pe-4">
+                                        <button type="button" class="btn btn-icon-action"
+                                                data-id="@uid"
+                                                data-first="@fn"
+                                                data-last="@ln"
+                                                data-phone="@(ph == "—" ? "" : ph)"
+                                                data-spec="@(sp == "Genel" ? "" : sp)"
+                                                data-email="@(s.TryGetProperty("email", out var emProp) ? emProp.GetString() ?? "" : "")"
+                                                onclick="openEditStaff(this)"
+                                                aria-label="Personeli düzenle">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
                                         <button type="button" class="btn btn-icon-action btn-icon-action--danger" onclick="removeStaff(@uid)" aria-label="Personeli kaldır">
                                             <i class="bi bi-trash" aria-hidden="true"></i>
                                         </button>
@@ -131,6 +145,36 @@
                         }
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editStaffModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius:20px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold"><i class="bi bi-pencil-square me-2 text-success"></i>Personeli Düzenle</h5>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <input type="hidden" id="editStaffId">
+                <input type="hidden" id="editStaffEmail">
+                <div class="mb-3">
+                    <label class="form-label text-muted small fw-bold">AD SOYAD</label>
+                    <input type="text" id="editStaffFullName" class="form-control bg-light border-0 py-2" placeholder="Ad Soyad">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted small fw-bold">TELEFON</label>
+                    <input type="tel" id="editStaffPhone" class="form-control bg-light border-0 py-2" placeholder="05XX XXX XX XX">
+                </div>
+                <div class="mb-4">
+                    <label class="form-label text-muted small fw-bold">UZMANLIK (Opsiyonel)</label>
+                    <input type="text" id="editStaffSpec" class="form-control bg-light border-0 py-2" placeholder="Örn: Saç Kesimi">
+                </div>
+                <button type="button" class="btn btn-primary w-100 py-3 rounded-pill fw-bold shadow-sm" onclick="saveStaff()">
+                    <i class="bi bi-check2 me-2"></i>Kaydet
+                </button>
             </div>
         </div>
     </div>
@@ -205,6 +249,41 @@
                 return;
             }
             swToast('error', data.message || 'Google token yenilenemedi.');
+        } catch { swToast('error', 'Sistemle bağlantı kurulamadı.'); }
+    }
+    function openEditStaff(btn) {
+        document.getElementById('editStaffId').value = btn.dataset.id || '';
+        document.getElementById('editStaffEmail').value = btn.dataset.email || '';
+        document.getElementById('editStaffFullName').value = `${btn.dataset.first || ''} ${btn.dataset.last || ''}`.trim();
+        document.getElementById('editStaffPhone').value = btn.dataset.phone || '';
+        document.getElementById('editStaffSpec').value = btn.dataset.spec || '';
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('editStaffModal')).show();
+    }
+    async function saveStaff() {
+        const userId = document.getElementById('editStaffId').value;
+        const nameParts = document.getElementById('editStaffFullName').value.trim().split(' ');
+        const firstName = nameParts.slice(0, -1).join(' ') || nameParts[0] || '';
+        const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+        const payload = {
+            firstName, lastName,
+            email: document.getElementById('editStaffEmail').value.trim(),
+            phoneNumber: document.getElementById('editStaffPhone').value.trim(),
+            specialization: document.getElementById('editStaffSpec').value.trim()
+        };
+        try {
+            const res = await fetch(`/Dashboard/UpdateStaff?userId=${userId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) {
+                bootstrap.Modal.getInstance(document.getElementById('editStaffModal'))?.hide();
+                swToast('success', data.message || data.Message || 'Personel güncellendi.');
+                setTimeout(() => location.reload(), 1200);
+            } else {
+                swToast('error', data.message || data.Message || 'Personel güncellenemedi.');
+            }
         } catch { swToast('error', 'Sistemle bağlantı kurulamadı.'); }
     }
     async function removeStaff(userId) {

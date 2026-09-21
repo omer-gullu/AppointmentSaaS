@@ -63,6 +63,16 @@ export async function createAppointmentAsN8n(
     break;
   }
   if (status !== 200) {
+    const msg = String(json.message ?? json.Message ?? '');
+    if (/Google Takvim/i.test(msg)) {
+      const web = (process.env.E2E_WEB_UI_URL ?? '').replace(/\/+$/, '');
+      const staff = payload.appUserID;
+      throw new Error(
+        `Appointment create failed (${status}): ${msg}` +
+          (web ? ` Panelden bağla: ${web}/Dashboard/ConnectStaffGoogle?staffId=${staff}` : '') +
+          ` ${JSON.stringify(json)}`,
+      );
+    }
     throw new Error(`Appointment create failed (${status}): ${JSON.stringify(json)}`);
   }
   const id =

@@ -15,6 +15,7 @@ import {
 import { assertDbWritable, ensureE2eBusinessHours } from '../helpers/db';
 import { panelTestsEnabled } from '../helpers/e2e-config';
 import { getN8nAuthToken, resolveE2eBookingContext, resolveLaterSlotIso } from '../helpers/n8n';
+import { resolveStaffIdWithGoogleToken, skipUnlessGoogleStaff } from '../helpers/google-e2e';
 import { isReadonlyEnv } from '../helpers/env';
 
 const E2E_PHONE = process.env.E2E_MANAGER_PHONE?.trim();
@@ -25,6 +26,7 @@ const E2E_STAFF_ID = Number(process.env.E2E_STAFF_ID ?? '0');
 const CUSTOMER_PREFIX = (process.env.E2E_CUSTOMER_PHONE_PREFIX ?? '5320000').replace(/\D/g, '').slice(0, 7);
 
 let slotSeq = 0;
+let googleStaffId: number | null = null;
 
 function uniquePhone(): string {
   slotSeq += 1;
@@ -58,11 +60,21 @@ test.describe('Randevu güncelle / sil — API @destructive', () => {
   test.beforeAll(async () => {
     skipUnlessMutationsEnv();
     await ensureE2eBusinessHours(E2E_TENANT_ID);
+    const token = getN8nAuthToken();
+    if (!token || !E2E_INSTANCE) return;
+    googleStaffId = await resolveStaffIdWithGoogleToken(
+      E2E_TENANT_ID,
+      E2E_INSTANCE,
+      token,
+      E2E_STAFF_ID,
+    );
   });
 
   test('API: tarih/saat güncelle → DB', async () => {
+    skipUnlessGoogleStaff(googleStaffId, E2E_STAFF_ID);
     assertDbWritable();
     const token = getN8nAuthToken();
+    const staffId = googleStaffId!;
     const phone = uniquePhone();
     const name = uniqueName('ApiTime');
     const booking = await resolveE2eBookingContext(
@@ -70,7 +82,7 @@ test.describe('Randevu güncelle / sil — API @destructive', () => {
       E2E_INSTANCE,
       token,
       E2E_SERVICE_ID,
-      E2E_STAFF_ID,
+      staffId,
     );
     const { appointmentId } = await createAppointmentAsN8n(
       {
@@ -78,7 +90,7 @@ test.describe('Randevu güncelle / sil — API @destructive', () => {
         customerPhone: phone,
         businessPhone: E2E_INSTANCE,
         serviceID: E2E_SERVICE_ID,
-        appUserID: E2E_STAFF_ID,
+        appUserID: staffId,
         startDate: booking.startIso,
       },
       token,
@@ -89,7 +101,7 @@ test.describe('Randevu güncelle / sil — API @destructive', () => {
       E2E_TENANT_ID,
       E2E_INSTANCE,
       token,
-      E2E_STAFF_ID,
+      staffId,
       booking,
     );
     const upd = await updateAppointmentAsN8n(
@@ -98,7 +110,7 @@ test.describe('Randevu güncelle / sil — API @destructive', () => {
         customerName: name,
         customerPhone: phone,
         serviceID: E2E_SERVICE_ID,
-        appUserID: E2E_STAFF_ID,
+        appUserID: staffId,
         startDate: newIso,
         businessPhone: E2E_INSTANCE,
       },

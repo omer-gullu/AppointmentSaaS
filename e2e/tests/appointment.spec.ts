@@ -8,6 +8,7 @@ import { getE2eStaticConfig, panelTestsEnabled } from '../helpers/e2e-config';
 import { isReadonlyEnv } from '../helpers/env';
 import { isManagerAuthReady, MANAGER_AUTH_FILE } from '../helpers/panel-auth';
 import { resolveE2eBookingContext } from '../helpers/n8n';
+import { resolveStaffIdWithGoogleToken, skipUnlessGoogleStaff } from '../helpers/google-e2e';
 
 const E2E_TENANT_ID = Number(process.env.E2E_TENANT_ID ?? '0');
 const E2E_SERVICE_ID = Number(process.env.E2E_SERVICE_ID ?? '0');
@@ -20,6 +21,7 @@ const E2E_CUSTOMER_PHONE_PREFIX = (process.env.E2E_CUSTOMER_PHONE_PREFIX ?? '532
 let slotSeq = 0;
 let panelAppointmentId: number | null = null;
 let apiAppointmentId: number | null = null;
+let googleStaffId: number | null = null;
 
 function uniquePhone(): string {
   const suffix = String((Date.now() + slotSeq * 17) % 1000).padStart(3, '0');
@@ -133,12 +135,21 @@ test.describe('Randevu — API @destructive', () => {
     test.skip(!getE2eStaticConfig(), 'Statik .env eksik (discover-env.ps1)');
     await ensureE2eBusinessHours(E2E_TENANT_ID);
     await ensureE2eBreakTime(E2E_TENANT_ID);
+    const staticCfg = getE2eStaticConfig()!;
+    googleStaffId = await resolveStaffIdWithGoogleToken(
+      staticCfg.tenantId,
+      staticCfg.instanceName,
+      staticCfg.n8nToken,
+      staticCfg.staffId,
+    );
   });
 
   /** n8n workflow'un son adımı: doğrudan API (Gemini/n8n çalışması gerekmez). Canlı n8n → n8n-workflow.spec.ts */
   test('API randevu POST (n8n son adımı) → DB + refresh token', async () => {
+    skipUnlessGoogleStaff(googleStaffId, E2E_STAFF_ID);
     assertDbWritable();
     const staticCfg = getE2eStaticConfig()!;
+    const staffId = googleStaffId!;
 
     const customerPhone = uniquePhone();
     const customerName = uniqueCustomerName('Webhook');
@@ -154,7 +165,7 @@ test.describe('Randevu — API @destructive', () => {
         staticCfg.instanceName,
         staticCfg.n8nToken,
         staticCfg.serviceId,
-        staticCfg.staffId,
+        staffId,
       );
       const res = await postN8nAppointment(
         {
@@ -162,7 +173,7 @@ test.describe('Randevu — API @destructive', () => {
           customerPhone,
           businessPhone: staticCfg.instanceName,
           serviceID: staticCfg.serviceId,
-          appUserID: staticCfg.staffId,
+          appUserID: staffId,
           startDate: booking.startIso,
         },
         staticCfg.n8nToken,
@@ -197,7 +208,7 @@ test.describe('Randevu — API @destructive', () => {
     const tokenRes = await getGoogleAccessTokenViaWebhook(
       staticCfg.instanceName,
       staticCfg.n8nToken,
-      staticCfg.staffId,
+      staffId,
     );
     if (REQUIRE_GOOGLE) {
       expect(tokenRes.status, JSON.stringify(tokenRes.json)).toBe(200);

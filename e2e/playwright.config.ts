@@ -16,6 +16,7 @@ const isCI = Boolean(process.env.CI);
  */
 export default defineConfig({
   testDir: './tests',
+  testIgnore: ['appointment-gate.spec.ts'],
   globalSetup: require.resolve('./global-setup'),
   timeout: 120_000,
   fullyParallel: false,

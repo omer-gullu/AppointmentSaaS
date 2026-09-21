@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Appointment_SaaS.WebUI.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -317,7 +318,9 @@ namespace Appointment_SaaS.WebUI.Controllers
                     });
                 }
 
-                var needsReconnect = body.Contains("invalid_grant", StringComparison.OrdinalIgnoreCase)
+                var needsReconnect = (int)response.StatusCode is 400 or 502
+                    || body.Contains("invalid_grant", StringComparison.OrdinalIgnoreCase)
+                    || body.Contains("invalid_client", StringComparison.OrdinalIgnoreCase)
                     || body.Contains("bağlı değil", StringComparison.OrdinalIgnoreCase);
 
                 string message = needsReconnect
@@ -447,6 +450,56 @@ namespace Appointment_SaaS.WebUI.Controllers
             }
         }
 
+        [HttpPut]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateStaff(int userId, [FromBody] AddStaffRequest request)
+        {
+            try
+            {
+                if (userId <= 0)
+                    return BadRequest(new { message = "Geçersiz personel." });
+
+                var factory = HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
+                var httpClient = factory.CreateClient("Api");
+                await Services.HttpClientTokenHelper.AttachBearerTokenAsync(
+                    httpClient, HttpContext.RequestServices.GetRequiredService<Microsoft.AspNetCore.Http.IHttpContextAccessor>());
+
+                var payload = new
+                {
+                    firstName = request.FirstName,
+                    lastName = request.LastName,
+                    email = request.Email,
+                    phoneNumber = request.PhoneNumber,
+                    specialization = request.Specialization
+                };
+
+                var content = new System.Net.Http.StringContent(
+                    System.Text.Json.JsonSerializer.Serialize(payload),
+                    System.Text.Encoding.UTF8, "application/json");
+
+                var response = await httpClient.PutAsync($"api/AppUsers/{userId}", content);
+                var body = await response.Content.ReadAsStringAsync();
+
+                object? jsonBody = null;
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(body))
+                        jsonBody = System.Text.Json.JsonSerializer.Deserialize<object>(body);
+                }
+                catch { }
+
+                if (response.IsSuccessStatusCode)
+                    return Ok(jsonBody ?? new { message = "Personel güncellendi." });
+
+                return StatusCode((int)response.StatusCode,
+                    jsonBody ?? new { message = body ?? "Personel güncellenemedi." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = $"Sistem hatası: {ex.Message}" });
+            }
+        }
+
         /// <summary>
         /// Personel silme — JavaScript'ten gelen isteği Backend API'ye proxy eder.
         /// </summary>
@@ -456,6 +509,10 @@ namespace Appointment_SaaS.WebUI.Controllers
         {
             try
             {
+                var me = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (int.TryParse(me, out var myId) && myId == userId)
+                    return BadRequest(new { message = "Giriş yaptığınız yönetici personeli silemezsiniz. Adını veya telefonunu düzenleyin." });
+
                 var factory = HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
                 var httpClient = factory.CreateClient("Api");
                 await Services.HttpClientTokenHelper.AttachBearerTokenAsync(

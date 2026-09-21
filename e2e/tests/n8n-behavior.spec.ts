@@ -15,6 +15,7 @@ import {
 } from '../helpers/n8n';
 import { unblockCustomerPhone } from '../helpers/db';
 import { createAppointmentAsN8n, deleteAppointmentAsN8n } from '../helpers/appointments';
+import { resolveStaffIdWithGoogleToken, skipUnlessGoogleStaff } from '../helpers/google-e2e';
 import { isReadonlyEnv } from '../helpers/env';
 
 const E2E_TENANT_ID = Number(process.env.E2E_TENANT_ID ?? '0');
@@ -22,6 +23,8 @@ const E2E_INSTANCE = process.env.E2E_INSTANCE_NAME?.trim() ?? '';
 const E2E_SERVICE_ID = Number(process.env.E2E_SERVICE_ID ?? '0');
 const E2E_STAFF_ID = Number(process.env.E2E_STAFF_ID ?? '0');
 const CUSTOMER_PREFIX = (process.env.E2E_CUSTOMER_PHONE_PREFIX ?? '5320000').replace(/\D/g, '').slice(0, 7);
+
+let googleStaffId: number | null = null;
 
 function sandboxPhone(): string {
   return `${CUSTOMER_PREFIX}${String(Date.now() % 1000).padStart(3, '0')}`;
@@ -39,8 +42,16 @@ function skipUnlessN8nLive(): void {
  * Özür / 2. agent: E2E_N8N_VERIFY_AI_FAILURE=true (manuel test modu) gerekir.
  */
 test.describe('n8n workflow davranış @destructive', () => {
-  test.beforeAll(() => {
+  test.beforeAll(async () => {
     skipUnlessN8nLive();
+    if (E2E_TENANT_ID && E2E_INSTANCE && getN8nAuthToken()) {
+      googleStaffId = await resolveStaffIdWithGoogleToken(
+        E2E_TENANT_ID,
+        E2E_INSTANCE,
+        getN8nAuthToken(),
+        E2E_STAFF_ID,
+      );
+    }
   });
 
   test.afterEach(async () => {
@@ -188,14 +199,16 @@ test.describe('n8n workflow davranış @destructive', () => {
   });
 
   test('randevu oluştur → my-active-appointments (randevulari_oku proxy)', async () => {
+    skipUnlessGoogleStaff(googleStaffId, E2E_STAFF_ID);
     const token = getN8nAuthToken();
+    const staffId = googleStaffId!;
     const phone = sandboxPhone();
     const booking = await resolveE2eBookingContext(
       E2E_TENANT_ID,
       E2E_INSTANCE,
       token,
       E2E_SERVICE_ID,
-      E2E_STAFF_ID,
+      staffId,
     );
     const { appointmentId } = await createAppointmentAsN8n(
       {
@@ -203,7 +216,7 @@ test.describe('n8n workflow davranış @destructive', () => {
         customerPhone: phone,
         businessPhone: E2E_INSTANCE,
         serviceID: E2E_SERVICE_ID,
-        appUserID: E2E_STAFF_ID,
+        appUserID: staffId,
         startDate: booking.startIso,
       },
       token,
