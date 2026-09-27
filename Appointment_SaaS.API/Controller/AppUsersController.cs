@@ -49,7 +49,7 @@ public class AppUsersController : ControllerBase
         if (tenantId == null) return Unauthorized();
 
         var users = await _appUserService.GetStaffByTenantAsync(tenantId.Value);
-        return Ok(users.Select(StaffListItemDto.FromEntity));
+        return Ok(users.Select(u => StaffListItemDto.FromEntity(u, IsManagerUser(u))));
     }
 
     [Authorize(AuthenticationSchemes = "Bearer,WebhookScheme")]
@@ -72,7 +72,7 @@ public class AppUsersController : ControllerBase
         }
 
         var users = await _appUserService.GetStaffByTenantAsync(tenantId);
-        return Ok(users.Select(StaffListItemDto.FromEntity));
+        return Ok(users.Select(u => StaffListItemDto.FromEntity(u, IsManagerUser(u))));
     }
 
     // POST /api/AppUsers/add-staff
@@ -237,6 +237,22 @@ public class AppUsersController : ControllerBase
                 return BadRequest(new { Message = "Bu telefon numarası başka bir personelde kayıtlı." });
         }
 
+        var isManager = IsManagerUser(freshUser);
+        var currentPhone = OtpPhoneNormalizer.Normalize(freshUser.PhoneNumber);
+        var nextPhone = string.IsNullOrWhiteSpace(dto.PhoneNumber)
+            ? currentPhone
+            : OtpPhoneNormalizer.Normalize(dto.PhoneNumber);
+        var loginPhoneChanging = isManager && !string.IsNullOrEmpty(nextPhone) && currentPhone != nextPhone;
+
+        if (loginPhoneChanging && !dto.ConfirmLoginPhoneChange)
+        {
+            return Conflict(new
+            {
+                Message = "Bu numara panel girişinin OTP hattıdır. Değiştirirseniz kod yeni numaraya gider; eski numara ile giriş yapılamaz. İşletme iletişim numarası da güncellenir.",
+                RequiresLoginPhoneConfirm = true
+            });
+        }
+
         freshUser.FirstName = dto.FirstName?.Trim() ?? freshUser.FirstName;
         freshUser.LastName = dto.LastName?.Trim() ?? "";
         freshUser.PhoneNumber = string.IsNullOrWhiteSpace(dto.PhoneNumber) ? freshUser.PhoneNumber : dto.PhoneNumber.Trim();
@@ -246,7 +262,23 @@ public class AppUsersController : ControllerBase
             freshUser.Email = dto.Email.Trim();
 
         await _appUserService.UpdateAsync(freshUser);
-        return Ok(new { Message = "Personel başarıyla güncellendi." });
+
+        if (loginPhoneChanging)
+        {
+            var tenant = await _tenantService.GetByIdAsync(tenantId.Value);
+            if (tenant != null)
+            {
+                tenant.PhoneNumber = nextPhone;
+                await _tenantService.UpdateAsync(tenant);
+            }
+        }
+
+        return Ok(new
+        {
+            Message = loginPhoneChanging
+                ? "Yönetici telefonu güncellendi. Panel OTP ve işletme numarası artık bu hatta."
+                : "Personel başarıyla güncellendi."
+        });
     }
 
     // DELETE /api/AppUsers/{id} — Personel pasife al (soft delete)
@@ -286,6 +318,10 @@ public class AppUsersController : ControllerBase
         await _appUserService.DeleteAsync(user);
         return Ok(new { Message = "Personel pasife alındı." });
     }
+
+    private bool IsManagerUser(AppUser user) =>
+        _appUserService.GetClaims(user)
+            .Any(c => string.Equals(c.Name, "Manager", StringComparison.OrdinalIgnoreCase));
 
     public class UpdateStaffGoogleTokenDto
     {
@@ -332,15 +368,15 @@ public class AppUsersController : ControllerBase
 
         try
         {
-            var clientId = _configuration["Google:ClientId"];
-            var clientSecret = _configuration["Google:ClientSecret"];
+            if (!GoogleOAuthCredentials.TryGet(_configuration, out var clientId, out var clientSecret))
+                return StatusCode(503, new { error = "API Google istemci anahtarı eksik. webui.env ile aynı Google__ClientSecret google.env / api.env içinde olmalı." });
 
             var httpClient = _httpClientFactory.CreateClient();
 
             var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
             {
-                { "client_id", clientId! },
-                { "client_secret", clientSecret! },
+                { "client_id", clientId },
+                { "client_secret", clientSecret },
                 { "refresh_token", user.GoogleRefreshToken },
                 { "grant_type", "refresh_token" }
             });
@@ -349,7 +385,7 @@ public class AppUsersController : ControllerBase
             var responseBody = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-                return StatusCode(502, new { error = "Google token yenilemesi başarısız.", detail = responseBody });
+                return StatusCode(502, new { error = GoogleOAuthCredentials.DescribeRefreshFailure(responseBody), detail = responseBody });
 
             var tokenData = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(responseBody);
             var accessToken = tokenData.GetProperty("access_token").GetString();

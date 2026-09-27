@@ -45,14 +45,17 @@ public class GoogleCalendarManager : IGoogleCalendarService
             return null;
         }
 
-        var clientId = _configuration["Google:ClientId"];
-        var clientSecret = _configuration["Google:ClientSecret"];
+        if (!GoogleOAuthCredentials.TryGet(_configuration, out var clientId, out var clientSecret))
+        {
+            _logger.LogError("[GoogleCalendar] API Google ClientId/Secret eksik veya placeholder. AppUserID={Id}", appUserId);
+            return null;
+        }
 
         var httpClient = _httpClientFactory.CreateClient();
         var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            { "client_id", clientId! },
-            { "client_secret", clientSecret! },
+            { "client_id", clientId },
+            { "client_secret", clientSecret },
             { "refresh_token", user.GoogleRefreshToken },
             { "grant_type", "refresh_token" }
         });

@@ -303,6 +303,7 @@ jobs:
           Restart=always
           RestartSec=5
           EnvironmentFile=-/opt/appointmentsaas/api.env
+          EnvironmentFile=-/opt/appointmentsaas/google.env
           Environment=ASPNETCORE_URLS=http://127.0.0.1:5294
           User=www-data
           Group=www-data
@@ -315,6 +316,10 @@ jobs:
           fi
           chown -R www-data:www-data /opt/appointmentsaas/api
           bash /opt/appointmentsaas/ensure-env.sh api /opt/appointmentsaas/api.env.example
+          if [ -f /etc/systemd/system/appointmentsaas-api.service ] && ! grep -q 'appointmentsaas/google.env' /etc/systemd/system/appointmentsaas-api.service; then
+            sed -i '/EnvironmentFile=-\/opt\/appointmentsaas\/api.env/a EnvironmentFile=-/opt/appointmentsaas/google.env' /etc/systemd/system/appointmentsaas-api.service
+            systemctl daemon-reload
+          fi
           systemctl restart appointmentsaas-api
           systemctl is-active appointmentsaas-api
           REMOTE
@@ -398,6 +403,7 @@ jobs:
           Restart=always
           RestartSec=5
           EnvironmentFile=-/opt/appointmentsaas/webui.env
+          EnvironmentFile=-/opt/appointmentsaas/google.env
           Environment=ASPNETCORE_URLS=http://127.0.0.1:5259
           User=www-data
           Group=www-data
@@ -410,6 +416,15 @@ jobs:
           fi
           chown -R www-data:www-data /opt/appointmentsaas/webui
           bash /opt/appointmentsaas/ensure-env.sh webui /opt/appointmentsaas/webui.env.example
+          if [ -f /etc/systemd/system/appointmentsaas-webui.service ] && ! grep -q 'appointmentsaas/google.env' /etc/systemd/system/appointmentsaas-webui.service; then
+            sed -i '/EnvironmentFile=-\/opt\/appointmentsaas\/webui.env/a EnvironmentFile=-/opt/appointmentsaas/google.env' /etc/systemd/system/appointmentsaas-webui.service
+            systemctl daemon-reload
+          fi
+          if [ -f /etc/systemd/system/appointmentsaas-api.service ] && ! grep -q 'appointmentsaas/google.env' /etc/systemd/system/appointmentsaas-api.service; then
+            sed -i '/EnvironmentFile=-\/opt\/appointmentsaas\/api.env/a EnvironmentFile=-/opt/appointmentsaas/google.env' /etc/systemd/system/appointmentsaas-api.service
+            systemctl daemon-reload
+          fi
+          systemctl restart appointmentsaas-api || true
           systemctl restart appointmentsaas-webui
           systemctl is-active appointmentsaas-webui
           REMOTE

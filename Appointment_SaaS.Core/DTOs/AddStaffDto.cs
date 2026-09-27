@@ -25,5 +25,7 @@
         public string? Specialization { get; set; }
         public string? GoogleCalendarId { get; set; }
         public bool Status { get; set; } = true;
+        /// <summary>Yönetici telefonu değişince OTP/giriş hattı da değişir; UI onay vermeden API reddeder.</summary>
+        public bool ConfirmLoginPhoneChange { get; set; }
     }
 }

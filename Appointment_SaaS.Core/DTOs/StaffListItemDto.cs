@@ -12,9 +12,10 @@ public class StaffListItemDto
     public string? Specialization { get; set; }
     public string? GoogleCalendarId { get; set; }
     public bool HasGoogleConnected { get; set; }
+    public bool IsManager { get; set; }
     public bool Status { get; set; }
 
-    public static StaffListItemDto FromEntity(AppUser u) => new()
+    public static StaffListItemDto FromEntity(AppUser u, bool isManager = false) => new()
     {
         AppUserID = u.AppUserID,
         FirstName = u.FirstName,
@@ -24,6 +25,7 @@ public class StaffListItemDto
         Specialization = u.Specialization,
         GoogleCalendarId = u.GoogleCalendarId,
         HasGoogleConnected = !string.IsNullOrEmpty(u.GoogleRefreshToken),
+        IsManager = isManager,
         Status = u.Status
     };
 }

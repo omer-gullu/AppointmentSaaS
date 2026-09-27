@@ -125,14 +125,16 @@ test.describe('Randevu güncelle / sil — API @destructive', () => {
   });
 
   test('API: hizmet + personel değiştir → DB', async () => {
+    skipUnlessGoogleStaff(googleStaffId, E2E_STAFF_ID);
     assertDbWritable();
     const token = getN8nAuthToken();
+    const staffId = googleStaffId!;
     const alt = await resolveAlternateServiceAndStaff(
       E2E_TENANT_ID,
       E2E_INSTANCE,
       token,
       E2E_SERVICE_ID,
-      E2E_STAFF_ID,
+      staffId,
     );
     test.skip(!alt, 'İkinci hizmet/personel yok — tenant’a bir hizmet ve personel daha ekleyin');
 
@@ -143,7 +145,7 @@ test.describe('Randevu güncelle / sil — API @destructive', () => {
       E2E_INSTANCE,
       token,
       E2E_SERVICE_ID,
-      E2E_STAFF_ID,
+      staffId,
     );
     const { appointmentId } = await createAppointmentAsN8n(
       {
@@ -151,7 +153,7 @@ test.describe('Randevu güncelle / sil — API @destructive', () => {
         customerPhone: phone,
         businessPhone: E2E_INSTANCE,
         serviceID: E2E_SERVICE_ID,
-        appUserID: E2E_STAFF_ID,
+        appUserID: staffId,
         startDate: booking.startIso,
       },
       token,
@@ -216,15 +218,17 @@ test.describe('Randevu güncelle / sil — API @destructive', () => {
   });
 
   test('API: randevu sil (n8n randevu_sil aracı)', async () => {
+    skipUnlessGoogleStaff(googleStaffId, E2E_STAFF_ID);
     assertDbWritable();
     const token = getN8nAuthToken();
+    const staffId = googleStaffId!;
     const phone = uniquePhone();
     const booking = await resolveE2eBookingContext(
       E2E_TENANT_ID,
       E2E_INSTANCE,
       token,
       E2E_SERVICE_ID,
-      E2E_STAFF_ID,
+      staffId,
     );
     const { appointmentId } = await createAppointmentAsN8n(
       {
@@ -232,7 +236,7 @@ test.describe('Randevu güncelle / sil — API @destructive', () => {
         customerPhone: phone,
         businessPhone: E2E_INSTANCE,
         serviceID: E2E_SERVICE_ID,
-        appUserID: E2E_STAFF_ID,
+        appUserID: staffId,
         startDate: booking.startIso,
       },
       token,

@@ -73,12 +73,17 @@
                                 var uid = s.TryGetProperty("appUserID", out var uidProp) ? uidProp.GetInt32() : 0;
                                 var calId = s.TryGetProperty("googleCalendarId", out var calProp) && calProp.ValueKind != System.Text.Json.JsonValueKind.Null ? calProp.GetString() : null;
                                 var hasGoogle = s.TryGetProperty("hasGoogleConnected", out var hgProp) && hgProp.ValueKind == System.Text.Json.JsonValueKind.True;
+                                var isManager = s.TryGetProperty("isManager", out var imProp) && imProp.ValueKind == System.Text.Json.JsonValueKind.True;
                                 <tr>
                                     <td class="ps-4">
                                         <div class="d-flex align-items-center gap-2">
                                             <div class="avatar bg-primary bg-opacity-10 text-primary">@(fn.Length > 0 ? fn.Substring(0, 1).ToUpper() : "P")</div>
                                             <div>
                                                 <div class="fw-bold text-capitalize">@fn @ln</div>
+                                                @if (isManager)
+                                                {
+                                                    <div class="text-primary" style="font-size:0.72rem;"><i class="bi bi-shield-lock me-1"></i>Yönetici · panel OTP girişi</div>
+                                                }
                                                 <div class="text-muted" style="font-size:0.75rem;">@calId</div>
                                             </div>
                                         </div>
@@ -121,6 +126,7 @@
                                                 data-phone="@(ph == "—" ? "" : ph)"
                                                 data-spec="@(sp == "Genel" ? "" : sp)"
                                                 data-email="@(s.TryGetProperty("email", out var emProp) ? emProp.GetString() ?? "" : "")"
+                                                data-manager="@(isManager ? "true" : "false")"
                                                 onclick="openEditStaff(this)"
                                                 aria-label="Personeli düzenle">
                                             <i class="bi bi-pencil"></i>
@@ -163,6 +169,9 @@
                 <div class="mb-3">
                     <label class="form-label text-muted small fw-bold">AD SOYAD</label>
                     <input type="text" id="editStaffFullName" class="form-control bg-light border-0 py-2" placeholder="Ad Soyad">
+                </div>
+                <div id="editManagerHint" class="alert alert-warning border-0 py-2 px-3 small mb-3" style="display:none;">
+                    Bu kişi işletme yöneticisidir. Telefonunu değiştirirseniz panel OTP kodu yeni numaraya gider; eski numara ile giriş yapılamaz. İşletme iletişim numarası da aynı hatta güncellenir.
                 </div>
                 <div class="mb-3">
                     <label class="form-label text-muted small fw-bold">TELEFON</label>
@@ -256,19 +265,44 @@
         document.getElementById('editStaffEmail').value = btn.dataset.email || '';
         document.getElementById('editStaffFullName').value = `${btn.dataset.first || ''} ${btn.dataset.last || ''}`.trim();
         document.getElementById('editStaffPhone').value = btn.dataset.phone || '';
+        document.getElementById('editStaffPhone').dataset.original = btn.dataset.phone || '';
         document.getElementById('editStaffSpec').value = btn.dataset.spec || '';
+        document.getElementById('editStaffId').dataset.manager = btn.dataset.manager || 'false';
+        document.getElementById('editManagerHint').style.display = btn.dataset.manager === 'true' ? 'block' : 'none';
         bootstrap.Modal.getOrCreateInstance(document.getElementById('editStaffModal')).show();
     }
+    function digitsPhone(p) { return (p || '').replace(/\D/g, '').replace(/^90/, '').replace(/^0/, ''); }
     async function saveStaff() {
         const userId = document.getElementById('editStaffId').value;
+        const isManager = document.getElementById('editStaffId').dataset.manager === 'true';
+        const originalPhone = document.getElementById('editStaffPhone').dataset.original || '';
+        const phoneNumber = document.getElementById('editStaffPhone').value.trim();
+        const loginPhoneChanging = isManager && digitsPhone(originalPhone) !== digitsPhone(phoneNumber);
+        if (loginPhoneChanging) {
+            const go = await Swal.fire({
+                icon: 'warning',
+                title: 'Giriş numarası değişecek',
+                html: '<div class="text-start small">Bu yönetici telefonunu değiştirirseniz:<ul class="mb-0 ps-3">'
+                    + '<li>Panel OTP kodu <strong>yeni numaraya</strong> gider.</li>'
+                    + '<li>Eski numara ile giriş yapılamaz.</li>'
+                    + '<li>İşletme iletişim numarası da yeni hatta güncellenir.</li>'
+                    + '</ul></div>',
+                showCancelButton: true,
+                confirmButtonText: 'Numarayı değiştir',
+                cancelButtonText: 'Vazgeç',
+                confirmButtonColor: '#d97706'
+            });
+            if (!go.isConfirmed) return;
+        }
         const nameParts = document.getElementById('editStaffFullName').value.trim().split(' ');
         const firstName = nameParts.slice(0, -1).join(' ') || nameParts[0] || '';
         const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
         const payload = {
             firstName, lastName,
             email: document.getElementById('editStaffEmail').value.trim(),
-            phoneNumber: document.getElementById('editStaffPhone').value.trim(),
-            specialization: document.getElementById('editStaffSpec').value.trim()
+            phoneNumber,
+            specialization: document.getElementById('editStaffSpec').value.trim(),
+            confirmLoginPhoneChange: loginPhoneChanging
         };
         try {
             const res = await fetch(`/Dashboard/UpdateStaff?userId=${userId}`, {

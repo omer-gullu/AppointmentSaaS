@@ -416,6 +416,75 @@ namespace Appointment_SaaS.Test
         }
 
         [Fact]
+        public async Task GetAvailableSlotsByStaffAsync_FifteenMinutes_IncludesLastStartAtClose()
+        {
+            var targetDate = IstanbulWall(2, 0);
+            await _db.BusinessHours.AddAsync(new BusinessHour
+            {
+                TenantID = 1,
+                DayOfWeek = (int)targetDate.DayOfWeek,
+                IsClosed = false,
+                OpenTime = TimeSpan.FromHours(9),
+                CloseTime = TimeSpan.FromHours(18)
+            });
+            await _db.SaveChangesAsync();
+
+            _mockAppointmentRepo.Setup(x => x.Where(It.IsAny<Expression<Func<Appointment, bool>>>()))
+                .Returns(new List<Appointment>().AsQueryable().BuildMock());
+
+            var result = await _manager.GetAvailableSlotsByStaffAsync(1, _staffId, targetDate, 15, count: 100);
+
+            result.Should().Contain("17:45");
+            result.Should().NotContain("17:40");
+        }
+
+        [Fact]
+        public async Task GetAvailableSlotsByStaffAsync_Requested1745_FifteenMinutes_IsAvailable()
+        {
+            var targetDate = IstanbulWall(2, 0);
+            await _db.BusinessHours.AddAsync(new BusinessHour
+            {
+                TenantID = 1,
+                DayOfWeek = (int)targetDate.DayOfWeek,
+                IsClosed = false,
+                OpenTime = TimeSpan.FromHours(9),
+                CloseTime = TimeSpan.FromHours(18)
+            });
+            await _db.SaveChangesAsync();
+
+            _mockAppointmentRepo.Setup(x => x.Where(It.IsAny<Expression<Func<Appointment, bool>>>()))
+                .Returns(new List<Appointment>().AsQueryable().BuildMock());
+
+            var result = await _manager.GetAvailableSlotsByStaffAsync(
+                1, _staffId, targetDate, 15, count: 100, requestedTime: "17:45");
+
+            result.Should().Equal("17:45");
+        }
+
+        [Fact]
+        public async Task GetAvailableSlotsByStaffAsync_Requested1745_ThirtyMinutes_IsEmpty()
+        {
+            var targetDate = IstanbulWall(2, 0);
+            await _db.BusinessHours.AddAsync(new BusinessHour
+            {
+                TenantID = 1,
+                DayOfWeek = (int)targetDate.DayOfWeek,
+                IsClosed = false,
+                OpenTime = TimeSpan.FromHours(9),
+                CloseTime = TimeSpan.FromHours(18)
+            });
+            await _db.SaveChangesAsync();
+
+            _mockAppointmentRepo.Setup(x => x.Where(It.IsAny<Expression<Func<Appointment, bool>>>()))
+                .Returns(new List<Appointment>().AsQueryable().BuildMock());
+
+            var result = await _manager.GetAvailableSlotsByStaffAsync(
+                1, _staffId, targetDate, 30, count: 100, requestedTime: "17:45");
+
+            result.Should().BeEmpty();
+        }
+
+        [Fact]
         public async Task GetActiveAppointmentsByPhoneAsync_ShouldReturnBothRows_WhenOnePhoneIsWhatsAppJid()
         {
             var sector = new Sector { Name = "Sec", CreatedAt = DateTime.UtcNow };

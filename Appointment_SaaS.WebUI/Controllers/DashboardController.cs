@@ -470,7 +470,8 @@ namespace Appointment_SaaS.WebUI.Controllers
                     lastName = request.LastName,
                     email = request.Email,
                     phoneNumber = request.PhoneNumber,
-                    specialization = request.Specialization
+                    specialization = request.Specialization,
+                    confirmLoginPhoneChange = request.ConfirmLoginPhoneChange
                 };
 
                 var content = new System.Net.Http.StringContent(
@@ -742,5 +743,6 @@ namespace Appointment_SaaS.WebUI.Controllers
         public string PhoneNumber { get; set; } = string.Empty;
         public string? Specialization { get; set; }
         public string? GoogleCalendarId { get; set; }
+        public bool ConfirmLoginPhoneChange { get; set; }
     }
 }

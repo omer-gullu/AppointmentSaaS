@@ -491,15 +491,15 @@ public class TenantsController : ControllerBase
 
         try
         {
-            var clientId = _configuration["Google:ClientId"];
-            var clientSecret = _configuration["Google:ClientSecret"];
+            if (!GoogleOAuthCredentials.TryGet(_configuration, out var clientId, out var clientSecret))
+                return StatusCode(503, new { error = "API Google istemci anahtarı eksik. webui.env ile aynı Google__ClientSecret google.env / api.env içinde olmalı." });
 
             var httpClient = _httpClientFactory.CreateClient();
 
             var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
             {
-                { "client_id", clientId! },
-                { "client_secret", clientSecret! },
+                { "client_id", clientId },
+                { "client_secret", clientSecret },
                 { "refresh_token", refreshToken },
                 { "grant_type", "refresh_token" }
             });
@@ -508,7 +508,7 @@ public class TenantsController : ControllerBase
             var responseBody = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-                return StatusCode(502, new { error = "Google token yenilemesi başarısız.", detail = responseBody });
+                return StatusCode(502, new { error = GoogleOAuthCredentials.DescribeRefreshFailure(responseBody), detail = responseBody });
 
             var tokenData = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(responseBody);
             var accessToken = tokenData.GetProperty("access_token").GetString();

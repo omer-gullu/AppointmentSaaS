@@ -110,7 +110,7 @@ public class AppUserManager : IAppUserService
 
     public async Task<List<StaffListItemDto>> GetStaffListItemsByTenantAsync(int tenantId)
     {
-        return await _userRepository
+        var items = await _userRepository
             .Where(u => u.TenantID == tenantId && u.Status)
             .AsNoTracking()
             .Select(u => new StaffListItemDto
@@ -126,5 +126,13 @@ public class AppUserManager : IAppUserService
                 Status = u.Status
             })
             .ToListAsync();
+
+        foreach (var item in items)
+        {
+            item.IsManager = GetClaims(new AppUser { AppUserID = item.AppUserID })
+                .Any(c => string.Equals(c.Name, "Manager", StringComparison.OrdinalIgnoreCase));
+        }
+
+        return items;
     }
 }

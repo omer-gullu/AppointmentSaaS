@@ -490,11 +490,7 @@ public class AppointmentManager : IAppointmentService
         var suggestions = new List<string>();
 
         var now = BusinessClock.IstanbulNow;
-        var currentTime = (date.Date == now.Date && now > startOfDay)
-            ? now.AddMinutes(15 - now.Minute % 15)
-            : startOfDay;
-
-        if (currentTime < startOfDay) currentTime = startOfDay;
+        var currentTime = AlignSlotCursor(date, startOfDay, now);
 
         while (currentTime.AddMinutes(durationMinutes) <= endOfDay && suggestions.Count < count)
         {
@@ -918,10 +914,7 @@ public class AppointmentManager : IAppointmentService
 
         var suggestions = new List<string>();
         var now = BusinessClock.IstanbulNow;
-        var currentTime = (date == now.Date && now > startOfDay)
-            ? now.AddMinutes(15 - now.Minute % 15)
-            : startOfDay;
-        if (currentTime < startOfDay) currentTime = startOfDay;
+        var currentTime = AlignSlotCursor(date, startOfDay, now);
 
         while (currentTime.AddMinutes(durationMinutes) <= endOfDay && suggestions.Count < count)
         {
@@ -1071,6 +1064,22 @@ public class AppointmentManager : IAppointmentService
                 Status = a.Status
             })
             .ToList();
+    }
+
+    /// <summary>
+    /// Aynı gün: bir sonraki 15 dk sınırına yuvarla, saniyeyi at.
+    /// Saniye kalırsa 17:45:40+15 kapanış 18:00'ı geçer ve son slot düşer.
+    /// DateTime Kind/offset değişmez; yalnızca dakika hizası.
+    /// </summary>
+    private static DateTime AlignSlotCursor(DateTime date, DateTime startOfDay, DateTime now)
+    {
+        var currentTime = (date.Date == now.Date && now > startOfDay)
+            ? now.AddMinutes(15 - now.Minute % 15)
+            : startOfDay;
+        currentTime = new DateTime(currentTime.Year, currentTime.Month, currentTime.Day, currentTime.Hour, currentTime.Minute, 0);
+        if (currentTime < startOfDay)
+            currentTime = startOfDay;
+        return currentTime;
     }
 
     private static void EnsureWithinWorkingHours(Tenant? tenant, DateTime wallStart, DateTime wallEnd)

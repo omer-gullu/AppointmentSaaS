@@ -470,5 +470,49 @@ namespace Appointment_SaaS.Test
             result.Should().BeOfType<BadRequestObjectResult>();
             mockAppUser.Verify(x => x.DeleteAsync(It.IsAny<AppUser>()), Times.Never);
         }
+
+        [Fact]
+        public async Task AppUsersController_UpdateStaff_ShouldRequireConfirm_WhenManagerPhoneChanges()
+        {
+            var manager = new AppUser
+            {
+                AppUserID = 1,
+                TenantID = 5,
+                FirstName = "Akilli",
+                LastName = "Personel",
+                PhoneNumber = "05317299931"
+            };
+            var mockAppUser = new Mock<IAppUserService>();
+            mockAppUser.Setup(x => x.GetStaffByTenantAsync(5))
+                .ReturnsAsync(new List<AppUser> { manager });
+            mockAppUser.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(manager);
+            mockAppUser.Setup(x => x.GetByPhoneNumberAsync(It.IsAny<string>())).ReturnsAsync((AppUser?)null);
+            mockAppUser.Setup(x => x.GetClaims(It.IsAny<AppUser>()))
+                .Returns(new List<OperationClaim> { new() { Id = 2, Name = "Manager" } });
+
+            var mockTenantProvider = new Mock<Appointment_SaaS.Core.Services.ITenantProvider>();
+            mockTenantProvider.Setup(x => x.GetTenantId()).Returns(5);
+
+            var controller = new AppUsersController(
+                mockAppUser.Object,
+                new Mock<IAuthService>().Object,
+                new Mock<ITenantService>().Object,
+                mockTenantProvider.Object,
+                new Mock<IUserOperationClaimService>().Object,
+                new Mock<IConfiguration>().Object,
+                new Mock<System.Net.Http.IHttpClientFactory>().Object);
+            controller.ControllerContext = CreateMockControllerContext(CreateMockUser("Manager", 5));
+
+            var result = await controller.UpdateStaff(1, new UpdateStaffDto
+            {
+                FirstName = "Akilli",
+                LastName = "Personel",
+                PhoneNumber = "05551112233",
+                ConfirmLoginPhoneChange = false
+            });
+
+            result.Should().BeOfType<ConflictObjectResult>();
+            mockAppUser.Verify(x => x.UpdateAsync(It.IsAny<AppUser>()), Times.Never);
+        }
     }
 }

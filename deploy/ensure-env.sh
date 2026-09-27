@@ -35,29 +35,50 @@ if [[ ! -f "$ENV_FILE" ]]; then
   fi
 fi
 
-if [[ "$ROLE" != "webui" ]]; then
-  exit 0
+if [[ "$ROLE" == "webui" ]]; then
+  current="$(grep -E '^[[:space:]]*ApiBaseUrl=' "$ENV_FILE" | head -n1 || true)"
+  if [[ "$current" != "$LOOPBACK_API" ]]; then
+    bak="$ENV_FILE.bak.$(date +%Y%m%d%H%M%S)"
+    cp -a "$ENV_FILE" "$bak"
+    tmp="$(mktemp)"
+    awk -v target="$LOOPBACK_API" '
+      BEGIN { found = 0 }
+      /^[[:space:]]*ApiBaseUrl=/ {
+        print target
+        found = 1
+        next
+      }
+      { print }
+      END { if (!found) print target }
+    ' "$ENV_FILE" > "$tmp"
+    cat "$tmp" > "$ENV_FILE"
+    rm -f "$tmp"
+    echo "webui.env ApiBaseUrl normalized to loopback"
+  else
+    echo "webui.env ApiBaseUrl already loopback"
+  fi
 fi
 
-current="$(grep -E '^[[:space:]]*ApiBaseUrl=' "$ENV_FILE" | head -n1 || true)"
-if [[ "$current" == "$LOOPBACK_API" ]]; then
-  echo "webui.env ApiBaseUrl already loopback"
-  exit 0
+# WebUI OAuth and API token refresh must use the same Google client.
+# Copy Google__* from webui.env (preferred) or api.env into a shared file.
+GOOGLE_ENV="$DIR/google.env"
+SOURCE=""
+if grep -qE '^[[:space:]]*Google__ClientSecret=' "$DIR/webui.env" 2>/dev/null; then
+  SOURCE="$DIR/webui.env"
+elif grep -qE '^[[:space:]]*Google__ClientSecret=' "$DIR/api.env" 2>/dev/null; then
+  SOURCE="$DIR/api.env"
 fi
-
-bak="$ENV_FILE.bak.$(date +%Y%m%d%H%M%S)"
-cp -a "$ENV_FILE" "$bak"
-tmp="$(mktemp)"
-awk -v target="$LOOPBACK_API" '
-  BEGIN { found = 0 }
-  /^[[:space:]]*ApiBaseUrl=/ {
-    print target
-    found = 1
-    next
-  }
-  { print }
-  END { if (!found) print target }
-' "$ENV_FILE" > "$tmp"
-cat "$tmp" > "$ENV_FILE"
-rm -f "$tmp"
-echo "webui.env ApiBaseUrl normalized to loopback"
+if [[ -n "$SOURCE" ]]; then
+  tmp="$(mktemp)"
+  grep -E '^[[:space:]]*Google__' "$SOURCE" > "$tmp" || true
+  if [[ -s "$tmp" ]]; then
+    chmod 600 "$tmp"
+    chown www-data:www-data "$tmp" 2>/dev/null || true
+    mv "$tmp" "$GOOGLE_ENV"
+    echo "google.env synced from $(basename "$SOURCE")"
+  else
+    rm -f "$tmp"
+  fi
+else
+  echo "google.env skipped — neither webui.env nor api.env has Google__ClientSecret"
+fi

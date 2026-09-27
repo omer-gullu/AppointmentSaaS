@@ -79,6 +79,7 @@ Infra deploy **`.env` dosyalarını üzerine yazmaz**.
 3. `api.env` / `webui.env` — şablonlar: `deploy/api/env.example`, `deploy/webui/env.example`.
    Deploy dosya yoksa şablondan oluşturur; mevcut sırları **ezmez**.
    WebUI `ApiBaseUrl` her deploy'da `http://127.0.0.1:5294` olarak sabitlenir (public hostname login'i bozar).
+   `Google__ClientId` / `Google__ClientSecret` WebUI ve API'de aynı olmalı. Deploy, `webui.env` içindeki `Google__*` satırlarını `/opt/appointmentsaas/google.env` olarak kopyalar; her iki systemd servisi bu dosyayı okur (yenileme API'de çalışır).
 4. Veritabanı şeması (ilk deploy sonrası veya deploy öncesi):
    ```bash
    cd /opt/appointmentsaas/api

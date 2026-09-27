@@ -514,7 +514,9 @@ public class AppointmentsController : ControllerBase
       [FromQuery] int staffId,
       [FromQuery] string date,
       [FromQuery] int durationMinutes = 30,
-      [FromQuery] string? requestedTime = null)
+      [FromQuery] string? requestedTime = null,
+      [FromQuery] int? serviceID = null,
+      [FromQuery] string? serviceIds = null)
     {
         try
         {
@@ -532,7 +534,13 @@ public class AppointmentsController : ControllerBase
             if (!DateOnly.TryParse(date, out var dateOnly))
                 return BadRequest(new { Message = "Geçersiz tarih formatı. YYYY-MM-DD kullanın." });
 
+            var resolvedDuration = ResolveSlotDurationMinutes(tenant, durationMinutes, serviceID, serviceIds);
+            if (resolvedDuration.Error != null)
+                return BadRequest(new { Message = resolvedDuration.Error });
+            durationMinutes = resolvedDuration.Minutes;
+
             var targetDate = dateOnly.ToDateTime(TimeOnly.MinValue);
+            var latestStart = LatestLegalStart(tenant, targetDate, durationMinutes);
 
             // 🔴 TATİL KONTROLÜ
             var holiday = TenantHolidayHelper.FindHolidayForAppointment(
@@ -545,10 +553,11 @@ public class AppointmentsController : ControllerBase
                     Date = targetDate.ToString("dd.MM.yyyy"),
                     IsHoliday = true,
                     Message = $"Bu gün {holiday.Name} nedeniyle kapalıdır.",
+                    DurationMinutes = durationMinutes,
+                    LatestStart = (string?)null,
                     AvailableSlots = Array.Empty<object>()
                 });
 
-            // geri kalan kod aynı kalıyor
             if (staffId > 0)
             {
                 var slots = await _appointmentService.GetAvailableSlotsByStaffAsync(
@@ -556,31 +565,151 @@ public class AppointmentsController : ControllerBase
                 if (!string.IsNullOrEmpty(requestedTime))
                 {
                     bool isAvailable = slots.Any();
+                    var fitsBeforeClose = RequestedTimeFitsBeforeClose(tenant, targetDate, requestedTime, durationMinutes);
+                    var isOccupied = !isAvailable && fitsBeforeClose;
+                    string message;
+                    if (isAvailable)
+                        message = $"{requestedTime} saati müsait.";
+                    else if (!fitsBeforeClose)
+                        message = $"{requestedTime} saati dolu değil; {durationMinutes} dk bu saatte kapanıştan önce bitmiyor."
+                            + (string.IsNullOrEmpty(latestStart) ? "" : $" Son uygun başlangıç: {latestStart}.");
+                    else
+                        message = $"{requestedTime} saati dolu.";
+
                     return Ok(new
                     {
                         Date = targetDate.ToString("dd.MM.yyyy"),
                         StaffId = staffId,
                         RequestedTime = requestedTime,
                         IsAvailable = isAvailable,
-                        Message = isAvailable ? $"{requestedTime} saati müsait." : $"{requestedTime} saati müsait değil.",
+                        IsOccupied = isOccupied,
+                        FitsBeforeClose = fitsBeforeClose,
+                        DurationMinutes = durationMinutes,
+                        LatestStart = latestStart,
+                        Message = message,
                         NearestSlots = isAvailable ? slots : await _appointmentService.GetAvailableSlotsByStaffAsync(
                             tenant.TenantID, staffId, targetDate, durationMinutes, count: 3)
                     });
                 }
-                return Ok(new { Date = targetDate.ToString("dd.MM.yyyy"), StaffId = staffId, AvailableSlots = slots, TotalSlots = slots.Count });
+                return Ok(new
+                {
+                    Date = targetDate.ToString("dd.MM.yyyy"),
+                    StaffId = staffId,
+                    DurationMinutes = durationMinutes,
+                    LatestStart = latestStart,
+                    AvailableSlots = slots,
+                    TotalSlots = slots.Count
+                });
             }
-            else
+
+            var allSlots = await _appointmentService.GetAvailableSlotsForAllStaffAsync(
+                tenant.TenantID, targetDate, durationMinutes, count: 100);
+            return Ok(new
             {
-                var allSlots = await _appointmentService.GetAvailableSlotsForAllStaffAsync(
-                    tenant.TenantID, targetDate, durationMinutes, count: 100);
-                return Ok(new { Date = targetDate.ToString("dd.MM.yyyy"), Staff = allSlots });
-            }
+                Date = targetDate.ToString("dd.MM.yyyy"),
+                DurationMinutes = durationMinutes,
+                LatestStart = latestStart,
+                Staff = allSlots
+            });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Müsait slotlar alınırken hata. Instance={Instance}", instanceName);
             return StatusCode(500, new { Message = "Sistemsel bir hata oluştu." });
         }
+    }
+
+    private static (int Minutes, string? Error) ResolveSlotDurationMinutes(
+        Appointment_SaaS.Core.Entities.Tenant tenant,
+        int durationMinutes,
+        int? serviceID,
+        string? serviceIds)
+    {
+        var ids = ParseSlotServiceIds(serviceID, serviceIds);
+        if (ids.Count == 0)
+            return (durationMinutes > 0 ? durationMinutes : 30, null);
+
+        if (tenant.Services == null || tenant.Services.Count == 0)
+            return (0, "Hizmet listesi yüklenemedi.");
+
+        var total = 0;
+        foreach (var id in ids)
+        {
+            var svc = tenant.Services.FirstOrDefault(s => s.ServiceID == id);
+            if (svc == null)
+                return (0, $"Hizmet bulunamadı veya bu işletmeye ait değil (ServiceID={id}).");
+            total += svc.DurationInMinutes;
+        }
+
+        return total > 0
+            ? (total, null)
+            : (0, "Seçilen hizmetlerin süresi geçersiz.");
+    }
+
+    private static List<int> ParseSlotServiceIds(int? serviceID, string? serviceIds)
+    {
+        var ids = new List<int>();
+        if (!string.IsNullOrWhiteSpace(serviceIds))
+        {
+            var cleaned = serviceIds.Trim().Trim('[', ']');
+            foreach (var part in cleaned.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (int.TryParse(part.Trim(), out var id) && id > 0 && !ids.Contains(id))
+                    ids.Add(id);
+            }
+        }
+
+        if (ids.Count == 0 && serviceID is > 0)
+            ids.Add(serviceID.Value);
+
+        return ids;
+    }
+
+    private static bool RequestedTimeFitsBeforeClose(
+        Appointment_SaaS.Core.Entities.Tenant tenant,
+        DateTime targetDate,
+        string requestedTime,
+        int durationMinutes)
+    {
+        if (!TimeSpan.TryParse(requestedTime, out var reqSpan))
+            return false;
+
+        var day = targetDate.Date;
+        int dayOfWeek = (int)day.DayOfWeek;
+        var businessHour = tenant.BusinessHours?.FirstOrDefault(b => b.DayOfWeek == dayOfWeek);
+        if (businessHour == null || businessHour.IsClosed)
+            return false;
+
+        var start = day.Add(reqSpan);
+        var end = start.AddMinutes(durationMinutes);
+        var startOfDay = day.Add(businessHour.OpenTime);
+        var endOfDay = day.Add(businessHour.CloseTime);
+        return start >= startOfDay && end <= endOfDay;
+    }
+
+    private static string? LatestLegalStart(
+        Appointment_SaaS.Core.Entities.Tenant tenant,
+        DateTime targetDate,
+        int durationMinutes)
+    {
+        if (durationMinutes <= 0)
+            return null;
+
+        var day = targetDate.Date;
+        int dayOfWeek = (int)day.DayOfWeek;
+        var businessHour = tenant.BusinessHours?.FirstOrDefault(b => b.DayOfWeek == dayOfWeek);
+        if (businessHour == null || businessHour.IsClosed)
+            return null;
+
+        var latest = day.Add(businessHour.CloseTime).AddMinutes(-durationMinutes);
+        if (latest.TimeOfDay < businessHour.OpenTime)
+            return null;
+
+        var now = BusinessClock.IstanbulNow;
+        if (day == now.Date && latest < now)
+            return null;
+
+        return latest.ToString("HH:mm");
     }
 
     // ─── Müşterinin Aktif Randevuları (WhatsApp / n8n) ───────────────────────
