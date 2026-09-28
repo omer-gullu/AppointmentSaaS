@@ -95,7 +95,7 @@
             document.getElementById('editGoogleEventId').value = btn.dataset.googleEventId || '';
             document.getElementById('editCustomerName').value = btn.dataset.customerName || '';
             document.getElementById('editCustomerPhone').value = btn.dataset.customerPhone || '';
-            document.getElementById('editServiceId').value = btn.dataset.serviceId || '';
+            setServiceCheckboxes('#editAppointmentModal', btn.dataset.serviceIds || btn.dataset.serviceId || '');
             document.getElementById('editAppUserIdSelect').value = btn.dataset.appUserId || '';
             document.getElementById('editAppointmentDate').value = btn.dataset.date || '';
             document.getElementById('editAppointmentTime').value = btn.dataset.time || '';
@@ -226,6 +226,43 @@
                 });
         };
 
+        function setServiceCheckboxes(scopeSelector, csv) {
+            var ids = (csv || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+            var list = document.querySelector(scopeSelector + ' .service-check-list');
+            if (!list) return;
+            list.querySelectorAll('input[name="serviceIds"]').forEach(function (cb) {
+                cb.checked = ids.indexOf(cb.value) !== -1;
+            });
+            updateServiceTotal(list);
+        }
+
+        function updateServiceTotal(list) {
+            if (!list) return;
+            var total = 0;
+            list.querySelectorAll('input[name="serviceIds"]:checked').forEach(function (cb) {
+                total += parseInt(cb.getAttribute('data-duration') || '0', 10) || 0;
+            });
+            var out = list.parentElement && list.parentElement.querySelector('.service-total-minutes');
+            if (!out) return;
+            out.textContent = total > 0
+                ? ('Toplam süre: ' + total + ' dk')
+                : 'Birden fazla hizmet seçebilirsiniz.';
+        }
+
+        document.querySelectorAll('.service-check-list').forEach(function (list) {
+            list.addEventListener('change', function () { updateServiceTotal(list); });
+            updateServiceTotal(list);
+        });
+
+        window.validateAppointmentServices = function (form) {
+            if (!form) return true;
+            if (form.querySelectorAll('input[name="serviceIds"]:checked').length === 0) {
+                withSwal(function (Swal) { Swal.fire('Hata!', 'Lütfen en az bir hizmet seçiniz.', 'warning'); });
+                return false;
+            }
+            return true;
+        };
+
         window.openEditAppointmentModal = function (id, customerName, customerPhone, serviceId, date, time, googleEventId, appUserId) {
             var modal = getEditModal();
             if (!modal) return;
@@ -233,7 +270,7 @@
             document.getElementById('editGoogleEventId').value = googleEventId || '';
             document.getElementById('editCustomerName').value = customerName;
             document.getElementById('editCustomerPhone').value = customerPhone;
-            document.getElementById('editServiceId').value = serviceId;
+            setServiceCheckboxes('#editAppointmentModal', String(serviceId || ''));
             document.getElementById('editAppUserIdSelect').value = appUserId || '';
             document.getElementById('editAppointmentDate').value = date;
             document.getElementById('editAppointmentTime').value = time;
@@ -241,6 +278,7 @@
         };
 
         window.validateCreateAppointment = function () {
+            var form = document.querySelector('#newAppointmentModal form');
             var name = document.getElementById('appCustomerName').value.trim();
             var phone = document.getElementById('appCustomerPhone').value.trim();
             var staffId = document.getElementById('appUserId').value;
@@ -258,7 +296,7 @@
                 withSwal(function (Swal) { Swal.fire('Hata!', 'Lütfen bir personel seçiniz.', 'warning'); });
                 return false;
             }
-            return true;
+            return validateAppointmentServices(form);
         };
 
         document.querySelectorAll('.delete-appointment-form').forEach(function (form) {

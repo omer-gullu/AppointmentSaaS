@@ -121,14 +121,21 @@ namespace Appointment_SaaS.WebUI.Controllers
         [HttpPost]
 [ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateAppointment(
-            string customerName, string customerPhone, int serviceId, DateTime date, string time, int? appUserId)
+            string customerName, string customerPhone, int? serviceId, int[]? serviceIds, DateTime date, string time, int? appUserId)
         {
             int tenantId = GetCurrentTenantId();
+            var ordered = NormalizePanelServiceIds(serviceId, serviceIds);
+            if (ordered.Count == 0)
+            {
+                TempData["Error"] = "En az bir hizmet seçilmelidir.";
+                return RedirectToAction("Index");
+            }
+
             var startDate = DateTime.Parse($"{date:yyyy-MM-dd}T{time}:00");
             customerName = ToTurkishTitleCase(customerName);
 
             var (success, msg, newAppointmentId, assignedAppUserId) = await _appointmentService.CreateAppointmentAsync(
-                tenantId, customerName, customerPhone, serviceId, startDate, appUserId);
+                tenantId, customerName, customerPhone, ordered[0], startDate, appUserId, ordered);
 
             if (success)
                 TempData["Success"] = "Randevu başarıyla eklendi.";
@@ -142,14 +149,21 @@ namespace Appointment_SaaS.WebUI.Controllers
 [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateAppointment(
             int appointmentId, string customerName, string customerPhone,
-            int serviceId, DateTime date, string time, string? googleEventId, int? appUserId)
+            int? serviceId, int[]? serviceIds, DateTime date, string time, string? googleEventId, int? appUserId)
         {
             int tenantId = GetCurrentTenantId();
+            var ordered = NormalizePanelServiceIds(serviceId, serviceIds);
+            if (ordered.Count == 0)
+            {
+                TempData["Error"] = "En az bir hizmet seçilmelidir.";
+                return RedirectToAction("Index");
+            }
+
             var startDate = DateTime.Parse($"{date:yyyy-MM-dd}T{time}:00");
             customerName = ToTurkishTitleCase(customerName);
 
             var (success, msg) = await _appointmentService.UpdateAppointmentAsync(
-                tenantId, appointmentId, customerName, customerPhone, serviceId, startDate, googleEventId, appUserId);
+                tenantId, appointmentId, customerName, customerPhone, ordered[0], startDate, googleEventId, appUserId, ordered);
 
             if (success)
                 TempData["Success"] = "Randevu başarıyla güncellendi.";
@@ -729,6 +743,24 @@ namespace Appointment_SaaS.WebUI.Controllers
             var (success, message) = await _blockedPhoneApiService.DeleteAsync(id);
             TempData[success ? "Success" : "Error"] = message;
             return RedirectToAction(nameof(BlockedPhones));
+        }
+
+        private static List<int> NormalizePanelServiceIds(int? serviceId, int[]? serviceIds)
+        {
+            var list = new List<int>();
+            if (serviceIds != null)
+            {
+                foreach (var id in serviceIds)
+                {
+                    if (id > 0 && !list.Contains(id))
+                        list.Add(id);
+                }
+            }
+
+            if (list.Count == 0 && serviceId is > 0)
+                list.Add(serviceId.Value);
+
+            return list;
         }
     }
 

@@ -886,30 +886,33 @@ public class AppointmentManager : IAppointmentService
             .ToListAsync();
         var booked = ToIstanbulWindows(appointments);
 
-        // Belirli bir saat istendiyse sadece onu kontrol et
+        // Belirli bir saat: ızgarada olması şart değil. Süre kapanışı aşarsa
+        // pencere kapanışa kısılır (n8n 30 gönderse bile 17:45–18:00 boşsa müsait).
         if (!string.IsNullOrEmpty(requestedTime) && TimeSpan.TryParse(requestedTime, out var reqSpan))
         {
             var requestedStart = date.Add(reqSpan);
+            if (requestedStart < startOfDay || requestedStart >= endOfDay)
+                return new List<string>();
+
             var requestedEnd = requestedStart.AddMinutes(durationMinutes);
+            if (requestedEnd > endOfDay)
+                requestedEnd = endOfDay;
+            if (requestedEnd <= requestedStart)
+                return new List<string>();
 
-            if (requestedStart >= startOfDay && requestedEnd <= endOfDay)
+            if (tenantBreak != null)
             {
-                if (tenantBreak != null)
-                {
-                    var resume = TenantBreakTimeHelper.GetResumeTimeAfterBreak(
-                        tenantBreak.BreakTimeEnabled, tenantBreak.BreakStartTime, tenantBreak.BreakEndTime,
-                        date, requestedStart, requestedEnd);
-                    if (resume != null)
-                        return new List<string>();
-                }
-
-                var hasConflict = booked.Any(a => a.Start < requestedEnd && a.End > requestedStart);
-                if (!hasConflict)
-                    return new List<string> { requestedStart.ToString("HH:mm") };
-                else
-                    return new List<string>(); // çakışma var, boş liste döner
+                var resume = TenantBreakTimeHelper.GetResumeTimeAfterBreak(
+                    tenantBreak.BreakTimeEnabled, tenantBreak.BreakStartTime, tenantBreak.BreakEndTime,
+                    date, requestedStart, requestedEnd);
+                if (resume != null)
+                    return new List<string>();
             }
-            return new List<string>(); // çalışma saati dışında
+
+            var hasConflict = booked.Any(a => a.Start < requestedEnd && a.End > requestedStart);
+            return hasConflict
+                ? new List<string>()
+                : new List<string> { requestedStart.ToString("HH:mm") };
         }
 
         var suggestions = new List<string>();

@@ -513,7 +513,7 @@ public class AppointmentsController : ControllerBase
       [FromQuery] string instanceName,
       [FromQuery] int staffId,
       [FromQuery] string date,
-      [FromQuery] int durationMinutes = 30,
+      [FromQuery] int? durationMinutes = null,
       [FromQuery] string? requestedTime = null,
       [FromQuery] int? serviceID = null,
       [FromQuery] string? serviceIds = null)
@@ -534,13 +534,17 @@ public class AppointmentsController : ControllerBase
             if (!DateOnly.TryParse(date, out var dateOnly))
                 return BadRequest(new { Message = "Geçersiz tarih formatı. YYYY-MM-DD kullanın." });
 
-            var resolvedDuration = ResolveSlotDurationMinutes(tenant, durationMinutes, serviceID, serviceIds);
+            var catalog = tenant.Services?.Select(s =>
+                new AppointmentSlotDuration.CatalogItem(s.ServiceID, s.DurationInMinutes));
+            var combinedServiceIds = CombineServiceIdsQuery(serviceIds);
+            var resolvedDuration = AppointmentSlotDuration.Resolve(
+                durationMinutes, serviceID, combinedServiceIds, catalog);
             if (resolvedDuration.Error != null)
                 return BadRequest(new { Message = resolvedDuration.Error });
-            durationMinutes = resolvedDuration.Minutes;
+            var slotMinutes = resolvedDuration.Minutes;
 
             var targetDate = dateOnly.ToDateTime(TimeOnly.MinValue);
-            var latestStart = LatestLegalStart(tenant, targetDate, durationMinutes);
+            var latestStart = LatestLegalStart(tenant, targetDate, slotMinutes);
 
             // 🔴 TATİL KONTROLÜ
             var holiday = TenantHolidayHelper.FindHolidayForAppointment(
@@ -553,7 +557,8 @@ public class AppointmentsController : ControllerBase
                     Date = targetDate.ToString("dd.MM.yyyy"),
                     IsHoliday = true,
                     Message = $"Bu gün {holiday.Name} nedeniyle kapalıdır.",
-                    DurationMinutes = durationMinutes,
+                    DurationMinutes = slotMinutes,
+                    DurationSource = resolvedDuration.Source,
                     LatestStart = (string?)null,
                     AvailableSlots = Array.Empty<object>()
                 });
@@ -561,17 +566,17 @@ public class AppointmentsController : ControllerBase
             if (staffId > 0)
             {
                 var slots = await _appointmentService.GetAvailableSlotsByStaffAsync(
-                    tenant.TenantID, staffId, targetDate, durationMinutes, count: 100, requestedTime: requestedTime);
+                    tenant.TenantID, staffId, targetDate, slotMinutes, count: 100, requestedTime: requestedTime);
                 if (!string.IsNullOrEmpty(requestedTime))
                 {
                     bool isAvailable = slots.Any();
-                    var fitsBeforeClose = RequestedTimeFitsBeforeClose(tenant, targetDate, requestedTime, durationMinutes);
-                    var isOccupied = !isAvailable && fitsBeforeClose;
+                    var canStart = RequestedTimeCanStart(tenant, targetDate, requestedTime);
+                    var isOccupied = !isAvailable && canStart;
                     string message;
                     if (isAvailable)
                         message = $"{requestedTime} saati müsait.";
-                    else if (!fitsBeforeClose)
-                        message = $"{requestedTime} saati dolu değil; {durationMinutes} dk bu saatte kapanıştan önce bitmiyor."
+                    else if (!canStart)
+                        message = $"{requestedTime} saati çalışma saatleri dışında."
                             + (string.IsNullOrEmpty(latestStart) ? "" : $" Son uygun başlangıç: {latestStart}.");
                     else
                         message = $"{requestedTime} saati dolu.";
@@ -583,19 +588,21 @@ public class AppointmentsController : ControllerBase
                         RequestedTime = requestedTime,
                         IsAvailable = isAvailable,
                         IsOccupied = isOccupied,
-                        FitsBeforeClose = fitsBeforeClose,
-                        DurationMinutes = durationMinutes,
+                        FitsBeforeClose = canStart,
+                        DurationMinutes = slotMinutes,
+                        DurationSource = resolvedDuration.Source,
                         LatestStart = latestStart,
                         Message = message,
                         NearestSlots = isAvailable ? slots : await _appointmentService.GetAvailableSlotsByStaffAsync(
-                            tenant.TenantID, staffId, targetDate, durationMinutes, count: 3)
+                            tenant.TenantID, staffId, targetDate, slotMinutes, count: 3)
                     });
                 }
                 return Ok(new
                 {
                     Date = targetDate.ToString("dd.MM.yyyy"),
                     StaffId = staffId,
-                    DurationMinutes = durationMinutes,
+                    DurationMinutes = slotMinutes,
+                    DurationSource = resolvedDuration.Source,
                     LatestStart = latestStart,
                     AvailableSlots = slots,
                     TotalSlots = slots.Count
@@ -603,11 +610,12 @@ public class AppointmentsController : ControllerBase
             }
 
             var allSlots = await _appointmentService.GetAvailableSlotsForAllStaffAsync(
-                tenant.TenantID, targetDate, durationMinutes, count: 100);
+                tenant.TenantID, targetDate, slotMinutes, count: 100);
             return Ok(new
             {
                 Date = targetDate.ToString("dd.MM.yyyy"),
-                DurationMinutes = durationMinutes,
+                DurationMinutes = slotMinutes,
+                DurationSource = resolvedDuration.Source,
                 LatestStart = latestStart,
                 Staff = allSlots
             });
@@ -619,57 +627,17 @@ public class AppointmentsController : ControllerBase
         }
     }
 
-    private static (int Minutes, string? Error) ResolveSlotDurationMinutes(
-        Appointment_SaaS.Core.Entities.Tenant tenant,
-        int durationMinutes,
-        int? serviceID,
-        string? serviceIds)
+    private string? CombineServiceIdsQuery(string? serviceIds)
     {
-        var ids = ParseSlotServiceIds(serviceID, serviceIds);
-        if (ids.Count == 0)
-            return (durationMinutes > 0 ? durationMinutes : 30, null);
-
-        if (tenant.Services == null || tenant.Services.Count == 0)
-            return (0, "Hizmet listesi yüklenemedi.");
-
-        var total = 0;
-        foreach (var id in ids)
-        {
-            var svc = tenant.Services.FirstOrDefault(s => s.ServiceID == id);
-            if (svc == null)
-                return (0, $"Hizmet bulunamadı veya bu işletmeye ait değil (ServiceID={id}).");
-            total += svc.DurationInMinutes;
-        }
-
-        return total > 0
-            ? (total, null)
-            : (0, "Seçilen hizmetlerin süresi geçersiz.");
+        if (Request.Query.TryGetValue("serviceIds", out var values) && values.Count > 1)
+            return string.Join(",", values.Where(v => !string.IsNullOrWhiteSpace(v)));
+        return serviceIds;
     }
 
-    private static List<int> ParseSlotServiceIds(int? serviceID, string? serviceIds)
-    {
-        var ids = new List<int>();
-        if (!string.IsNullOrWhiteSpace(serviceIds))
-        {
-            var cleaned = serviceIds.Trim().Trim('[', ']');
-            foreach (var part in cleaned.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
-            {
-                if (int.TryParse(part.Trim(), out var id) && id > 0 && !ids.Contains(id))
-                    ids.Add(id);
-            }
-        }
-
-        if (ids.Count == 0 && serviceID is > 0)
-            ids.Add(serviceID.Value);
-
-        return ids;
-    }
-
-    private static bool RequestedTimeFitsBeforeClose(
+    private static bool RequestedTimeCanStart(
         Appointment_SaaS.Core.Entities.Tenant tenant,
         DateTime targetDate,
-        string requestedTime,
-        int durationMinutes)
+        string requestedTime)
     {
         if (!TimeSpan.TryParse(requestedTime, out var reqSpan))
             return false;
@@ -681,10 +649,9 @@ public class AppointmentsController : ControllerBase
             return false;
 
         var start = day.Add(reqSpan);
-        var end = start.AddMinutes(durationMinutes);
         var startOfDay = day.Add(businessHour.OpenTime);
         var endOfDay = day.Add(businessHour.CloseTime);
-        return start >= startOfDay && end <= endOfDay;
+        return start >= startOfDay && start < endOfDay;
     }
 
     private static string? LatestLegalStart(

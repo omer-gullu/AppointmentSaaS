@@ -91,7 +91,7 @@ test.describe('Randevu — panel @destructive', () => {
 
     await page.locator('#appCustomerName').fill(customerName);
     await page.locator('#appCustomerPhone').fill(customerPhone);
-    await page.locator('#newAppointmentModal select[name="serviceId"]').selectOption(String(E2E_SERVICE_ID));
+    await page.locator(`#newAppointmentModal input[name="serviceIds"][value="${E2E_SERVICE_ID}"]`).check();
     await page.locator('#appUserId').selectOption(String(E2E_STAFF_ID));
     await page.locator('#newAppointmentModal input[name="date"]').fill(booking.slotDate);
     await page.locator('#newAppointmentModal input[name="time"]').fill(booking.slotTime);

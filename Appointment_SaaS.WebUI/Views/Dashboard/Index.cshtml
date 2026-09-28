@@ -1,5 +1,6 @@
 @model Appointment_SaaS.WebUI.Models.DashboardViewModel
 @using Appointment_SaaS.Core.Constants
+@using System.Collections.Generic
 @{
     Layout = "_Layout";
     ViewData["RequireBootstrapIcons"] = true;
@@ -510,11 +511,35 @@
                                                         }
                                                     }
                                                 }
-                                                <span class="badge bg-light text-dark border text-capitalize">@sName</span>
+                                                <span class="badge bg-light text-dark border text-capitalize appointment-service-badge">@sName</span>
                                             </td>
                                             <td>
-                                                <div class="fw-medium">@DateTime.Parse(item.GetProperty("startDate").ToString()).ToString("dd.MM.yyyy")</div>
-                                                <div class="text-muted" style="font-size:0.75rem;">@DateTime.Parse(item.GetProperty("startDate").ToString()).ToString("HH:mm")</div>
+                                                @{
+                                                    string dateText = "";
+                                                    string startText = "";
+                                                    string endText = "";
+                                                    try
+                                                    {
+                                                        var startAt = DateTime.Parse(item.GetProperty("startDate").ToString());
+                                                        dateText = startAt.ToString("dd.MM.yyyy");
+                                                        startText = startAt.ToString("HH:mm");
+                                                    }
+                                                    catch { }
+                                                    try
+                                                    {
+                                                        var appEl = (System.Text.Json.JsonElement)item;
+                                                        if (appEl.TryGetProperty("endDate", out var endProp)
+                                                            && endProp.ValueKind != System.Text.Json.JsonValueKind.Null
+                                                            && endProp.ValueKind != System.Text.Json.JsonValueKind.Undefined)
+                                                        {
+                                                            var endAt = DateTime.Parse(endProp.ToString());
+                                                            endText = endAt.ToString("HH:mm");
+                                                        }
+                                                    }
+                                                    catch { }
+                                                }
+                                                <div class="fw-medium">@dateText</div>
+                                                <div class="text-muted" style="font-size:0.75rem;">@(string.IsNullOrEmpty(endText) || endText == startText ? startText : $"{startText} – {endText}")</div>
                                             </td>
                                             <td>
                                                 @{
@@ -542,8 +567,29 @@
                                                 @{
                                                     string googleEventIdStr = "";
                                                     int appUserIdVal = 0;
+                                                    string serviceIdsCsv = "";
                                                     try { var _gev = item.GetProperty("googleEventID"); googleEventIdStr = _gev.ValueKind.ToString() == "Null" ? "" : (_gev.GetString() ?? ""); } catch { }
                                                     try { var _auid = item.GetProperty("appUserID"); appUserIdVal = _auid.ValueKind.ToString() == "Null" ? 0 : _auid.GetInt32(); } catch { }
+                                                    try
+                                                    {
+                                                        var appEl = (System.Text.Json.JsonElement)item;
+                                                        if (appEl.TryGetProperty("serviceIds", out var idsProp)
+                                                            && idsProp.ValueKind == System.Text.Json.JsonValueKind.Array)
+                                                        {
+                                                            var parts = new List<string>();
+                                                            foreach (var idEl in idsProp.EnumerateArray())
+                                                            {
+                                                                if (idEl.TryGetInt32(out var sid) && sid > 0)
+                                                                    parts.Add(sid.ToString());
+                                                            }
+                                                            serviceIdsCsv = string.Join(",", parts);
+                                                        }
+                                                    }
+                                                    catch { }
+                                                    if (string.IsNullOrWhiteSpace(serviceIdsCsv))
+                                                    {
+                                                        try { serviceIdsCsv = item.GetProperty("serviceID").GetInt32().ToString(); } catch { }
+                                                    }
                                                 }
                                                 <button type="button"
                                                         class="btn btn-icon-action btn-edit-appointment"
@@ -552,6 +598,7 @@
                                                         data-customer-name="@item.GetProperty("customerName").GetString()"
                                                         data-customer-phone="@item.GetProperty("customerPhone").GetString()"
                                                         data-service-id="@item.GetProperty("serviceID").GetInt32()"
+                                                        data-service-ids="@serviceIdsCsv"
                                                         data-date="@DateTime.Parse(item.GetProperty("startDate").ToString()).ToString("yyyy-MM-dd")"
                                                         data-time="@DateTime.Parse(item.GetProperty("startDate").ToString()).ToString("HH:mm")"
                                                         data-google-event-id="@googleEventIdStr"
@@ -615,7 +662,7 @@
                 <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <form asp-action="UpdateAppointment" asp-controller="Dashboard" method="post">
+                <form asp-action="UpdateAppointment" asp-controller="Dashboard" method="post" onsubmit="return validateAppointmentServices(this)">
                     @Html.AntiForgeryToken()
                     <input type="hidden" id="editAppointmentId" name="appointmentId" />
                     <input type="hidden" id="editGoogleEventId" name="googleEventId" />
@@ -629,15 +676,19 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label text-muted small fw-bold">HİZMET</label>
-                        <select id="editServiceId" name="serviceId" class="form-select bg-light border-0 py-2" required>
+                        <div class="service-check-list" id="editServiceIds">
                             @if (Model.Services != null)
                             {
                                 @foreach (var s in Model.Services)
                                 {
-                                    <option value="@s.GetProperty("serviceID")">@s.GetProperty("name") (@s.GetProperty("durationInMinutes") dk)</option>
+                                    <label class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="serviceIds" value="@s.GetProperty("serviceID")" data-duration="@s.GetProperty("durationInMinutes")">
+                                        <span class="form-check-label">@s.GetProperty("name") (@s.GetProperty("durationInMinutes") dk)</span>
+                                    </label>
                                 }
                             }
-                        </select>
+                        </div>
+                        <div class="service-total-hint service-total-minutes">Birden fazla hizmet seçebilirsiniz.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label text-muted small fw-bold">PERSONEL SEÇİMİ</label>
@@ -690,19 +741,23 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label text-muted small fw-bold">HİZMET</label>
-                        <select name="serviceId" class="form-select bg-light border-0 py-2" required>
+                        <div class="service-check-list" id="createServiceIds">
                             @if (Model.Services != null && Model.Services.Count > 0)
                             {
                                 @foreach (var s in Model.Services)
                                 {
-                                    <option value="@s.GetProperty("serviceID")">@s.GetProperty("name") (@s.GetProperty("durationInMinutes") dk)</option>
+                                    <label class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="serviceIds" value="@s.GetProperty("serviceID")" data-duration="@s.GetProperty("durationInMinutes")">
+                                        <span class="form-check-label">@s.GetProperty("name") (@s.GetProperty("durationInMinutes") dk)</span>
+                                    </label>
                                 }
                             }
                             else
                             {
-                                <option value="">Önce hizmet tanımlayın</option>
+                                <div class="text-muted small py-2">Önce hizmet tanımlayın</div>
                             }
-                        </select>
+                        </div>
+                        <div class="service-total-hint service-total-minutes">Birden fazla hizmet seçebilirsiniz.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label text-muted small fw-bold">PERSONEL SEÇİMİ</label>

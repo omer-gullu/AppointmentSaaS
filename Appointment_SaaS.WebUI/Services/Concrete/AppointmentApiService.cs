@@ -72,7 +72,7 @@ namespace Appointment_SaaS.WebUI.Services.Concrete
                     customerName,
                     customerPhone,
                     serviceID = ordered.Count > 0 ? ordered[0] : serviceId,
-                    serviceIds = ordered.Count > 1 ? ordered : null,
+                    serviceIds = ordered.Count > 0 ? ordered : null,
                     startDate,
                     businessPhone = businessPhoneOrInstance,
                     appUserID = appUserId
@@ -120,7 +120,7 @@ namespace Appointment_SaaS.WebUI.Services.Concrete
                     customerName,
                     customerPhone,
                     serviceID = ordered.Count > 0 ? ordered[0] : serviceId,
-                    serviceIds = ordered.Count > 1 ? ordered : null,
+                    serviceIds = ordered.Count > 0 ? ordered : null,
                     startDate,
                     businessPhone = instanceName,
                     note = (string?)null,

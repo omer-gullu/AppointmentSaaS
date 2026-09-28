@@ -311,7 +311,13 @@ test.describe('Randevu güncelle / sil — panel @destructive', () => {
     await row.locator('.btn-edit-appointment').click();
     await expect(page.locator('#editAppointmentModal')).toBeVisible();
 
-    await page.locator('#editServiceId').selectOption(String(alt!.serviceId));
+    const editModal = page.locator('#editAppointmentModal');
+    const checkedServices = editModal.locator('input[name="serviceIds"]:checked');
+    const checkedCount = await checkedServices.count();
+    for (let i = 0; i < checkedCount; i++) {
+      await editModal.locator('input[name="serviceIds"]:checked').first().uncheck();
+    }
+    await editModal.locator(`input[name="serviceIds"][value="${alt!.serviceId}"]`).check();
     await page.locator('#editAppUserIdSelect').selectOption(String(alt!.staffId));
     await page.locator('#editAppointmentDate').fill(isoToPanelDate(newIso));
     await page.locator('#editAppointmentTime').fill(isoToPanelTime(newIso));

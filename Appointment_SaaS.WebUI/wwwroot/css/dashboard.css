@@ -224,6 +224,32 @@ body.lean-dashboard main { padding: 0 !important; }
     font-weight: 600;
 }
 
+.dashboard-page .appointment-service-badge {
+    white-space: normal;
+    text-align: left;
+    line-height: 1.35;
+}
+
+.dashboard-page .service-check-list {
+    max-height: 180px;
+    overflow-y: auto;
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 0.45rem 0.85rem;
+}
+
+.dashboard-page .service-check-list .form-check {
+    margin-bottom: 0;
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+}
+
+.dashboard-page .service-total-hint {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-top: 0.4rem;
+}
+
 .integration-card {
     border-radius: 12px;
     border: 1.5px solid #eef0f6;
